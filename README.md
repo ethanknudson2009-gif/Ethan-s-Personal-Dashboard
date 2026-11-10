@@ -32,6 +32,7 @@ Everything below came from a planning session with Claude:
 | [04 – iPhone capture & AI plan](docs/04-iphone-capture-and-ai-plan.md) | One-button voice, Claude connector, "one app" plan |
 | [05 – Code & license rules](docs/05-code-and-license-rules.md) | How we use other projects (ideas only, no code) |
 | [06 – Roadmap](docs/06-roadmap.md) | Build phases and feature backlog |
+| [07 – Architecture](docs/07-architecture.md) | Folders, database, capture API, parser, Claude connector, PWA plan |
 
 A live, editable copy of the research is also kept as a Claude Doc: *Personal Dashboard — Best-of-the-Best Research Blueprint*.
 

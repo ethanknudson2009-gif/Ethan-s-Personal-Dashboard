@@ -69,6 +69,14 @@
 | 6 | Review-before-save for AI captures | Top apps do this because AI can misread dates |
 | 7 | Ideas only, no copied or paraphrased code | My rule (see doc 05) |
 | 8 | Social features come last (Phase 5) | Get the personal tool working first |
+| 9 | Email + password login, sign in once per device and stay signed in | Magic links open Safari, not the installed iPhone app |
+| 10 | No offline mode | I'm always online; offline sync isn't worth the work |
+| 11 | Simple calendar we build ourselves (Day/Week/Month) | I need the big picture and my week, not a complex calendar |
+| 12 | School is Mon–Thu; I study about 2 hours every weekday | Used for the schedule and the Cushion math |
+| 13 | Commit straight to `main` | Simple history for my teacher to read |
+| 14 | Official library docs are OK to read; other apps' code is not | Libraries need their manuals; rule in doc 05 unchanged |
+
+Decisions 9–14 were made on November 10, 2026, before writing [doc 07](07-architecture.md).
 
 ## Open questions to test early
 

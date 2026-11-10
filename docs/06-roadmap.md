@@ -6,11 +6,12 @@
 - [x] GitHub repo research (doc 03)
 - [x] iPhone capture and AI plan (doc 04)
 - [x] Code and license rules (doc 05)
+- [x] Architecture spec (doc 07)
 
 ## Phase 1: Foundation
 - [ ] Next.js + TypeScript + Tailwind project; deployed to Vercel
 - [ ] Supabase project; email login
-- [ ] Installable PWA (icon, full screen, works offline)
+- [ ] Installable PWA (icon, full screen). No offline mode (decided Nov 10, 2026)
 - [ ] "Today" home: Do Now / Up Next / Due Soon
 - [ ] Classes (including rotating / A-B schedules) and assignments (due date, time estimate, Cushion)
 - [ ] Calendar: Today / Week / Month; drag tasks onto it
