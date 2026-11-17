@@ -50,7 +50,7 @@ export function CalendarWeek({ days }: { days: WeekDay[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 md:grid md:grid-cols-7 md:gap-2">
+    <div className="flex flex-col gap-2 lg:grid lg:grid-cols-7 lg:gap-2">
       {days.map((day) => (
         <section
           key={day.date}
@@ -65,13 +65,13 @@ export function CalendarWeek({ days }: { days: WeekDay[] }) {
             moveTo(day.date);
           }}
           className={cx(
-            "flex flex-col gap-2 rounded-2xl border p-3 transition md:min-h-64",
+            "flex flex-col gap-2 rounded-2xl border p-3 transition lg:min-h-64",
             day.isToday ? "border-accent/50 bg-accent/5 shadow-glow" : "border-line bg-surface/80",
             day.isPast && !day.isToday && "opacity-60",
             overDate === day.date && "border-accent bg-accent/15",
           )}
         >
-          <header className="flex items-baseline gap-2 md:flex-col md:gap-0">
+          <header className="flex items-baseline gap-2 lg:flex-col lg:gap-0">
             <span className={cx("text-xs font-semibold tracking-[0.14em] uppercase", day.isToday ? "text-accent" : "text-muted")}>
               {day.weekday}
             </span>
@@ -79,9 +79,9 @@ export function CalendarWeek({ days }: { days: WeekDay[] }) {
           </header>
 
           {day.classes.length > 0 && (
-            <ul className="flex flex-wrap gap-1.5 md:flex-col">
+            <ul className="flex flex-wrap gap-1.5 lg:flex-col">
               {day.classes.map((c) => (
-                <li key={c.id} className="flex items-center gap-1.5 rounded-lg bg-raised/70 px-2 py-1 text-[11px] text-muted" title={formatTimeOfDay(c.starts_at)}>
+                <li key={c.id} className="flex min-w-0 items-center gap-1.5 overflow-hidden rounded-lg bg-raised/70 px-2 py-1 text-[11px] text-muted" title={formatTimeOfDay(c.starts_at)}>
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                   <span className="truncate">{c.name}</span>
                 </li>
@@ -105,7 +105,7 @@ export function CalendarWeek({ days }: { days: WeekDay[] }) {
                   }}
                   onClick={() => sheet.openEdit(t.edit)}
                   className={cx(
-                    "w-full cursor-grab rounded-xl border bg-raised px-2.5 py-2 text-left text-xs font-medium transition hover:border-accent/60 active:cursor-grabbing",
+                    "w-full cursor-grab overflow-hidden rounded-xl border bg-raised px-2.5 py-2 text-left text-xs font-medium break-words transition hover:border-accent/60 active:cursor-grabbing",
                     TONE_EDGE[t.tone],
                     dragId === t.id && "opacity-40",
                   )}

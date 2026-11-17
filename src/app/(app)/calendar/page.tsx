@@ -105,7 +105,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
         <MonthGrid focus={focus} today={today} byDay={byDay} classById={classById} hasClasses={(d) => classesOn(d).length > 0} href={href} />
       )}
 
-      <p className="hidden text-xs text-faint md:block">Tip: drag a task onto another day to move it.</p>
+      <p className="hidden text-xs text-faint lg:block">Tip: drag a task onto another day to move it.</p>
     </div>
   );
 }
