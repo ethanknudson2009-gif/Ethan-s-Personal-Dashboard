@@ -35,5 +35,9 @@ describe("format", () => {
   it("class-first titles", () => {
     expect(taskDisplayTitle('"What is Equal" Journal', "Speech")).toBe('Speech: "What is Equal" Journal');
     expect(taskDisplayTitle("Call mom", null)).toBe("Call mom");
+    // No "Speech: Speech - …" when the title already names the class.
+    expect(taskDisplayTitle("Speech - Joseph Smith Memorization", "Speech")).toBe("Speech: Joseph Smith Memorization");
+    expect(taskDisplayTitle("speech: outline", "Speech")).toBe("Speech: outline");
+    expect(taskDisplayTitle("Speechless essay", "Speech")).toBe("Speech: Speechless essay"); // whole words only
   });
 });

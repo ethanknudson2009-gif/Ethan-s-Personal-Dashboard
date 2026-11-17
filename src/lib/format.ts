@@ -53,5 +53,9 @@ export function daysUntil(dueAt: Date, now: Date, timeZone: string): number {
 
 /** "Speech: “What is Equal” Journal" — the class-first title format from doc 08. */
 export function taskDisplayTitle(title: string, className: string | null): string {
-  return className ? `${className}: ${title}` : title;
+  if (!className) return title;
+  // Don't repeat the class if the title already starts with it ("Speech - …").
+  const escaped = className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const rest = title.replace(new RegExp(`^\\s*${escaped}(?![\\p{L}\\p{N}])\\s*[-–—:|]?\\s*`, "iu"), "");
+  return `${className}: ${rest || title}`;
 }
