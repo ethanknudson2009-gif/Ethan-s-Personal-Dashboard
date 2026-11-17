@@ -19,8 +19,8 @@
 - [x] Inbox (review before save) + 7-day Trash (daily cleanup job in Supabase)
 
 ## Phase 2: Capture & Claude
-- [ ] `/api/capture` endpoint with a private token
-- [ ] "Log It" Apple Shortcut (Dictate → Ask Claude → POST), set up on the Lock Screen, Back Tap and Siri
+- [x] `/api/capture` endpoint with a private token (Settings → Connections)
+- [x] "Log It" Apple Shortcut guide: docs/setup/03-log-it-shortcut.md (Version A: Dictate → POST; Version B adds Ask Claude). *To do: Ethan builds it on his iPhone.*
 - [ ] MCP server + custom connector on claude.ai
 - [ ] Syllabus/PDF upload → extract → review-before-save screen
 - [ ] Web push: morning digest, tomorrow preview, due reminders, snooze, nag level per item
