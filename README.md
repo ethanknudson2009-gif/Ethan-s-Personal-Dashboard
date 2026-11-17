@@ -34,6 +34,7 @@ Everything below came from a planning session with Claude:
 | [06 – Roadmap](docs/06-roadmap.md) | Build phases and feature backlog |
 | [07 – Architecture](docs/07-architecture.md) | Folders, database, capture API, parser, Claude connector, PWA plan |
 | [08 – My schedule & UI wishes](docs/08-my-schedule-and-ui-wishes.md) | My classes, study time, and how I want it to look and feel |
+| [09 – Design direction](docs/09-design-direction.md) | Dark, clean, techy look; screens per life area; highlights and animations |
 
 A live, editable copy of the research is also kept as a Claude Doc: *Personal Dashboard — Best-of-the-Best Research Blueprint*.
 

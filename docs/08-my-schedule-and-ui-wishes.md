@@ -13,7 +13,9 @@ School is **Monday–Thursday**, the same every week (a *weekly* schedule, not A
 | Wednesday | College Algebra | Speech |
 | Thursday | AutoCAD | Church History |
 
-**Still needed from Ethan:** the actual start/end times for "morning" and "afternoon", the term's first and last day, and any no-school days (breaks, holidays).
+**Still needed from Ethan:** the actual start/end times for "morning" and "afternoon" (placeholders: 8:00–11:30 and 12:30–3:30, editable on the Classes page).
+
+**Days off:** Ethan doesn't need the dashboard to track breaks and holidays (decided Nov 17, 2026), so the Classes page doesn't show them. The database table and schedule logic still support them if that changes.
 
 **Nicknames the quick-add parser understands** (editable later on the Classes page):
 

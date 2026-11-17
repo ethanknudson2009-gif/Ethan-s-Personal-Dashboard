@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 
-const NAV = [{ href: "/today", label: "Today" }];
+const NAV = [
+  { href: "/today", label: "Today" },
+  { href: "/tasks", label: "Tasks" },
+  { href: "/classes", label: "Classes" },
+];
 
 /** Double-checks the login on the server (src/proxy.ts already redirects most visitors). */
 async function RequireUser({ children }: { children: React.ReactNode }) {
