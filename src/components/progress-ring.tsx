@@ -36,10 +36,16 @@ export function ProgressRing({ done, total, size = 92 }: { done: number; total: 
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-        <span className="font-display text-xl font-semibold">
-          {done}/{total}
-        </span>
-        <span className="mt-1 text-[10px] tracking-wider text-muted uppercase">done</span>
+        {total === 0 ? (
+          <span className="font-display text-2xl font-semibold text-accent">✓</span>
+        ) : (
+          <>
+            <span className="font-display text-xl font-semibold">
+              {done}/{total}
+            </span>
+            <span className="mt-1 text-[10px] tracking-wider text-muted uppercase">done</span>
+          </>
+        )}
       </div>
     </div>
   );

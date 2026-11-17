@@ -2,7 +2,7 @@
 
 A personal "life dashboard" web app, built with Claude for a class assignment. It brings school, fitness, food, money, habits, notes and my window-washing side business into **one place**, with friends and leaderboards. It works on a computer browser and installs on my iPhone like an app.
 
-> **Status:** Planning and research complete. No app code yet. Development starts in Phase 1 (see [Roadmap](docs/06-roadmap.md)).
+> **Status:** Live at https://ethan-s-personal-dashboard.vercel.app. Phase 1 (school dashboard) is done; Phase 2 (iPhone capture, reminders, Claude connector, voice) is mostly done. See the [Roadmap](docs/06-roadmap.md).
 
 ## The idea in one minute
 
@@ -35,6 +35,15 @@ Everything below came from a planning session with Claude:
 | [07 – Architecture](docs/07-architecture.md) | Folders, database, capture API, parser, Claude connector, PWA plan |
 | [08 – My schedule & UI wishes](docs/08-my-schedule-and-ui-wishes.md) | My classes, study time, and how I want it to look and feel |
 | [09 – Design direction](docs/09-design-direction.md) | Dark, clean, techy look; screens per life area; highlights and animations |
+
+### Setup guides (step by step)
+| Guide | What it does |
+|---|---|
+| [Setup 1 – Supabase & Vercel](docs/setup/01-supabase-and-vercel.md) | Database, login and hosting (done) |
+| [Setup 2 – Install on iPhone](docs/setup/02-install-on-iphone.md) | Home Screen app + turning on reminders |
+| [Setup 3 – Log It Shortcut](docs/setup/03-log-it-shortcut.md) | One button / "Hey Siri, Log It" |
+| [Setup 4 – Claude connector](docs/setup/04-claude-connector.md) | Let Claude read and add to the dashboard |
+| [Setup 5 – Talk to your dashboard](docs/setup/05-talk-to-your-dashboard.md) | Every voice option, fastest to most powerful |
 
 A live, editable copy of the research is also kept as a Claude Doc: *Personal Dashboard — Best-of-the-Best Research Blueprint*.
 
