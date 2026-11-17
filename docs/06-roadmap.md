@@ -12,10 +12,10 @@
 - [x] Next.js + TypeScript + Tailwind project; deployed to Vercel (https://ethan-s-personal-dashboard.vercel.app, auto-deploys from `main`)
 - [x] Supabase project; email login
 - [ ] Installable PWA (icon, full screen). No offline mode (decided Nov 10, 2026)
-- [ ] "Today" home: Do Now / Up Next / Due Soon
-- [ ] Classes (including rotating / A-B schedules) and assignments (due date, time estimate, Cushion)
+- [x] "Today" home: Needs doing, Do now, Classes today (with NOW), Coming up
+- [x] Classes (weekly schedule; rotating / A-B supported in the logic) and assignments (due date, repeats). Cushion math is built and tested but hidden: Ethan doesn't want to enter time estimates (Nov 17, 2026)
 - [ ] Calendar: Today / Week / Month; drag tasks onto it
-- [ ] Plain-English quick add ("bio lab due Fri 11:59pm")
+- [x] Plain-English quick add: one box + tappable class/day chips ("speech memorization due wed")
 - [ ] Inbox + 7-day Trash
 
 ## Phase 2: Capture & Claude
@@ -27,8 +27,8 @@
 
 ## Requested next (Nov 17, 2026, after Phase 1)
 - [ ] **The dashboard talks to me:** notifications on my iPhone (free web push, no phone number needed), e.g. the morning before something is due ("Bio lab due tomorrow, ~2 h left"). The dashboard can also *ask* me things ("which class is 'chem worksheet' for?") and I answer with a tap or a short reply in a Messages screen. Two-way texting is nice-to-have, not required.
-- [ ] **Design (docs 08 + 09):** dark techy theme, bottom-bar screens per area (Today, School, Gym, Finance, Life, Jobs) with a center "+", laptop shows more columns.
-- [ ] **Design details:** class-first task titles ("Speech: …"), unfinished items highlighted, a clean and satisfying check-off animation.
+- [x] **Design pass 1 (docs 08 + 09):** dark techy theme, bottom-bar screens per area (Today, School, Gym, Finance, Life, Jobs) with a center "+", laptop shows more columns.
+- [x] **Design details:** class-first task titles ("Speech: …"), unfinished items highlighted, a clean and satisfying check-off animation.
 - [ ] **Design gallery before the UI phase:** show me ~20 real, visual layout examples and ~20 color combinations (actual pictures, not descriptions) so I can pick a look.
 
 ## Phase 3: Body

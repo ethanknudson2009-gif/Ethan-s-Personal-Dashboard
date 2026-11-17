@@ -42,3 +42,8 @@ About **2 hours every weekday** (Mon–Fri). This is the default in the Cushion 
 - **Highlight what needs checking off:** unfinished tasks and reminders stand out until they're done.
 - **A really satisfying check-off animation:** clean, smooth, small and quick, never in the way.
 - **Before building the look:** show ~20 visual layout examples and ~20 color combinations as real pictures (see the roadmap).
+
+## Decisions from testing (Nov 17, 2026)
+- **Keep adding simple.** No due time, time estimate, priority or "X days after" fields. Quick add is one text box plus chips for class, day and repeat. (A time typed in the text, like "fri 3pm", is still kept.)
+- **Cushion is hidden** because it needs time estimates. The math stays in `src/lib/cushion` (tested) in case estimates come back later.
+- **Highlights instead of numbers:** overdue glows red, due today pulses teal, tomorrow is amber. The School tab shows a red badge with how many are due or overdue.
