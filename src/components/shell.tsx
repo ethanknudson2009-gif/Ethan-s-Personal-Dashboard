@@ -9,7 +9,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconInbox, IconPlus, IconSchool, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconInbox, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 
 const NAV = [
@@ -23,6 +23,7 @@ const NAV = [
 const MORE = [
   { href: "/inbox", label: "Inbox", Icon: IconInbox },
   { href: "/trash", label: "Trash", Icon: IconTrash },
+  { href: "/settings", label: "Settings", Icon: IconSettings },
 ];
 
 export function AppShell({ children, badges }: { children: ReactNode; badges: Record<string, number> }) {

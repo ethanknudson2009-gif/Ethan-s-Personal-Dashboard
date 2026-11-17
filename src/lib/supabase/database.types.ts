@@ -16,6 +16,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          last_used_at: string | null
+          name: string
+          revoked_at: string | null
+          scope: string
+          token_hash: string
+          token_hint: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          revoked_at?: string | null
+          scope: string
+          token_hash: string
+          token_hint: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          revoked_at?: string | null
+          scope?: string
+          token_hash?: string
+          token_hint?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       class_meetings: {
         Row: {
           class_id: string

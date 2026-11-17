@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatTimeOfDay, WEEKDAY_LONG, WEEKDAY_SHORT } from "@/lib/format";
 import { Button, Card, ColorDot, EmptyState, ErrorBanner, Field, Input, PageHeader, Select } from "@/components/ui";
 import { deleteClass, saveClass, saveTerm } from "./actions";
-import { signOut } from "@/app/login/actions";
+import Link from "next/link";
 
 type Meeting = { id: string; class_id: string; weekday: number | null; starts_at: string; ends_at: string };
 type ClassRow = {
@@ -128,11 +128,9 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
         </details>
       )}
 
-      <form action={signOut} className="md:hidden">
-        <Button type="submit" variant="ghost" className="w-full">
-          Sign out
-        </Button>
-      </form>
+      <Link href="/settings" className="self-center rounded-xl px-4 py-2 text-sm text-muted hover:text-ink md:hidden">
+        Settings · connections · sign out
+      </Link>
     </div>
   );
 }
