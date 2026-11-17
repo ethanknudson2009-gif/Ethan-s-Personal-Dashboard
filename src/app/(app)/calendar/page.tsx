@@ -1,0 +1,169 @@
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { loadSettings } from "@/lib/profile";
+import { monthGrid, monthTitle, safeDate, shiftMonth, weekDays } from "@/lib/calendar";
+import { formatLocalDate, WEEKDAY_SHORT } from "@/lib/format";
+import { addDays, compareLocalDates, fromLocal, toLocalDate, weekdayOf } from "@/lib/time";
+import { toTaskView, type TaskRecord } from "@/lib/tasks/view";
+import { cx, PageHeader } from "@/components/ui";
+import { AddButton } from "@/components/add-button";
+import { CalendarWeek, type WeekDay } from "@/components/calendar-week";
+import { loadSchedule } from "../schedule-data";
+
+/** Calendar: Week (default) and Month views of classes and what's due. */
+export default async function CalendarPage({ searchParams }: PageProps<"/calendar">) {
+  const params = await searchParams;
+  const view = params.view === "month" ? "month" : "week";
+
+  const supabase = await createClient();
+  const settings = await loadSettings(supabase);
+  const { timeZone } = settings;
+  const now = new Date();
+  const today = toLocalDate(now, timeZone);
+  const focus = safeDate(params.date, today);
+
+  // The days on screen, then everything due inside them.
+  const days = view === "week" ? weekDays(focus) : monthGrid(focus).map((d) => d.date);
+  const first = days[0];
+  const afterLast = addDays(days[days.length - 1], 1);
+
+  const [taskRes, classRes, classesOn] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id, title, class_id, due_at, due_has_time, status, repeat")
+      .is("deleted_at", null)
+      .gte("due_at", fromLocal(first, { hour: 0, minute: 0 }, timeZone).toISOString())
+      .lt("due_at", fromLocal(afterLast, { hour: 0, minute: 0 }, timeZone).toISOString())
+      .order("due_at"),
+    supabase.from("classes").select("id, name, color").is("deleted_at", null),
+    loadSchedule(),
+  ]);
+
+  const classById = new Map((classRes.data ?? []).map((c) => [c.id, c]));
+  const byDay = new Map<string, TaskRecord[]>();
+  for (const t of taskRes.data ?? []) {
+    const d = toLocalDate(new Date(t.due_at!), timeZone);
+    byDay.set(d, [...(byDay.get(d) ?? []), t]);
+  }
+  const view_ = (t: TaskRecord) => toTaskView(t, t.class_id ? (classById.get(t.class_id) ?? null) : null, now, timeZone);
+
+  const prev = view === "week" ? addDays(focus, -7) : shiftMonth(focus, -1);
+  const next = view === "week" ? addDays(focus, 7) : shiftMonth(focus, 1);
+  const title = view === "week" ? `Week of ${formatLocalDate(days[0]).split(", ")[1]}` : monthTitle(focus);
+  const href = (v: string, d: string) => `/calendar?view=${v}&date=${d}`;
+
+  return (
+    <div className="flex flex-col gap-5">
+      <PageHeader title={title} subtitle="Calendar">
+        <AddButton />
+      </PageHeader>
+
+      {/* Controls */}
+      <div className="flex items-center gap-2">
+        <div className="flex rounded-xl border border-line bg-surface p-1">
+          {(["week", "month"] as const).map((v) => (
+            <Link
+              key={v}
+              href={href(v, focus)}
+              className={cx(
+                "rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition",
+                view === v ? "bg-accent/15 text-accent shadow-glow" : "text-muted hover:text-ink",
+              )}
+            >
+              {v}
+            </Link>
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-1">
+          <Link href={href(view, prev)} aria-label="Previous" className="rounded-lg px-3 py-1.5 text-lg text-muted hover:bg-raised hover:text-ink">
+            ‹
+          </Link>
+          <Link href={href(view, today)} className="rounded-lg border border-line px-3 py-1.5 text-sm text-muted hover:text-ink">
+            Today
+          </Link>
+          <Link href={href(view, next)} aria-label="Next" className="rounded-lg px-3 py-1.5 text-lg text-muted hover:bg-raised hover:text-ink">
+            ›
+          </Link>
+        </div>
+      </div>
+
+      {view === "week" ? (
+        <CalendarWeek
+          days={days.map(
+            (d): WeekDay => ({
+              date: d,
+              weekday: WEEKDAY_SHORT[weekdayOf(d)],
+              dayNumber: Number(d.slice(8)),
+              isToday: d === today,
+              isPast: compareLocalDates(d, today) < 0,
+              classes: classesOn(d).map((c) => ({ id: c.id, name: c.name, color: c.color, starts_at: c.starts_at })),
+              tasks: (byDay.get(d) ?? []).map(view_),
+            }),
+          )}
+        />
+      ) : (
+        <MonthGrid focus={focus} today={today} byDay={byDay} classById={classById} hasClasses={(d) => classesOn(d).length > 0} href={href} />
+      )}
+
+      <p className="hidden text-xs text-faint md:block">Tip: drag a task onto another day to move it.</p>
+    </div>
+  );
+}
+
+function MonthGrid({
+  focus,
+  today,
+  byDay,
+  classById,
+  hasClasses,
+  href,
+}: {
+  focus: string;
+  today: string;
+  byDay: Map<string, TaskRecord[]>;
+  classById: Map<string, { color: string }>;
+  hasClasses: (d: string) => boolean;
+  href: (v: string, d: string) => string;
+}) {
+  return (
+    <div className="rounded-2xl border border-line bg-surface/80 p-2 shadow-card">
+      <div className="grid grid-cols-7 gap-1 pb-1 text-center text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <span key={d}>{d}</span>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {monthGrid(focus).map(({ date, inMonth }) => {
+          const tasks = byDay.get(date) ?? [];
+          const open = tasks.filter((t) => t.status !== "done");
+          const isToday = date === today;
+          return (
+            <Link
+              key={date}
+              href={href("week", date)}
+              className={cx(
+                "flex aspect-square flex-col rounded-xl border p-1.5 transition hover:border-accent/60 sm:aspect-[4/3]",
+                isToday ? "border-accent/60 bg-accent/10 shadow-glow" : "border-transparent bg-raised/50",
+                !inMonth && "opacity-30",
+              )}
+            >
+              <span className={cx("text-xs font-semibold", isToday ? "text-accent" : hasClasses(date) ? "text-ink" : "text-faint")}>
+                {Number(date.slice(8))}
+              </span>
+              <span className="mt-auto flex flex-wrap gap-0.5">
+                {open.slice(0, 4).map((t) => (
+                  <span
+                    key={t.id}
+                    className="h-1.5 w-1.5 rounded-full"
+                    style={{ backgroundColor: (t.class_id && classById.get(t.class_id)?.color) || "var(--color-accent)" }}
+                  />
+                ))}
+                {open.length > 4 && <span className="text-[9px] leading-none text-muted">+{open.length - 4}</span>}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

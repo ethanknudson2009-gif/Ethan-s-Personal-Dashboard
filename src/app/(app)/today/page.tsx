@@ -1,11 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
-import { classesOn, type ScheduleContext } from "@/lib/schedule";
 import { formatLocalDate, formatTimeOfDay, WEEKDAY_LONG } from "@/lib/format";
 import { toLocalDate, weekdayOf, zonedParts } from "@/lib/time";
 import { Card, ColorDot, cx, EmptyState, PageHeader } from "@/components/ui";
 import { TaskItem } from "@/components/task-item";
 import { AddButton } from "@/components/add-button";
 import { groupByDue, loadTaskData } from "../tasks/data";
+import { loadSchedule } from "../schedule-data";
 
 /**
  * Today: your classes today, what to do now (overdue + due today), and
@@ -18,7 +17,7 @@ export default async function TodayPage() {
   const nowParts = zonedParts(data.now, timeZone);
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
 
-  const todaysClasses = await loadTodaysClasses(today);
+  const todaysClasses = (await loadSchedule())(today);
   const buckets = groupByDue(data.open, data.now, timeZone);
   const doNow = [...(buckets.find((b) => b.key === "overdue")?.tasks ?? []), ...(buckets.find((b) => b.key === "today")?.tasks ?? [])];
   const comingUp = [...(buckets.find((b) => b.key === "tomorrow")?.tasks ?? []), ...(buckets.find((b) => b.key === "week")?.tasks ?? [])].slice(0, 6);
@@ -107,50 +106,4 @@ export default async function TodayPage() {
       )}
     </div>
   );
-}
-
-type TodayClass = { id: string; name: string; color: string; starts_at: string; ends_at: string };
-
-/** Classes meeting today, using the term's schedule (src/lib/schedule). */
-async function loadTodaysClasses(today: string): Promise<TodayClass[]> {
-  const supabase = await createClient();
-  const { data: term } = await supabase
-    .from("terms")
-    .select("id, starts_on, ends_on, schedules(kind, school_weekdays, day_labels, anchor_date, anchor_label), no_school_days(date)")
-    .order("starts_on", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!term?.schedules) return [];
-
-  const { data: rows } = await supabase
-    .from("class_meetings")
-    .select("id, weekday, day_label, starts_at, ends_at, classes!inner(id, name, color, deleted_at, archived)")
-    .is("classes.deleted_at", null)
-    .eq("classes.archived", false);
-
-  const s = term.schedules;
-  const ctx: ScheduleContext = {
-    term: { startsOn: term.starts_on, endsOn: term.ends_on },
-    schedule: {
-      kind: s.kind === "rotating" ? "rotating" : "weekly",
-      schoolWeekdays: s.school_weekdays,
-      dayLabels: s.day_labels,
-      anchorDate: s.anchor_date ?? term.starts_on,
-      anchorLabel: s.anchor_label ?? s.day_labels[0] ?? "",
-    },
-    noSchoolDays: (term.no_school_days ?? []).map((d) => d.date),
-  };
-
-  const meetings = (rows ?? []).map((r) => ({
-    classId: r.classes.id,
-    weekday: r.weekday,
-    dayLabel: r.day_label,
-    startsAt: r.starts_at,
-    endsAt: r.ends_at,
-    _row: r,
-  }));
-  return classesOn(today, ctx, meetings).map((m) => {
-    const r = (m as (typeof meetings)[number])._row;
-    return { id: r.id, name: r.classes.name, color: r.classes.color, starts_at: r.starts_at, ends_at: r.ends_at };
-  });
 }

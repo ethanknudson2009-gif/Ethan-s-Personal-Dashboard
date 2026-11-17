@@ -9,12 +9,13 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconClasses, IconPlus, IconSchool, IconSignOut, IconToday } from "@/components/icons";
+import { IconCalendar, IconClasses, IconPlus, IconSchool, IconSignOut, IconToday } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 
 const NAV = [
   { href: "/today", label: "Today", Icon: IconToday },
   { href: "/tasks", label: "School", Icon: IconSchool },
+  { href: "/calendar", label: "Calendar", Icon: IconCalendar },
   { href: "/classes", label: "Classes", Icon: IconClasses },
 ];
 
@@ -99,7 +100,7 @@ function TabLink({
   return (
     <Link
       href={href}
-      className={cx("relative flex w-16 flex-col items-center gap-0.5 py-1 text-[11px] font-medium transition", active ? "text-accent" : "text-muted")}
+      className={cx("relative flex w-14 flex-col items-center gap-0.5 py-1 text-[11px] font-medium transition", active ? "text-accent" : "text-muted")}
     >
       <Icon size={22} />
       {label}
