@@ -27,6 +27,7 @@
 
 ## Requested next (Nov 17, 2026, after Phase 1)
 - [ ] **The dashboard talks to me:** notifications on my iPhone (free web push, no phone number needed), e.g. the morning before something is due ("Bio lab due tomorrow, ~2 h left"). The dashboard can also *ask* me things ("which class is 'chem worksheet' for?") and I answer with a tap or a short reply in a Messages screen. Two-way texting is nice-to-have, not required.
+- [ ] **Design (see doc 08):** class-first task titles ("Speech: …"), unfinished items highlighted, a clean and satisfying check-off animation.
 - [ ] **Design gallery before the UI phase:** show me ~20 real, visual layout examples and ~20 color combinations (actual pictures, not descriptions) so I can pick a look.
 
 ## Phase 3: Body

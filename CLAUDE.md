@@ -8,6 +8,7 @@ You are helping **Ethan** (a student with an iPhone 13 and a Claude Pro plan) bu
 - `docs/05-code-and-license-rules.md`: **mandatory rules** (summary below)
 - `docs/04-iphone-capture-and-ai-plan.md`: voice capture + Claude connector design
 - `docs/07-architecture.md`: the technical blueprint (data model, APIs, parser, MCP, PWA)
+- `docs/08-my-schedule-and-ui-wishes.md`: Ethan's real classes and UI wishes
 - `docs/02-…` and `docs/03-…` are research. Use them for feature ideas only.
 
 ## Hard rules
