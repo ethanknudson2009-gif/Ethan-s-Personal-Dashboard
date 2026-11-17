@@ -25,6 +25,10 @@
 - [ ] Syllabus/PDF upload → extract → review-before-save screen
 - [ ] Web push: morning digest, tomorrow preview, due reminders, snooze, nag level per item
 
+## Requested next (Nov 17, 2026, after Phase 1)
+- [ ] **The dashboard talks to me:** notifications on my iPhone (free web push, no phone number needed), e.g. the morning before something is due ("Bio lab due tomorrow, ~2 h left"). The dashboard can also *ask* me things ("which class is 'chem worksheet' for?") and I answer with a tap or a short reply in a Messages screen. Two-way texting is nice-to-have, not required.
+- [ ] **Design gallery before the UI phase:** show me ~20 real, visual layout examples and ~20 color combinations (actual pictures, not descriptions) so I can pick a look.
+
 ## Phase 3: Body
 - [ ] Gym: plans, A/B/C rotations, weights filled in from last time, backup exercise, progress, recovery map (free-exercise-db data)
 - [ ] Calories: quick add, barcode lookup (Open Food Facts), photo logging through Claude, Meal What-If, adaptive goals

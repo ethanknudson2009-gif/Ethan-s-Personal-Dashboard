@@ -1,0 +1,4 @@
+# Keep line endings consistent (LF) on Windows, Mac and Vercel.
+* text=auto eol=lf
+*.ico binary
+*.png binary
