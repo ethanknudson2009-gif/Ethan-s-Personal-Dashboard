@@ -27,7 +27,7 @@ You can change both times in Settings. Tapping a notification opens the dashboar
 - It opens **full screen** from its own icon, with no Safari address bar, like a normal app.
 - The bottom bar works with your thumb: **Today · School · ＋ · Calendar · Classes**.
 - New code I push shows up automatically the next time you open it. There's nothing to update.
-- **Notifications** (coming in Phase 2) only work in the installed app, not in Safari. That's an Apple rule.
+- **Notifications** only work in the installed app, not in Safari. That's an Apple rule.
 
 ## Tips
 - Drag the icon into your **Dock** so it's always one tap away.

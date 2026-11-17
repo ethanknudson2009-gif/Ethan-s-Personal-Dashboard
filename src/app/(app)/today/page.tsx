@@ -5,7 +5,7 @@ import { TaskItem } from "@/components/task-item";
 import { AddButton } from "@/components/add-button";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { IconInbox } from "@/components/icons";
+import { IconInbox, IconSettings } from "@/components/icons";
 import { RemindersNudge } from "@/components/notifications-card";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
@@ -50,6 +50,9 @@ export default async function TodayPage() {
             </Link>
           ) : null}
           <AddButton />
+          <Link href="/settings" aria-label="Settings" className="rounded-xl border border-line bg-surface p-2 text-muted hover:text-ink md:hidden">
+            <IconSettings size={18} />
+          </Link>
         </div>
       </PageHeader>
 
