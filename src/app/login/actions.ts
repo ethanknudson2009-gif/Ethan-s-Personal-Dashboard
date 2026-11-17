@@ -13,7 +13,13 @@ export async function signIn(_prev: LoginState, formData: FormData): Promise<Log
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: "That email and password didn't match." };
+  if (error) {
+    if (error.code === "email_not_confirmed") {
+      return { error: "Your account isn't confirmed yet. Open the link in the confirmation email first." };
+    }
+    if (error.code === "invalid_credentials") return { error: "That email and password didn't match." };
+    return { error: `Couldn't sign in: ${error.message}` };
+  }
 
   redirect("/today");
 }
