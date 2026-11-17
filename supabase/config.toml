@@ -8,3 +8,12 @@ project_id = "ethan-s-personal-dashboard"
 # Where login emails (e.g. "confirm your account") send you back to.
 site_url = "https://ethan-s-personal-dashboard.vercel.app"
 additional_redirect_urls = ["http://localhost:3000"]
+# Ethan's account exists, so nobody else may create one (docs/07 §5).
+# Turn back on in Phase 5 (friends & groups).
+enable_signup = false
+
+[auth.email]
+# No "confirm your email" step. Supabase's free email allowance is only a
+# few emails per hour, and sign-ups are switched off after Ethan's account
+# exists, so confirmation adds nothing but a way to get stuck.
+enable_confirmations = false
