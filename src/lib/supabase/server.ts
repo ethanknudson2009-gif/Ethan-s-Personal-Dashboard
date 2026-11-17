@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "./database.types";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { supabaseEnv } from "./env";
 
 /**
@@ -9,8 +10,11 @@ import { supabaseEnv } from "./env";
  * logged-in user and Row Level Security applies.
  */
 export async function createClient() {
-  // Read cookies first: this tells Next.js the page is personal and must be
-  // rendered per request, not pre-built once at deploy time.
+  // Wait for a real request first. Personal data must never be pre-rendered,
+  // and the Supabase library reads the clock (Date.now), which Next.js only
+  // allows at request time. (Reading cookies alone isn't enough: partial
+  // prefetching can pre-render with cookies available.)
+  await connection();
   const cookieStore = await cookies();
   const { url, key } = supabaseEnv();
 
