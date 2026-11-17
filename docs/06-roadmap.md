@@ -23,10 +23,11 @@
 - [x] "Log It" Apple Shortcut guide: docs/setup/03-log-it-shortcut.md (Version A: Dictate → POST; Version B adds Ask Claude). *To do: Ethan builds it on his iPhone.*
 - [ ] MCP server + custom connector on claude.ai
 - [ ] Syllabus/PDF upload → extract → review-before-save screen
-- [ ] Web push: morning digest, tomorrow preview, due reminders, snooze, nag level per item
+- [x] Web push: morning summary, tomorrow preview, 1-hour-before reminders (Settings → Reminders; Supabase pg_cron every 15 min)
+- [ ] Snooze buttons on notifications and a "nag level" per item
 
 ## Requested next (Nov 17, 2026, after Phase 1)
-- [ ] **The dashboard talks to me:** notifications on my iPhone (free web push, no phone number needed), e.g. the morning before something is due ("Bio lab due tomorrow, ~2 h left"). The dashboard can also *ask* me things ("which class is 'chem worksheet' for?") and I answer with a tap or a short reply in a Messages screen. Two-way texting is nice-to-have, not required.
+- [x] **The dashboard talks to me (part 1: reminders done; asking me questions comes with the Claude connector):** notifications on my iPhone (free web push, no phone number needed), e.g. the morning before something is due ("Bio lab due tomorrow, ~2 h left"). The dashboard can also *ask* me things ("which class is 'chem worksheet' for?") and I answer with a tap or a short reply in a Messages screen. Two-way texting is nice-to-have, not required.
 - [x] **Design pass 1 (docs 08 + 09):** dark techy theme, bottom-bar screens per area (Today, School, Gym, Finance, Life, Jobs) with a center "+", laptop shows more columns.
 - [x] **Design details:** class-first task titles ("Speech: …"), unfinished items highlighted, a clean and satisfying check-off animation.
 - [ ] **Design gallery before the UI phase:** show me ~20 real, visual layout examples and ~20 color combinations (actual pictures, not descriptions) so I can pick a look.

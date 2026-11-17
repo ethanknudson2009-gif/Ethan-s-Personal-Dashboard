@@ -11,6 +11,18 @@ No App Store needed. This takes about one minute, and you only do it once.
 6. Find the new icon (the glowing teal diamond) on your Home Screen and open it.
 7. **Sign in once more inside the app.** The installed app keeps its own login, separate from Safari. After this it stays signed in.
 
+## Turn on reminders (right after installing)
+1. In the installed app, go to **Classes** → **Settings** (bottom of the page). On a laptop, use **Settings** in the sidebar.
+2. Under **Reminders**, tap **🔔 Turn on reminders**, then **Allow** when iPhone asks.
+3. Tap **Send me a test**. A notification saying "It works ✓" should appear within a few seconds.
+
+You'll then get:
+- **Morning summary** (7:00 AM): what's due today and tomorrow, anything overdue, and Inbox items to review.
+- **Tomorrow preview** (8:00 PM): what's due tomorrow.
+- **One hour before** anything that has an exact due time.
+
+You can change both times in Settings. Tapping a notification opens the dashboard.
+
 ## What you get
 - It opens **full screen** from its own icon, with no Safari address bar, like a normal app.
 - The bottom bar works with your thumb: **Today · School · ＋ · Calendar · Classes**.
