@@ -4,6 +4,7 @@ import { toLocalDate } from "@/lib/time";
 import { loadSettings } from "@/lib/profile";
 import { Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import { AutoSaveSwitches, CreateToken, RevokeToken } from "@/components/settings-controls";
+import { NotificationsCard } from "@/components/notifications-card";
 import { signOut } from "@/app/login/actions";
 
 /** Settings: connections for the iPhone Shortcut / Claude, and capture behavior. */
@@ -12,13 +13,19 @@ export default async function SettingsPage() {
   const [settings, { data: tokens }, { data: profile }] = await Promise.all([
     loadSettings(supabase),
     supabase.from("api_tokens").select("id, name, scope, token_hint, created_at, last_used_at").is("revoked_at", null).order("created_at"),
-    supabase.from("profiles").select("auto_save_types").maybeSingle(),
+    supabase.from("profiles").select("auto_save_types, notify_morning, notify_evening").maybeSingle(),
   ]);
   const day = (iso: string | null) => (iso ? formatLocalDate(toLocalDate(new Date(iso), settings.timeZone)) : "never");
 
   return (
     <div className="flex flex-col gap-5">
       <PageHeader title="Settings" />
+
+      <div id="reminders">
+        <Card title="Reminders">
+          <NotificationsCard morning={profile?.notify_morning ?? "07:00"} evening={profile?.notify_evening ?? "20:00"} />
+        </Card>
+      </div>
 
       <Card title="Connections">
         <p className="mb-3 text-sm text-muted">

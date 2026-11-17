@@ -6,6 +6,7 @@ import { AddButton } from "@/components/add-button";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { IconInbox } from "@/components/icons";
+import { RemindersNudge } from "@/components/notifications-card";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 
@@ -70,6 +71,8 @@ export default async function TodayPage() {
           </p>
         )}
       </section>
+
+      <RemindersNudge />
 
       <Card title="Do now">
         {doNow.length === 0 ? (

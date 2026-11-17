@@ -289,6 +289,30 @@ export type Database = {
           },
         ]
       }
+      notification_log: {
+        Row: {
+          id: string
+          kind: string
+          local_date: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          local_date: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          local_date?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           auto_save_types: string[]
@@ -296,6 +320,8 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          notify_evening: string
+          notify_morning: string
           study_end_time: string
           study_minutes: number[]
           timezone: string
@@ -308,6 +334,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          notify_evening?: string
+          notify_morning?: string
           study_end_time?: string
           study_minutes?: number[]
           timezone?: string
@@ -320,11 +348,46 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          notify_evening?: string
+          notify_morning?: string
           study_end_time?: string
           study_minutes?: number[]
           timezone?: string
           updated_at?: string
           xp_total?: number
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          device_label: string | null
+          endpoint: string
+          id: string
+          last_success_at: string | null
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          device_label?: string | null
+          endpoint: string
+          id?: string
+          last_success_at?: string | null
+          p256dh: string
+          user_id?: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          device_label?: string | null
+          endpoint?: string
+          id?: string
+          last_success_at?: string | null
+          p256dh?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -569,6 +632,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      notify_tick: { Args: never; Returns: undefined }
       purge_trash: { Args: never; Returns: undefined }
     }
     Enums: {
