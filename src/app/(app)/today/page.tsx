@@ -1,18 +1,21 @@
+import Link from "next/link";
 import { formatLocalDate, formatTimeOfDay, WEEKDAY_LONG } from "@/lib/format";
 import { toLocalDate, weekdayOf, zonedParts } from "@/lib/time";
-import { Card, ColorDot, cx, EmptyState, PageHeader } from "@/components/ui";
+import { createClient } from "@/lib/supabase/server";
+import { Card, ColorDot, cx, PageHeader } from "@/components/ui";
 import { TaskItem } from "@/components/task-item";
 import { AddButton } from "@/components/add-button";
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { IconInbox, IconSettings } from "@/components/icons";
 import { RemindersNudge } from "@/components/notifications-card";
+import { ProgressRing } from "@/components/progress-ring";
+import { QuickActions } from "@/components/quick-actions";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 
 /**
- * Today: your classes today, what to do now (overdue + due today), and
- * what's coming up. Built to answer "what needs doing?" at a glance.
+ * Today: one glance answers "what needs doing?" A hero card with today's
+ * progress ring and Talk/Type buttons, then Do now, today's classes, and
+ * what's coming up.
  */
 export default async function TodayPage() {
   const data = await loadTaskData();
@@ -21,32 +24,36 @@ export default async function TodayPage() {
   const nowParts = zonedParts(data.now, timeZone);
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
 
-  const todaysClasses = (await loadSchedule())(today);
-  const { count: inboxCount } = await (await createClient())
-    .from("inbox_items")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "pending")
-    .is("deleted_at", null);
+  const [classesOn, { count: inboxCount }] = await Promise.all([
+    loadSchedule(),
+    (await createClient()).from("inbox_items").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
+  ]);
+  const todaysClasses = classesOn(today);
+
   const buckets = groupByDue(data.open, data.now, timeZone);
-  const doNow = [...(buckets.find((b) => b.key === "overdue")?.tasks ?? []), ...(buckets.find((b) => b.key === "today")?.tasks ?? [])];
+  const overdue = buckets.find((b) => b.key === "overdue")?.tasks ?? [];
+  const doNow = [...overdue, ...(buckets.find((b) => b.key === "today")?.tasks ?? [])];
   const comingUp = [...(buckets.find((b) => b.key === "tomorrow")?.tasks ?? []), ...(buckets.find((b) => b.key === "week")?.tasks ?? [])].slice(0, 6);
+  const doneToday = data.recentlyDone.filter((t) => t.completed_at && toLocalDate(new Date(t.completed_at), timeZone) === today).length;
 
   const toMinutes = (t: string) => {
     const [h, m] = t.split(":").map(Number);
     return h * 60 + m;
   };
   const nextClass = todaysClasses.find((c) => toMinutes(c.ends_at) > nowMinutes);
+  const inClass = nextClass && toMinutes(nextClass.starts_at) <= nowMinutes;
+  const greeting = nowParts.hour < 12 ? "Good morning" : nowParts.hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stagger flex flex-col gap-5">
       <PageHeader title="Today" subtitle={`${WEEKDAY_LONG[weekdayOf(today)]} · ${formatLocalDate(today).split(", ")[1]}`}>
         <div className="flex items-center gap-2">
           {inboxCount ? (
             <Link
               href="/inbox"
-              className="flex items-center gap-1.5 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-sm font-semibold text-warn shadow-glow-warn md:hidden"
+              className="flex items-center gap-1.5 rounded-xl border border-warn/40 bg-warn/10 px-2.5 py-2 text-xs font-semibold whitespace-nowrap text-warn shadow-glow-warn md:hidden"
             >
-              <IconInbox size={16} /> {inboxCount} to review
+              <IconInbox size={15} /> {inboxCount} to review
             </Link>
           ) : null}
           <AddButton />
@@ -56,32 +63,46 @@ export default async function TodayPage() {
         </div>
       </PageHeader>
 
-      {/* Hero: the one number that matters right now */}
-      <section className="relative overflow-hidden rounded-3xl border border-accent/30 bg-gradient-to-br from-accent/20 via-electric/10 to-transparent p-5 shadow-glow">
-        <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">Needs doing</p>
-        <p className="font-display text-5xl font-semibold">{doNow.length}</p>
-        <p className="text-sm text-muted">
-          {doNow.length === 0
-            ? "Nothing due today. Nice."
-            : `${doNow.length === 1 ? "thing" : "things"} due today${buckets.some((b) => b.key === "overdue") ? " or overdue" : ""}`}
-        </p>
+      {/* Hero */}
+      <section className="hero rounded-3xl border border-accent/30 bg-surface/70 p-5 shadow-glow">
+        <div className="flex items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">{greeting}</p>
+            <p className="mt-1 font-display text-2xl leading-tight font-semibold text-balance">
+              {doNow.length === 0 ? "You're all caught up." : `${doNow.length} ${doNow.length === 1 ? "thing needs" : "things need"} you today`}
+            </p>
+            {overdue.length > 0 && <p className="mt-1 text-sm font-medium text-danger">{overdue.length} overdue</p>}
+          </div>
+          <ProgressRing done={doneToday} total={doneToday + doNow.length} />
+        </div>
+
         {nextClass && (
-          <p className="mt-3 flex items-center gap-2 text-sm">
+          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-line bg-bg/40 px-3 py-2 text-sm">
             <ColorDot color={nextClass.color} />
-            <span className="text-muted">{toMinutes(nextClass.starts_at) <= nowMinutes ? "In class now:" : "Next class:"}</span>
-            <span className="font-medium">{nextClass.name}</span>
-            <span className="text-faint">{formatTimeOfDay(nextClass.starts_at)}</span>
-          </p>
+            <span className="shrink-0 text-muted">{inClass ? "In class:" : "Next:"}</span>
+            <span className="min-w-0 truncate font-medium">{nextClass.name}</span>
+            <span className="ml-auto shrink-0 text-xs text-faint">{formatTimeOfDay(inClass ? nextClass.ends_at : nextClass.starts_at).replace(":00", "")}{inClass ? " end" : ""}</span>
+          </div>
         )}
+
+        <div className="mt-4">
+          <QuickActions />
+        </div>
       </section>
 
       <RemindersNudge />
 
       <Card title="Do now">
         {doNow.length === 0 ? (
-          <EmptyState>You&apos;re all caught up for today.</EmptyState>
+          <div className="relative flex flex-col items-center gap-1 overflow-hidden rounded-2xl border border-ok/30 bg-ok/5 px-4 py-6 text-center">
+            <span className="twinkle absolute top-3 left-6 text-ok">✦</span>
+            <span className="twinkle twinkle-2 absolute top-8 right-8 text-accent">✦</span>
+            <span className="twinkle twinkle-3 absolute bottom-3 left-1/3 text-electric">✦</span>
+            <p className="font-display text-lg font-semibold text-ok">All clear</p>
+            <p className="text-sm text-muted">Nothing due today. Enjoy it, or get ahead below.</p>
+          </div>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul className="rows flex flex-col gap-2">
             {doNow.map((t) => (
               <TaskItem key={t.id} task={data.view(t)} />
             ))}
@@ -91,7 +112,7 @@ export default async function TodayPage() {
 
       {todaysClasses.length > 0 && (
         <Card title="Classes today">
-          <ul className="flex flex-col gap-2">
+          <ul className="rows flex flex-col gap-2">
             {todaysClasses.map((c) => {
               const start = toMinutes(c.starts_at);
               const end = toMinutes(c.ends_at);
@@ -102,16 +123,16 @@ export default async function TodayPage() {
                   key={c.id}
                   className={cx(
                     "flex items-center gap-3 rounded-2xl border px-3 py-3",
-                    now ? "border-accent/50 bg-accent/10 shadow-glow" : "border-line bg-raised/70",
-                    past && "opacity-50",
+                    now ? "wash-accent border-accent/50 shadow-glow" : "border-line bg-raised/70",
+                    past && "opacity-45",
                   )}
                 >
                   <ColorDot color={c.color} />
-                  <span className="flex-1 font-medium">{c.name}</span>
-                  <span className="text-xs text-muted">
+                  <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
+                  <span className="shrink-0 text-[11px] whitespace-nowrap text-muted">
                     {formatTimeOfDay(c.starts_at)} – {formatTimeOfDay(c.ends_at)}
                   </span>
-                  {now && <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">NOW</span>}
+                  {now && <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold text-accent-ink">NOW</span>}
                 </li>
               );
             })}
@@ -121,7 +142,7 @@ export default async function TodayPage() {
 
       {comingUp.length > 0 && (
         <Card title="Coming up">
-          <ul className="flex flex-col gap-2">
+          <ul className="rows flex flex-col gap-2">
             {comingUp.map((t) => (
               <TaskItem key={t.id} task={data.view(t)} />
             ))}

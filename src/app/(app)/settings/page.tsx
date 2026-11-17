@@ -18,7 +18,7 @@ export default async function SettingsPage() {
   const day = (iso: string | null) => (iso ? formatLocalDate(toLocalDate(new Date(iso), settings.timeZone)) : "never");
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stagger flex flex-col gap-5">
       <PageHeader title="Settings" />
 
       <div id="reminders">

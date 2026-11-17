@@ -53,7 +53,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const href = (v: string, d: string) => `/calendar?view=${v}&date=${d}`;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stagger flex flex-col gap-5">
       <PageHeader title={title} subtitle="Calendar">
         <AddButton />
       </PageHeader>

@@ -26,12 +26,12 @@ export default async function TrashPage() {
   const rows = await loadTrash();
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stagger flex flex-col gap-5">
       <PageHeader title="Trash" subtitle="Kept for 7 days" />
       {rows.length === 0 ? (
         <EmptyState>Trash is empty.</EmptyState>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="rows flex flex-col gap-2">
           {rows.map((r) => (
             <li key={`${r.kind}-${r.id}`} className="flex items-center gap-3 rounded-2xl border border-line bg-raised/70 px-3 py-3">
               <div className="min-w-0 flex-1">

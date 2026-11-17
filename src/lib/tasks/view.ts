@@ -17,6 +17,7 @@ export type TaskRecord = {
   due_has_time: boolean;
   status: string;
   repeat: unknown;
+  completed_at?: string | null;
 };
 
 export type TaskView = {

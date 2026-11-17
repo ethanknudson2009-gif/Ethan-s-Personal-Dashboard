@@ -9,10 +9,10 @@ export const cx = (...classes: (string | false | null | undefined)[]) => classes
 
 export function PageHeader({ title, subtitle, children }: { title: string; subtitle?: string; children?: ReactNode }) {
   return (
-    <header className="mb-5 flex items-end justify-between gap-3">
-      <div>
+    <header className="mb-1 flex flex-wrap items-end justify-between gap-3">
+      <div className="min-w-0">
         {subtitle && <p className="text-xs font-medium tracking-[0.18em] text-accent uppercase">{subtitle}</p>}
-        <h1 className="font-display text-3xl font-semibold tracking-tight">{title}</h1>
+        <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight break-words sm:text-3xl">{title}</h1>
       </div>
       {children}
     </header>
@@ -21,7 +21,7 @@ export function PageHeader({ title, subtitle, children }: { title: string; subti
 
 export function Card({ title, action, children, className }: { title?: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx("rounded-2xl border border-line bg-surface/90 p-4 shadow-card backdrop-blur", className)}>
+    <section className={cx("rounded-3xl border border-line bg-surface/85 p-4 shadow-card backdrop-blur transition-colors hover:border-line/80 sm:p-5", className)}>
       {(title || action) && (
         <div className="mb-3 flex items-center justify-between">
           {title && <h2 className="text-xs font-semibold tracking-[0.16em] text-muted uppercase">{title}</h2>}

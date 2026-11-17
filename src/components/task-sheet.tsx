@@ -17,7 +17,8 @@ import { parse } from "@/lib/parser";
 import { addDays, toLocalDate, weekdayOf } from "@/lib/time";
 import { formatLocalDate, taskDisplayTitle, WEEKDAY_SHORT } from "@/lib/format";
 import { Button, Chip, ColorDot, cx, inputClass } from "@/components/ui";
-import { IconCalendar, IconClose, IconRepeat } from "@/components/icons";
+import { IconCalendar, IconClose, IconMic, IconRepeat } from "@/components/icons";
+import { useSpeech } from "@/lib/use-speech";
 
 export type SheetClass = { id: string; name: string; color: string; shortNames: string[] };
 
@@ -48,10 +49,12 @@ export type SheetPrefill = {
   inboxId?: string;
 };
 
-type SheetState = { mode: "closed" } | { mode: "new"; prefill?: SheetPrefill } | { mode: "edit"; task: EditableTask };
+type SheetState = { mode: "closed" } | { mode: "new"; prefill?: SheetPrefill; voice?: boolean } | { mode: "edit"; task: EditableTask };
 
 type SheetApi = {
   openNew: (prefill?: SheetPrefill) => void;
+  /** Open quick add and start listening right away (hold the + button). */
+  openVoice: () => void;
   openEdit: (task: EditableTask) => void;
   toast: (message: string) => void;
 };
@@ -79,6 +82,7 @@ export function TaskSheetProvider({
   const api = useMemo<SheetApi>(
     () => ({
       openNew: (prefill) => setState({ mode: "new", prefill }),
+      openVoice: () => setState({ mode: "new", voice: true }),
       openEdit: (task) => setState({ mode: "edit", task }),
       toast: (text) => setToastMsg({ text, key: Date.now() }),
     }),
@@ -138,6 +142,29 @@ function Sheet({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const speech = useSpeech((heard) => setText(heard));
+  const startVoice = speech.start;
+  // Opened with "hold +": listen right away (or point to keyboard dictation).
+  const wantsVoice = state.mode === "new" && Boolean(state.voice);
+  const [voiceTip, setVoiceTip] = useState(wantsVoice && !speech.supported);
+
+  function micPressed() {
+    if (speech.listening) return speech.stop();
+    if (!startVoice()) {
+      // No built-in recognizer here (common in iPhone home-screen apps):
+      // focus the box so the keyboard's own 🎤 dictation button is one tap away.
+      setVoiceTip(true);
+      inputRef.current?.focus();
+    }
+  }
+
+  useEffect(() => {
+    if (!wantsVoice) return;
+    if (speech.supported) startVoice();
+    else inputRef.current?.focus();
+    // Run once when the sheet opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Close on Escape.
   useEffect(() => {
@@ -240,16 +267,47 @@ function Sheet({
           }}
           className="flex flex-col gap-4"
         >
-          <input
-            ref={inputRef}
-            autoFocus
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={editing ? "Title" : "speech memorization due wed"}
-            className={cx(inputClass, "py-3 text-lg sm:text-base")}
-            enterKeyHint="done"
-            maxLength={200}
-          />
+          <div className="relative">
+            <input
+              ref={inputRef}
+              autoFocus={!wantsVoice}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={speech.listening ? "Listening…" : editing ? "Title" : "speech memorization due wed"}
+              className={cx(inputClass, "w-full py-3 pr-14 text-lg sm:text-base", speech.listening && "border-accent shadow-glow")}
+              enterKeyHint="done"
+              maxLength={200}
+            />
+            {!editing && (
+              <button
+                type="button"
+                onClick={micPressed}
+                aria-label={speech.listening ? "Stop listening" : "Speak instead of typing"}
+                className={cx(
+                  "absolute top-1/2 right-2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full transition active:scale-90",
+                  speech.listening ? "mic-live bg-accent text-accent-ink" : "bg-raised text-accent hover:bg-accent/15",
+                )}
+              >
+                <IconMic size={20} />
+              </button>
+            )}
+          </div>
+          {speech.listening && (
+            <div className="flex items-center gap-2 text-sm text-accent" aria-live="polite">
+              <span className="voice-bars" aria-hidden="true">
+                <i />
+                <i />
+                <i />
+                <i />
+              </span>
+              Listening… say it like “speech outline due thursday”
+            </div>
+          )}
+          {!speech.listening && (speech.error || voiceTip) && (
+            <p className="rounded-xl border border-electric/30 bg-electric/10 px-3 py-2 text-xs text-muted">
+              {speech.error ?? "Tap the 🎤 microphone on your keyboard and speak. It types for you."}
+            </p>
+          )}
 
           {/* Live preview of what will be saved */}
           {!editing && title && (

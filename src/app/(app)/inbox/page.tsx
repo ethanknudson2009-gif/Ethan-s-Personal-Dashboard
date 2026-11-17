@@ -43,7 +43,7 @@ export default async function InboxPage() {
   const clean = cards.filter((c) => c.saveable && c.problems.length === 0).length;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stagger flex flex-col gap-5">
       <PageHeader title="Inbox" subtitle="Review before saving">
         <ApproveAllButton count={clean} />
       </PageHeader>
@@ -52,7 +52,7 @@ export default async function InboxPage() {
           Inbox zero. Things you capture from your iPhone or Claude show up here for a quick check before they&apos;re saved.
         </EmptyState>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="rows flex flex-col gap-3">
           {cards.map((c) => (
             <InboxCard key={c.id} item={c} />
           ))}

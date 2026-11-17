@@ -6,10 +6,10 @@
  */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconInbox, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconInbox, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 
 const NAV = [
@@ -30,6 +30,41 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
   const pathname = usePathname();
   const sheet = useTaskSheet();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+  // Opening the app at /today?talk=1 (or ?add=1) jumps straight into quick add.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("talk") || params.has("add")) {
+      if (params.has("talk")) sheet.openVoice();
+      else sheet.openNew();
+      params.delete("talk");
+      params.delete("add");
+      const q = params.toString();
+      window.history.replaceState(null, "", `${window.location.pathname}${q ? `?${q}` : ""}`);
+    }
+  }, [sheet]);
+
+  // The center "+": tap to type, press and hold to talk.
+  const holdTimer = useRef<number | null>(null);
+  const held = useRef(false);
+  const plusHandlers = {
+    onPointerDown: () => {
+      held.current = false;
+      holdTimer.current = window.setTimeout(() => {
+        held.current = true;
+        navigator.vibrate?.(15);
+        sheet.openVoice();
+      }, 450);
+    },
+    onPointerUp: () => {
+      if (holdTimer.current) window.clearTimeout(holdTimer.current);
+      if (!held.current) sheet.openNew();
+    },
+    onPointerLeave: () => {
+      if (holdTimer.current) window.clearTimeout(holdTimer.current);
+    },
+    onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+  };
 
   return (
     <div className="flex min-h-dvh w-full">
@@ -99,11 +134,14 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
         ))}
         <button
           type="button"
-          onClick={() => sheet.openNew()}
-          aria-label="Add something"
-          className="-mt-8 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-ink shadow-glow transition active:scale-90"
+          {...plusHandlers}
+          aria-label="Add something (hold to talk)"
+          className="plus-orb relative -mt-8 flex h-14 w-14 touch-none items-center justify-center rounded-full bg-accent text-accent-ink shadow-glow transition select-none active:scale-90"
         >
           <IconPlus size={26} strokeWidth={2.4} />
+          <span className="absolute -right-0.5 -bottom-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-surface bg-electric text-white">
+            <IconMic size={11} strokeWidth={2.4} />
+          </span>
         </button>
         {NAV.slice(2).map((item) => (
           <TabLink key={item.href} {...item} active={isActive(item.href)} badge={badges[item.href]} />
@@ -123,7 +161,10 @@ function TabLink({
   return (
     <Link
       href={href}
-      className={cx("relative flex w-14 flex-col items-center gap-0.5 py-1 text-[11px] font-medium transition", active ? "text-accent" : "text-muted")}
+      className={cx(
+        "relative flex w-[60px] flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[10.5px] font-medium transition-all duration-300",
+        active ? "bg-accent/10 text-accent" : "text-muted active:scale-95",
+      )}
     >
       <Icon size={22} />
       {label}

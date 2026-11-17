@@ -55,7 +55,7 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
     }));
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stagger flex flex-col gap-5">
       <PageHeader title="Classes" subtitle={term?.name ?? "Your schedule"} />
       {typeof formError === "string" && <ErrorBanner message={formError} path="/classes" />}
 
@@ -67,7 +67,7 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
               {items.length === 0 ? (
                 <p className="text-xs text-faint">No classes</p>
               ) : (
-                <ul className="flex flex-col gap-2">
+                <ul className="rows flex flex-col gap-2">
                   {items.map(({ c, m }) => (
                     <li key={m.id} className="border-l-2 pl-2" style={{ borderColor: c.color }}>
                       <p className="text-sm leading-tight font-medium">{c.name}</p>
@@ -83,7 +83,7 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
 
       <Card title="Your classes">
         {sorted.length === 0 && <EmptyState>No classes yet. Add one below.</EmptyState>}
-        <ul className="flex flex-col gap-2">
+        <ul className="rows flex flex-col gap-2">
           {sorted.map((c) => (
             <ClassItem key={c.id} cls={c} meetings={meetingsByClass.get(c.id) ?? []} />
           ))}

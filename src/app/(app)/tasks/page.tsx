@@ -15,13 +15,13 @@ export default async function SchoolPage() {
     .reduce((n, b) => n + b.tasks.length, 0);
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="stagger flex flex-col gap-5">
       <PageHeader title="School" subtitle="Assignments & tasks">
         <AddButton />
       </PageHeader>
 
       {/* Summary card (reference image 1: one bold card up top) */}
-      <section className="relative overflow-hidden rounded-3xl border border-accent/30 bg-gradient-to-br from-accent/20 via-electric/10 to-transparent p-5 shadow-glow">
+      <section className="hero rounded-3xl border border-accent/30 bg-surface/70 p-5 shadow-glow">
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="text-xs font-medium tracking-[0.16em] text-accent uppercase">This week</p>
@@ -40,7 +40,7 @@ export default async function SchoolPage() {
       {buckets.length === 0 && <EmptyState>All clear. Tap + to add your next assignment.</EmptyState>}
       {buckets.map((b) => (
         <Card key={b.key} title={`${b.title} · ${b.tasks.length}`}>
-          <ul className="flex flex-col gap-2">
+          <ul className="rows flex flex-col gap-2">
             {b.tasks.map((t) => (
               <TaskItem key={t.id} task={data.view(t)} />
             ))}

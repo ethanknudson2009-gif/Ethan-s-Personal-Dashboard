@@ -16,8 +16,8 @@ import { IconRepeat } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 
 const TONE_STYLES: Record<TaskView["tone"], string> = {
-  overdue: "border-danger/50 shadow-glow-danger",
-  today: "border-accent/50 pulse-glow",
+  overdue: "wash-danger border-danger/50 shadow-glow-danger",
+  today: "wash-accent border-accent/50 pulse-glow",
   tomorrow: "border-warn/40 shadow-glow-warn",
   normal: "border-line",
   done: "border-line opacity-70",
@@ -93,12 +93,16 @@ export function TaskItem({ task }: { task: TaskView }) {
 
       {/* Text: tap to edit */}
       <button type="button" onClick={() => sheet.openEdit(task.edit)} className="min-w-0 flex-1 text-left">
-        <span className="flex items-center gap-2">
-          {task.classColor && <ColorDot color={task.classColor} />}
-          <span className={cx("title-strike truncate font-medium", showChecked && "title-strike-on")}>{task.displayTitle}</span>
+        <span className="flex items-start gap-2">
+          {task.classColor && (
+            <span className="mt-1.5">
+              <ColorDot color={task.classColor} />
+            </span>
+          )}
+          <span className={cx("title-strike line-clamp-2 leading-snug font-medium break-words", showChecked && "title-strike-on")}>{task.displayTitle}</span>
         </span>
         {(task.dueText || task.repeatText) && (
-          <span className="mt-0.5 flex items-center gap-3 text-xs">
+          <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
             {task.dueText && <span className={DUE_STYLES[task.tone]}>{task.dueText}</span>}
             {task.repeatText && (
               <span className="flex items-center gap-1 text-faint">
