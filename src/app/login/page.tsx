@@ -1,17 +1,22 @@
 "use client";
 
-import { useActionState } from "react";
-import { signIn, type LoginState } from "./actions";
+import { useActionState, useState } from "react";
+import { signIn, signUp, type LoginState } from "./actions";
 
 const initialState: LoginState = { error: null };
 
 export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(signIn, initialState);
+  const [mode, setMode] = useState<"in" | "up">("in");
+  const [inState, signInAction, signingIn] = useActionState(signIn, initialState);
+  const [upState, signUpAction, signingUp] = useActionState(signUp, initialState);
+  const creating = mode === "up";
+  const state = creating ? upState : inState;
+  const pending = creating ? signingUp : signingIn;
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center gap-6 p-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <form action={formAction} className="flex flex-col gap-3">
+    <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-6 p-6">
+      <h1 className="text-2xl font-semibold">{creating ? "Create your account" : "Dashboard"}</h1>
+      <form action={creating ? signUpAction : signInAction} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1 text-sm">
           Email
           <input
@@ -27,7 +32,8 @@ export default function LoginPage() {
           <input
             name="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete={creating ? "new-password" : "current-password"}
+            minLength={creating ? 8 : undefined}
             required
             className="rounded border border-gray-300 px-3 py-2 text-base"
           />
@@ -38,10 +44,16 @@ export default function LoginPage() {
           disabled={pending}
           className="rounded bg-black px-3 py-2 text-white disabled:opacity-50"
         >
-          {pending ? "Signing in…" : "Sign in"}
+          {pending ? "One moment…" : creating ? "Create account" : "Sign in"}
         </button>
       </form>
-      <p className="text-xs text-gray-500">You only need to do this once per device.</p>
+      <button
+        type="button"
+        onClick={() => setMode(creating ? "in" : "up")}
+        className="text-left text-xs text-gray-500 hover:underline"
+      >
+        {creating ? "Already have an account? Sign in" : "First time? Create an account"}
+      </button>
     </main>
   );
 }
