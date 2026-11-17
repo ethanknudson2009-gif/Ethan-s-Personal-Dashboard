@@ -14,7 +14,13 @@ async function handle(request: Request): Promise<Response> {
   if (!token || scopeOf(token) !== "mcp") {
     return Response.json({ error: "Missing or invalid connector token" }, { status: 401 });
   }
-  const owner = await captureStore(createAdminClient()).findTokenUser(await hashToken(token), "mcp");
+  let owner: { userId: string; tokenId: string } | null;
+  try {
+    owner = await captureStore(createAdminClient()).findTokenUser(await hashToken(token), "mcp");
+  } catch (error) {
+    console.error("mcp: token lookup failed", error);
+    return Response.json({ error: "Server problem checking the token" }, { status: 500 });
+  }
   if (!owner) return Response.json({ error: "That connector token isn't valid (revoked?)" }, { status: 401 });
 
   await createAdminClient().from("api_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", owner.tokenId);

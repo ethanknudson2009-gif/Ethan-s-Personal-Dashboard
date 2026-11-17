@@ -24,13 +24,15 @@ type Admin = ReturnType<typeof createAdminClient>;
 export function captureStore(db: Admin): CaptureStore {
   return {
     async findTokenUser(tokenHash, scope) {
-      const { data } = await db
+      const { data, error } = await db
         .from("api_tokens")
         .select("id, user_id")
         .eq("token_hash", tokenHash)
         .eq("scope", scope)
         .is("revoked_at", null)
         .maybeSingle();
+      // A database problem must not look like "wrong token": fail loudly instead.
+      if (error) throw new Error(`token lookup failed: ${error.message}`);
       return data ? { userId: data.user_id, tokenId: data.id } : null;
     },
 

@@ -27,7 +27,11 @@ export async function POST(request: Request) {
   const db = createAdminClient();
   const now = new Date();
 
-  const { data: subs } = await db.from("push_subscriptions").select("id, user_id, endpoint, p256dh, auth");
+  const { data: subs, error: subsError } = await db.from("push_subscriptions").select("id, user_id, endpoint, p256dh, auth");
+  if (subsError) {
+    console.error("tick: database error", subsError.message);
+    return Response.json({ ok: false, error: "database" }, { status: 500 });
+  }
   const byUser = new Map<string, NonNullable<typeof subs>>();
   for (const s of subs ?? []) byUser.set(s.user_id, [...(byUser.get(s.user_id) ?? []), s]);
 
