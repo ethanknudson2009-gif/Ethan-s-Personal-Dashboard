@@ -1,28 +1,33 @@
 /**
- * Shared building blocks for every screen.
- *
- * Styling is deliberately plain for Phase 1 (functionality first). In the
- * design phase we restyle THESE components and the whole app changes with
- * them: one place for buttons, inputs, cards and task rows.
+ * Shared building blocks for every screen, in the dark techy style from
+ * docs/09-design-direction.md. Restyle here and every page follows.
  */
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
-const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
+export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
 
-export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
+export function PageHeader({ title, subtitle, children }: { title: string; subtitle?: string; children?: ReactNode }) {
   return (
-    <div className="mb-4 flex items-center justify-between gap-3">
-      <h1 className="text-2xl font-semibold">{title}</h1>
+    <header className="mb-5 flex items-end justify-between gap-3">
+      <div>
+        {subtitle && <p className="text-xs font-medium tracking-[0.18em] text-accent uppercase">{subtitle}</p>}
+        <h1 className="font-display text-3xl font-semibold tracking-tight">{title}</h1>
+      </div>
       {children}
-    </div>
+    </header>
   );
 }
 
-export function Card({ title, children, className }: { title?: string; children: ReactNode; className?: string }) {
+export function Card({ title, action, children, className }: { title?: string; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx("rounded-lg border border-gray-200 p-4", className)}>
-      {title && <h2 className="mb-3 font-semibold">{title}</h2>}
+    <section className={cx("rounded-2xl border border-line bg-surface/90 p-4 shadow-card backdrop-blur", className)}>
+      {(title || action) && (
+        <div className="mb-3 flex items-center justify-between">
+          {title && <h2 className="text-xs font-semibold tracking-[0.16em] text-muted uppercase">{title}</h2>}
+          {action}
+        </div>
+      )}
       {children}
     </section>
   );
@@ -32,14 +37,18 @@ type ButtonProps = ComponentProps<"button"> & { variant?: "primary" | "secondary
 
 export function Button({ variant = "primary", className, ...props }: ButtonProps) {
   const styles = {
-    primary: "bg-black text-white hover:bg-gray-800",
-    secondary: "border border-gray-300 bg-white hover:bg-gray-50",
-    danger: "border border-red-300 bg-white text-red-700 hover:bg-red-50",
-    ghost: "text-gray-600 hover:bg-gray-100",
+    primary: "bg-accent text-accent-ink hover:brightness-110 shadow-glow",
+    secondary: "border border-line bg-raised text-ink hover:border-muted",
+    danger: "border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20",
+    ghost: "text-muted hover:text-ink hover:bg-raised",
   }[variant];
   return (
     <button
-      className={cx("rounded px-3 py-1.5 text-sm font-medium disabled:opacity-50", styles, className)}
+      className={cx(
+        "rounded-xl px-4 py-2 text-sm font-semibold transition active:scale-[0.97] disabled:opacity-40 disabled:shadow-none",
+        styles,
+        className,
+      )}
       {...props}
     />
   );
@@ -47,55 +56,75 @@ export function Button({ variant = "primary", className, ...props }: ButtonProps
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="text-gray-700">{label}</span>
+    <label className="flex flex-col gap-1.5 text-sm">
+      <span className="text-xs font-medium tracking-wide text-muted">{label}</span>
       {children}
-      {hint && <span className="text-xs text-gray-500">{hint}</span>}
+      {hint && <span className="text-xs text-faint">{hint}</span>}
     </label>
   );
 }
 
-const inputClass = "rounded border border-gray-300 px-2 py-1.5 text-base sm:text-sm";
+export const inputClass =
+  "rounded-xl border border-line bg-raised px-3 py-2.5 text-base text-ink placeholder:text-faint outline-none transition focus:border-accent/70 focus:shadow-glow sm:text-sm";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cx(inputClass, className)} {...props} />;
 }
 
 export function Select({ className, ...props }: ComponentProps<"select">) {
-  return <select className={cx(inputClass, "bg-white", className)} {...props} />;
+  return <select className={cx(inputClass, className)} {...props} />;
 }
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return <textarea className={cx(inputClass, className)} {...props} />;
 }
 
-/** A small colored dot for a class. */
+/** A small glowing dot in a class's color. */
 export function ColorDot({ color }: { color: string }) {
-  return <span className="inline-block h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: color }} />;
+  return (
+    <span
+      className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+      style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}` }}
+    />
+  );
 }
 
-/** Colored label for a Cushion result: ahead / tight / behind. */
-export function CushionBadge({ label, text }: { label: "ahead" | "tight" | "behind"; text: string }) {
-  const styles = {
-    ahead: "bg-green-50 text-green-800 border-green-200",
-    tight: "bg-yellow-50 text-yellow-800 border-yellow-200",
-    behind: "bg-red-50 text-red-800 border-red-200",
-  }[label];
-  return <span className={cx("rounded border px-1.5 py-0.5 text-xs whitespace-nowrap", styles)}>{text}</span>;
+/** Tappable pill, e.g. a class or "Tomorrow" in quick add. */
+export function Chip({
+  active,
+  color,
+  className,
+  children,
+  ...props
+}: ComponentProps<"button"> & { active?: boolean; color?: string }) {
+  return (
+    <button
+      type="button"
+      className={cx(
+        "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition active:scale-95",
+        active ? "border-accent bg-accent/15 text-ink shadow-glow" : "border-line bg-raised text-muted hover:text-ink",
+        className,
+      )}
+      {...props}
+    >
+      {color && <ColorDot color={color} />}
+      {children}
+    </button>
+  );
 }
 
 export function EmptyState({ children }: { children: ReactNode }) {
-  return <p className="rounded border border-dashed border-gray-300 p-4 text-sm text-gray-500">{children}</p>;
+  return <p className="rounded-2xl border border-dashed border-line p-5 text-center text-sm text-muted">{children}</p>;
 }
 
 export function ErrorText({ children }: { children: ReactNode }) {
-  return <p className="text-sm text-red-600">{children}</p>;
+  return <p className="text-sm text-danger">{children}</p>;
 }
 
 /** A form error passed back in the address (?error=…). "Dismiss" clears it. */
 export function ErrorBanner({ message, path }: { message: string; path: string }) {
   return (
-    <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+    <div role="alert" className="mb-4 flex items-start justify-between gap-3 rounded-2xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
       <span>{message}</span>
       <Link href={path} className="shrink-0 underline">
         Dismiss

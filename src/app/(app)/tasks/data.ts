@@ -1,28 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
-import { cushion, type CushionResult, type StudySettings } from "@/lib/cushion";
 import { daysUntil } from "@/lib/format";
-import type { ClassOption, TaskRowData } from "@/components/tasks";
+import { toTaskView, type TaskRecord, type TaskView } from "@/lib/tasks/view";
+import type { StudySettings } from "@/lib/cushion";
 
-const TASK_COLUMNS =
-  "id, title, kind, class_id, notes, due_at, due_has_time, estimate_minutes, minutes_done, priority, status, repeat, completed_at";
+const TASK_COLUMNS = "id, title, class_id, due_at, due_has_time, status, repeat, completed_at";
+
+export type ClassInfo = { id: string; name: string; color: string };
 
 export type TaskData = {
-  open: TaskRowData[];
-  recentlyDone: TaskRowData[];
-  classes: ClassOption[];
-  classById: Map<string, ClassOption>;
-  cushions: Map<string, CushionResult>;
+  open: TaskRecord[];
+  recentlyDone: TaskRecord[];
+  classById: Map<string, ClassInfo>;
   settings: StudySettings;
   now: Date;
+  view: (t: TaskRecord) => TaskView;
 };
 
-/** Does this task use study time? (School work, or anything with an estimate.) */
-export function countsForCushion(t: TaskRowData): boolean {
-  return t.due_at !== null && (t.class_id !== null || t.kind !== "task" || t.estimate_minutes !== null);
-}
-
-/** Everything the Tasks and Today pages need, loaded in parallel. */
+/** Everything the Today and School pages need, loaded in parallel. */
 export async function loadTaskData(): Promise<TaskData> {
   const supabase = await createClient();
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
@@ -42,46 +37,33 @@ export async function loadTaskData(): Promise<TaskData> {
       .is("deleted_at", null)
       .gte("completed_at", weekAgo)
       .order("completed_at", { ascending: false })
-      .limit(30),
-    supabase.from("classes").select("id, name, color").is("deleted_at", null).eq("archived", false).order("name"),
+      .limit(20),
+    supabase.from("classes").select("id, name, color").is("deleted_at", null).eq("archived", false),
   ]);
 
   const now = new Date();
-  const open = (openRes.data ?? []) as TaskRowData[];
-  const classes = classRes.data ?? [];
-  const cushions = cushion(
-    open.filter(countsForCushion).map((t) => ({
-      id: t.id,
-      dueAt: new Date(t.due_at!),
-      estimateMinutes: t.estimate_minutes,
-      minutesDone: t.minutes_done,
-    })),
-    settings,
-    now,
-  );
-
+  const classById = new Map((classRes.data ?? []).map((c) => [c.id, c]));
   return {
-    open,
-    recentlyDone: (doneRes.data ?? []) as TaskRowData[],
-    classes,
-    classById: new Map(classes.map((c) => [c.id, c])),
-    cushions,
+    open: openRes.data ?? [],
+    recentlyDone: doneRes.data ?? [],
+    classById,
     settings,
     now,
+    view: (t) => toTaskView(t, t.class_id ? (classById.get(t.class_id) ?? null) : null, now, settings.timeZone),
   };
 }
 
-export type Bucket = { key: string; title: string; tasks: TaskRowData[] };
+export type Bucket = { key: string; title: string; tasks: TaskRecord[] };
 
 /** Groups open tasks: Overdue, Today, Tomorrow, This week, Later, No due date. */
-export function groupByDue(tasks: TaskRowData[], now: Date, timeZone: string): Bucket[] {
+export function groupByDue(tasks: TaskRecord[], now: Date, timeZone: string): Bucket[] {
   const buckets: Bucket[] = [
     { key: "overdue", title: "Overdue", tasks: [] },
     { key: "today", title: "Today", tasks: [] },
     { key: "tomorrow", title: "Tomorrow", tasks: [] },
-    { key: "week", title: "Next 7 days", tasks: [] },
+    { key: "week", title: "This week", tasks: [] },
     { key: "later", title: "Later", tasks: [] },
-    { key: "none", title: "No due date", tasks: [] },
+    { key: "none", title: "Someday", tasks: [] },
   ];
   const get = (key: string) => buckets.find((b) => b.key === key)!;
   for (const t of tasks) {
@@ -91,11 +73,16 @@ export function groupByDue(tasks: TaskRowData[], now: Date, timeZone: string): B
     }
     const due = new Date(t.due_at);
     const days = daysUntil(due, now, timeZone);
-    if (due.getTime() < now.getTime() && days < 0) get("overdue").tasks.push(t);
-    else if (days <= 0) get(due.getTime() < now.getTime() ? "overdue" : "today").tasks.push(t);
+    if (due.getTime() < now.getTime()) get("overdue").tasks.push(t);
+    else if (days <= 0) get("today").tasks.push(t);
     else if (days === 1) get("tomorrow").tasks.push(t);
     else if (days <= 7) get("week").tasks.push(t);
     else get("later").tasks.push(t);
   }
   return buckets.filter((b) => b.tasks.length > 0);
+}
+
+/** Number of things that need attention now: overdue + due today. */
+export function attentionCount(tasks: TaskRecord[], now: Date, timeZone: string): number {
+  return tasks.filter((t) => t.due_at && daysUntil(new Date(t.due_at), now, timeZone) <= 0).length;
 }

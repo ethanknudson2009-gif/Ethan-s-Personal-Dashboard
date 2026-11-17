@@ -1,49 +1,52 @@
-import Link from "next/link";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signOut } from "@/app/login/actions";
+import { loadSettings } from "@/lib/profile";
+import { daysUntil } from "@/lib/format";
+import { AppShell } from "@/components/shell";
+import { TaskSheetProvider } from "@/components/task-sheet";
 
-const NAV = [
-  { href: "/today", label: "Today" },
-  { href: "/tasks", label: "Tasks" },
-  { href: "/classes", label: "Classes" },
-];
-
-/** Double-checks the login on the server (src/proxy.ts already redirects most visitors). */
-async function RequireUser({ children }: { children: React.ReactNode }) {
+/**
+ * Wraps every page that needs a login: checks you're signed in, loads what
+ * the shell needs (your classes for quick add, a count of things due), and
+ * draws the bottom bar / sidebar.
+ */
+async function AuthedShell({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
-  return children;
+
+  const [settings, classRes, dueRes] = await Promise.all([
+    loadSettings(supabase),
+    supabase.from("classes").select("id, name, color, short_names").is("deleted_at", null).eq("archived", false),
+    supabase.from("tasks").select("due_at").eq("status", "open").is("deleted_at", null).not("due_at", "is", null),
+  ]);
+
+  const now = new Date();
+  const needsAttention = (dueRes.data ?? []).filter((t) => daysUntil(new Date(t.due_at!), now, settings.timeZone) <= 0).length;
+  const classes = (classRes.data ?? []).map((c) => ({ id: c.id, name: c.name, color: c.color, shortNames: c.short_names }));
+
+  return (
+    <TaskSheetProvider classes={classes} timeZone={settings.timeZone}>
+      <AppShell badges={{ "/tasks": needsAttention }}>{children}</AppShell>
+    </TaskSheetProvider>
+  );
 }
 
-/** Wraps every page that needs a login. */
+function ShellLoading() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center">
+      <span className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-accent" aria-label="Loading" />
+    </div>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col">
-      <header className="flex items-center gap-4 border-b border-gray-200 px-4 py-3">
-        <nav className="flex flex-1 gap-4">
-          {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="font-medium hover:underline">
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-        <form action={signOut}>
-          <button type="submit" className="text-sm text-gray-500 hover:underline">
-            Sign out
-          </button>
-        </form>
-      </header>
-      <main className="flex-1 p-4">
-        {/* Pages read your login cookie, so they load inside a Suspense boundary. */}
-        <Suspense fallback={<p className="text-gray-500">Loading…</p>}>
-          <RequireUser>{children}</RequireUser>
-        </Suspense>
-      </main>
-    </div>
+    <Suspense fallback={<ShellLoading />}>
+      <AuthedShell>{children}</AuthedShell>
+    </Suspense>
   );
 }

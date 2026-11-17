@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatTimeOfDay, WEEKDAY_LONG, WEEKDAY_SHORT } from "@/lib/format";
 import { Button, Card, ColorDot, EmptyState, ErrorBanner, Field, Input, PageHeader, Select } from "@/components/ui";
 import { deleteClass, saveClass, saveTerm } from "./actions";
+import { signOut } from "@/app/login/actions";
 
 type Meeting = { id: string; class_id: string; weekday: number | null; starts_at: string; ends_at: string };
 type ClassRow = {
@@ -42,14 +43,63 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
   // Show classes in the order they meet during the week.
   const sorted = [...(classes ?? [])].sort((a, b) => firstMeetingKey(meetingsByClass.get(a.id)) - firstMeetingKey(meetingsByClass.get(b.id)));
 
+  // Week at a glance: each school day with its classes in time order.
+  const week = schoolWeekdays
+    .slice()
+    .sort((a, b) => a - b)
+    .map((wd) => ({
+      wd,
+      items: sorted
+        .flatMap((c) => (meetingsByClass.get(c.id) ?? []).filter((m) => m.weekday === wd).map((m) => ({ c, m })))
+        .sort((a, b) => a.m.starts_at.localeCompare(b.m.starts_at)),
+    }));
+
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader title="Classes" />
+    <div className="flex flex-col gap-5">
+      <PageHeader title="Classes" subtitle={term?.name ?? "Your schedule"} />
       {typeof formError === "string" && <ErrorBanner message={formError} path="/classes" />}
 
-      {term ? (
-        <Card title="Term">
-          <form action={saveTerm} className="grid gap-3 sm:grid-cols-3">
+      <Card title="Week at a glance">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {week.map(({ wd, items }) => (
+            <div key={wd} className="rounded-2xl border border-line bg-raised/70 p-3">
+              <p className="mb-2 text-xs font-semibold tracking-[0.14em] text-muted uppercase">{WEEKDAY_SHORT[wd]}</p>
+              {items.length === 0 ? (
+                <p className="text-xs text-faint">No classes</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {items.map(({ c, m }) => (
+                    <li key={m.id} className="border-l-2 pl-2" style={{ borderColor: c.color }}>
+                      <p className="text-sm leading-tight font-medium">{c.name}</p>
+                      <p className="text-[11px] text-faint">{formatTimeOfDay(m.starts_at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card title="Your classes">
+        {sorted.length === 0 && <EmptyState>No classes yet. Add one below.</EmptyState>}
+        <ul className="flex flex-col gap-2">
+          {sorted.map((c) => (
+            <ClassItem key={c.id} cls={c} meetings={meetingsByClass.get(c.id) ?? []} />
+          ))}
+        </ul>
+        <details className="mt-3">
+          <summary className="cursor-pointer text-sm font-medium text-accent">+ Add a class</summary>
+          <div className="mt-3">
+            <ClassForm termId={term?.id ?? ""} meetings={[]} />
+          </div>
+        </details>
+      </Card>
+
+      {term && (
+        <details className="rounded-2xl border border-line bg-surface/60 p-4">
+          <summary className="cursor-pointer text-xs font-semibold tracking-[0.16em] text-muted uppercase">Term settings</summary>
+          <form action={saveTerm} className="mt-4 grid gap-3 sm:grid-cols-3">
             <input type="hidden" name="id" value={term.id} />
             <Field label="Name">
               <Input name="name" defaultValue={term.name} required />
@@ -61,11 +111,11 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
               <Input name="ends_on" type="date" defaultValue={term.ends_on} required />
             </Field>
             <fieldset className="sm:col-span-3">
-              <legend className="mb-1 text-sm text-gray-700">School days</legend>
+              <legend className="mb-2 text-xs font-medium tracking-wide text-muted">School days</legend>
               <div className="flex flex-wrap gap-3">
                 {WEEKDAY_SHORT.map((d, i) => (
-                  <label key={d} className="flex items-center gap-1 text-sm">
-                    <input type="checkbox" name="school_weekdays" value={i} defaultChecked={schoolWeekdays.includes(i)} />
+                  <label key={d} className="flex items-center gap-1.5 text-sm">
+                    <input type="checkbox" name="school_weekdays" value={i} defaultChecked={schoolWeekdays.includes(i)} className="accent-[var(--color-accent)]" />
                     {d}
                   </label>
                 ))}
@@ -75,23 +125,14 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
               <Button type="submit">Save term</Button>
             </div>
           </form>
-        </Card>
-      ) : (
-        <EmptyState>No term yet.</EmptyState>
+        </details>
       )}
 
-      <Card title="Your classes">
-        {sorted.length === 0 && <EmptyState>No classes yet. Add one below.</EmptyState>}
-        <ul className="flex flex-col divide-y divide-gray-100">
-          {sorted.map((c) => (
-            <ClassItem key={c.id} cls={c} meetings={meetingsByClass.get(c.id) ?? []} />
-          ))}
-        </ul>
-      </Card>
-
-      <Card title="Add a class">
-        <ClassForm termId={term?.id ?? ""} meetings={[]} />
-      </Card>
+      <form action={signOut} className="md:hidden">
+        <Button type="submit" variant="ghost" className="w-full">
+          Sign out
+        </Button>
+      </form>
     </div>
   );
 }
@@ -105,14 +146,14 @@ function firstMeetingKey(meetings: Meeting[] | undefined): number {
 
 function ClassItem({ cls, meetings }: { cls: ClassRow; meetings: Meeting[] }) {
   return (
-    <li className="py-3">
+    <li className="rounded-2xl border border-line bg-raised/70 px-3 py-3">
       <div className="flex items-start gap-3">
         <span className="mt-1.5">
           <ColorDot color={cls.color} />
         </span>
         <div className="flex-1">
           <div className="font-medium">{cls.name}</div>
-          <div className="text-sm text-gray-600">
+          <div className="text-sm text-muted">
             {meetings.length > 0
               ? meetings
                   .map((m) => `${m.weekday != null ? WEEKDAY_SHORT[m.weekday] : "?"} ${formatTimeOfDay(m.starts_at)}–${formatTimeOfDay(m.ends_at)}`)
@@ -120,12 +161,12 @@ function ClassItem({ cls, meetings }: { cls: ClassRow; meetings: Meeting[] }) {
               : "No class times yet"}
           </div>
           {cls.short_names.length > 0 && (
-            <div className="text-xs text-gray-500">Quick-add nicknames: {cls.short_names.join(", ")}</div>
+            <div className="text-xs text-faint">Quick-add nicknames: {cls.short_names.join(", ")}</div>
           )}
         </div>
       </div>
       <details className="mt-2 ml-6">
-        <summary className="cursor-pointer text-sm text-gray-600">Edit</summary>
+        <summary className="cursor-pointer text-sm text-muted">Edit</summary>
         <div className="mt-3 flex flex-col gap-3">
           <ClassForm cls={cls} meetings={meetings} />
           <form action={deleteClass}>
@@ -165,7 +206,7 @@ function ClassForm({ cls, meetings, termId }: { cls?: ClassRow; meetings: Meetin
         </Field>
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1 text-sm text-gray-700">Class times</legend>
+        <legend className="mb-1 text-sm text-muted">Class times</legend>
         {rows.map((m, i) => (
           <div key={m?.id ?? "new"} className="flex flex-wrap items-center gap-2 text-sm">
             {m && <input type="hidden" name={`m_${i}_id`} value={m.id} />}
@@ -181,7 +222,7 @@ function ClassForm({ cls, meetings, termId }: { cls?: ClassRow; meetings: Meetin
             <span>to</span>
             <Input name={`m_${i}_end`} type="time" defaultValue={m?.ends_at.slice(0, 5)} aria-label="Ends" />
             {m && (
-              <label className="flex items-center gap-1 text-gray-600">
+              <label className="flex items-center gap-1 text-muted">
                 <input type="checkbox" name={`m_${i}_remove`} /> remove
               </label>
             )}

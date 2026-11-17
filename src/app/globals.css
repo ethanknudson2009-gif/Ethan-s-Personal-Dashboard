@@ -1,8 +1,148 @@
 @import "tailwindcss";
 
-/* Plain defaults for now: real design and themes come after Phase 1 works. */
+/*
+ * Theme: dark, clean, techy (docs/09-design-direction.md).
+ * Every color in the app comes from these tokens, so the whole look can be
+ * changed here. Tailwind turns each --color-* into classes like bg-surface,
+ * text-muted, border-line.
+ */
+@theme {
+  --color-bg: #070b14;
+  --color-surface: #0f1625;
+  --color-raised: #151e31;
+  --color-line: #1f2b44;
+  --color-ink: #e8eef9;
+  --color-muted: #8494b0;
+  --color-faint: #56647f;
+  --color-accent: #2ee6c9; /* neon teal: the main highlight */
+  --color-accent-ink: #04221d;
+  --color-electric: #5b8cff;
+  --color-danger: #ff4d6d;
+  --color-warn: #ffb547;
+  --color-ok: #3ddc97;
+
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-heading), var(--font-body), ui-sans-serif, sans-serif;
+
+  --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 12px 32px -12px rgb(0 0 0 / 0.6);
+  --shadow-glow: 0 0 0 1px rgb(46 230 201 / 0.55), 0 0 22px -4px rgb(46 230 201 / 0.55);
+  --shadow-glow-danger: 0 0 0 1px rgb(255 77 109 / 0.6), 0 0 22px -4px rgb(255 77 109 / 0.55);
+  --shadow-glow-warn: 0 0 0 1px rgb(255 181 71 / 0.45), 0 0 18px -6px rgb(255 181 71 / 0.5);
+}
+
+html {
+  color-scheme: dark;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
-  background: #ffffff;
-  color: #171717;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 85% -10%, rgb(46 230 201 / 0.08), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgb(91 140 255 / 0.07), transparent 60%),
+    var(--color-bg);
+  background-attachment: fixed;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* Native date pickers and selects: dark too. */
+input,
+select,
+textarea {
+  color-scheme: dark;
+}
+
+/* ── Animations ────────────────────────────────────────────────────────── */
+
+/* Things due today breathe a little, so they catch your eye. */
+@keyframes soft-pulse {
+  0%, 100% { box-shadow: var(--shadow-glow); }
+  50% { box-shadow: 0 0 0 1px rgb(46 230 201 / 0.35), 0 0 10px -4px rgb(46 230 201 / 0.35); }
+}
+.pulse-glow {
+  animation: soft-pulse 2.8s ease-in-out infinite;
+}
+
+/* Check-off: the ring fills, the check draws itself, a burst of light,
+   then the row slides away. About half a second in total. */
+@keyframes ring-fill {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@keyframes check-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes burst {
+  0% { opacity: 0.9; transform: scale(0.4); }
+  100% { opacity: 0; transform: scale(2.6); }
+}
+@keyframes row-out {
+  0% { opacity: 1; transform: translateX(0); max-height: 120px; }
+  60% { opacity: 0; transform: translateX(28px); max-height: 120px; }
+  100% { opacity: 0; transform: translateX(28px); max-height: 0; padding-top: 0; padding-bottom: 0; margin: 0; }
+}
+.check-ring-done {
+  animation: ring-fill 320ms cubic-bezier(0.3, 1.5, 0.6, 1);
+}
+.check-path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+}
+.check-ring-done .check-path {
+  animation: check-draw 260ms 80ms ease-out forwards;
+}
+.check-burst {
+  animation: burst 520ms ease-out forwards;
+}
+.row-leaving {
+  animation: row-out 520ms 260ms ease-in forwards;
+  overflow: hidden;
+}
+.title-strike {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 55%;
+  background-size: 0% 1.5px;
+  transition: background-size 300ms ease-out, color 300ms;
+}
+.title-strike-on {
+  background-size: 100% 1.5px;
+  color: var(--color-muted);
+}
+
+/* Bottom sheet (quick add / edit). */
+@keyframes sheet-in {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.sheet-in {
+  animation: sheet-in 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.fade-in {
+  animation: fade-in 180ms ease-out;
+}
+
+/* Toast ("Added ✓"). */
+@keyframes toast {
+  0% { opacity: 0; transform: translate(-50%, 12px); }
+  12%, 85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -6px); }
+}
+.toast {
+  animation: toast 2.2s ease-in-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
