@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { ServiceWorker } from "@/components/service-worker";
 
 // Free Google Fonts, bundled with the site at build time.
 const body = Inter({ subsets: ["latin"], variable: "--font-body" });
@@ -9,6 +10,9 @@ const heading = Space_Grotesk({ subsets: ["latin"], variable: "--font-heading" }
 export const metadata: Metadata = {
   title: "Dashboard",
   description: "Ethan's personal dashboard: school, tasks, and life in one place.",
+  // iPhone: opens full screen from the home screen, with a dark status bar.
+  appleWebApp: { capable: true, title: "Dashboard", statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -19,7 +23,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${body.variable} ${heading.variable} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        {children}
+        <ServiceWorker />
+      </body>
     </html>
   );
 }

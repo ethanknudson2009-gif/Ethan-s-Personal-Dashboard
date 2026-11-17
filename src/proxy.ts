@@ -7,6 +7,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Skip API routes (they use their own private tokens), Next.js internals and static files.
-  matcher: ["/((?!api/|_next/static|_next/image|favicon.ico|icons/|sw.js|manifest.webmanifest|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)"],
+  // Skip API routes (they use their own private tokens), Next.js internals, app icons,
+  // the manifest and the service worker: iPhone fetches icons without being logged in.
+  matcher: ["/((?!api/|_next/static|_next/image|icon|apple-icon|icons/|sw.js|manifest.webmanifest|.*\\.(?:png|jpg|jpeg|svg|ico|webp)$).*)"],
 };
