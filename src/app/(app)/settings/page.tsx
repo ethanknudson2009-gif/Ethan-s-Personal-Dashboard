@@ -51,7 +51,16 @@ export default async function SettingsPage() {
             <EmptyState>No tokens yet. Create one for your iPhone below.</EmptyState>
           </div>
         )}
-        <CreateToken scope="capture" defaultName="iPhone Log It" />
+        <div className="flex flex-col gap-4">
+          <div>
+            <p className="mb-2 text-xs font-semibold tracking-wide text-muted">For the iPhone Log It Shortcut</p>
+            <CreateToken scope="capture" defaultName="iPhone Log It" />
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold tracking-wide text-muted">For the Claude connector (guide: docs/setup/04-claude-connector.md)</p>
+            <CreateToken scope="mcp" defaultName="Claude connector" />
+          </div>
+        </div>
       </Card>
 
       <Card title="Skip the Inbox">

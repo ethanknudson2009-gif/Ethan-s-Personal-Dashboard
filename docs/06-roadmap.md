@@ -21,7 +21,7 @@
 ## Phase 2: Capture & Claude
 - [x] `/api/capture` endpoint with a private token (Settings → Connections)
 - [x] "Log It" Apple Shortcut guide: docs/setup/03-log-it-shortcut.md (Version A: Dictate → POST; Version B adds Ask Claude). *To do: Ethan builds it on his iPhone.*
-- [ ] MCP server + custom connector on claude.ai
+- [x] MCP server (/api/mcp: get_today, list_due, add_assignment, add_task, complete_task, process_inbox, log_food/workout/expense, add_note → Inbox) + guide docs/setup/04-claude-connector.md. *To do: Ethan adds it on claude.ai.*
 - [ ] Syllabus/PDF upload → extract → review-before-save screen
 - [x] Web push: morning summary, tomorrow preview, 1-hour-before reminders (Settings → Reminders; Supabase pg_cron every 15 min)
 - [ ] Snooze buttons on notifications and a "nag level" per item
