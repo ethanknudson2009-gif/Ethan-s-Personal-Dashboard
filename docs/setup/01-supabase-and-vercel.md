@@ -11,7 +11,7 @@ You do this once. It takes about 15 minutes. Everything here is on the **free** 
    - **Database password:** click **Generate a password**, then save it somewhere safe (a password manager or your Notes app). We don't need it right now.
    - **Region:** **West US** (the closest one to Arizona)
    - Click **Create new project** and wait a minute or two while it sets up.
-4. **Create the first table:** in the left sidebar click **SQL Editor** → **New query**. Open `supabase/migrations/0001_profiles.sql` from this repo, copy all of it, paste it in, and click **Run**. You should see "Success. No rows returned."
+4. **Create the tables:** in the left sidebar click **SQL Editor** → **New query**. Open `supabase/migrations/0001_profiles.sql` from this repo, copy all of it, paste it in, and click **Run**. You should see "Success. No rows returned." Then do the same with each later file in `supabase/migrations/`, **in number order** (`0002_…`, `0003_…`). Each file only needs to run once. Write down the last number you ran, so later you only run the new ones.
 5. **Create your login:** left sidebar → **Authentication** → **Users** → **Add user** → **Create new user**. Type your email and a password you'll remember, tick **Auto Confirm User**, and click **Create user**.
 6. **Lock the door:** **Authentication** → **Sign In / Providers**. Turn **off** "Allow new users to sign up" and click **Save**. Now nobody else can make an account. We'll turn it back on for friends in Phase 5.
 7. **Copy two values** (you'll paste them in Parts B and C):
