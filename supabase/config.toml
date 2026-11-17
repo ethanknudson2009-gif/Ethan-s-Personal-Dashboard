@@ -1,0 +1,10 @@
+# Supabase project settings, kept in the repo so changes are reviewable.
+# Only what's written here is pushed; everything else stays as set in the
+# Supabase dashboard. Apply with:
+#   npx supabase config push --remote=gzuyntsmnbvagbmtgace
+project_id = "ethan-s-personal-dashboard"
+
+[auth]
+# Where login emails (e.g. "confirm your account") send you back to.
+site_url = "https://ethan-s-personal-dashboard.vercel.app"
+additional_redirect_urls = ["http://localhost:3000"]
