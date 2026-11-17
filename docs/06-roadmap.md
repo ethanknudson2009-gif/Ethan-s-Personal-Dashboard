@@ -14,9 +14,9 @@
 - [ ] Installable PWA (icon, full screen). No offline mode (decided Nov 10, 2026)
 - [x] "Today" home: Needs doing, Do now, Classes today (with NOW), Coming up
 - [x] Classes (weekly schedule; rotating / A-B supported in the logic) and assignments (due date, repeats). Cushion math is built and tested but hidden: Ethan doesn't want to enter time estimates (Nov 17, 2026)
-- [ ] Calendar: Today / Week / Month; drag tasks onto it
+- [x] Calendar: Week / Month (Today page covers the day); drag tasks onto another day (laptop)
 - [x] Plain-English quick add: one box + tappable class/day chips ("speech memorization due wed")
-- [ ] Inbox + 7-day Trash
+- [x] Inbox (review before save) + 7-day Trash (daily cleanup job in Supabase)
 
 ## Phase 2: Capture & Claude
 - [ ] `/api/capture` endpoint with a private token

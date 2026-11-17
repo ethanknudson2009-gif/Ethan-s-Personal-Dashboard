@@ -38,8 +38,8 @@ export const IconSchool = (p: IconProps) => (
 
 export const IconClasses = (p: IconProps) => (
   <Svg {...p}>
-    <rect x="3" y="4" width="18" height="17" rx="3" />
-    <path d="M3 9h18M8 2v4M16 2v4" />
+    <path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2V5z" />
+    <path d="M4 19a2 2 0 012-2h13v4H6a2 2 0 01-2-2zM9 7h6" />
   </Svg>
 );
 
