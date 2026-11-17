@@ -18,10 +18,11 @@ async function AuthedShell({ children }: { children: React.ReactNode }) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [settings, classRes, dueRes] = await Promise.all([
+  const [settings, classRes, dueRes, inboxRes] = await Promise.all([
     loadSettings(supabase),
     supabase.from("classes").select("id, name, color, short_names").is("deleted_at", null).eq("archived", false),
     supabase.from("tasks").select("due_at").eq("status", "open").is("deleted_at", null).not("due_at", "is", null),
+    supabase.from("inbox_items").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
   ]);
 
   const now = new Date();
@@ -30,7 +31,7 @@ async function AuthedShell({ children }: { children: React.ReactNode }) {
 
   return (
     <TaskSheetProvider classes={classes} timeZone={settings.timeZone}>
-      <AppShell badges={{ "/tasks": needsAttention }}>{children}</AppShell>
+      <AppShell badges={{ "/tasks": needsAttention, "/inbox": inboxRes.count ?? 0 }}>{children}</AppShell>
     </TaskSheetProvider>
   );
 }

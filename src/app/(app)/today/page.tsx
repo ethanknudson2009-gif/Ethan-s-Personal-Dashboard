@@ -3,6 +3,9 @@ import { toLocalDate, weekdayOf, zonedParts } from "@/lib/time";
 import { Card, ColorDot, cx, EmptyState, PageHeader } from "@/components/ui";
 import { TaskItem } from "@/components/task-item";
 import { AddButton } from "@/components/add-button";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { IconInbox } from "@/components/icons";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 
@@ -18,6 +21,11 @@ export default async function TodayPage() {
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
 
   const todaysClasses = (await loadSchedule())(today);
+  const { count: inboxCount } = await (await createClient())
+    .from("inbox_items")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending")
+    .is("deleted_at", null);
   const buckets = groupByDue(data.open, data.now, timeZone);
   const doNow = [...(buckets.find((b) => b.key === "overdue")?.tasks ?? []), ...(buckets.find((b) => b.key === "today")?.tasks ?? [])];
   const comingUp = [...(buckets.find((b) => b.key === "tomorrow")?.tasks ?? []), ...(buckets.find((b) => b.key === "week")?.tasks ?? [])].slice(0, 6);
@@ -31,7 +39,17 @@ export default async function TodayPage() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader title="Today" subtitle={`${WEEKDAY_LONG[weekdayOf(today)]} · ${formatLocalDate(today).split(", ")[1]}`}>
-        <AddButton />
+        <div className="flex items-center gap-2">
+          {inboxCount ? (
+            <Link
+              href="/inbox"
+              className="flex items-center gap-1.5 rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-sm font-semibold text-warn shadow-glow-warn md:hidden"
+            >
+              <IconInbox size={16} /> {inboxCount} to review
+            </Link>
+          ) : null}
+          <AddButton />
+        </div>
       </PageHeader>
 
       {/* Hero: the one number that matters right now */}

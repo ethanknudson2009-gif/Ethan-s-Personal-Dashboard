@@ -161,6 +161,63 @@ export type Database = {
         }
         Relationships: []
       }
+      inbox_items: {
+        Row: {
+          batch_id: string | null
+          client_id: string | null
+          confidence: number
+          created_at: string
+          deleted_at: string | null
+          draft: Json
+          id: string
+          problems: string[]
+          raw_text: string
+          result_id: string | null
+          result_table: string | null
+          source: string
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          client_id?: string | null
+          confidence?: number
+          created_at?: string
+          deleted_at?: string | null
+          draft?: Json
+          id?: string
+          problems?: string[]
+          raw_text: string
+          result_id?: string | null
+          result_table?: string | null
+          source?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          batch_id?: string | null
+          client_id?: string | null
+          confidence?: number
+          created_at?: string
+          deleted_at?: string | null
+          draft?: Json
+          id?: string
+          problems?: string[]
+          raw_text?: string
+          result_id?: string | null
+          result_table?: string | null
+          source?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       no_school_days: {
         Row: {
           created_at: string
@@ -476,7 +533,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      purge_trash: { Args: never; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

@@ -39,10 +39,19 @@ const REPEAT_CHOICES: { value: RepeatChoice; label: string }[] = [
   { value: "monthly", label: "Monthly" },
 ];
 
-type SheetState = { mode: "closed" } | { mode: "new" } | { mode: "edit"; task: EditableTask };
+/** Pre-filled values, e.g. when reviewing an Inbox item. */
+export type SheetPrefill = {
+  title: string;
+  classId: string | null;
+  dueDate: string | null;
+  dueTime: string | null;
+  inboxId?: string;
+};
+
+type SheetState = { mode: "closed" } | { mode: "new"; prefill?: SheetPrefill } | { mode: "edit"; task: EditableTask };
 
 type SheetApi = {
-  openNew: () => void;
+  openNew: (prefill?: SheetPrefill) => void;
   openEdit: (task: EditableTask) => void;
   toast: (message: string) => void;
 };
@@ -69,7 +78,7 @@ export function TaskSheetProvider({
 
   const api = useMemo<SheetApi>(
     () => ({
-      openNew: () => setState({ mode: "new" }),
+      openNew: (prefill) => setState({ mode: "new", prefill }),
       openEdit: (task) => setState({ mode: "edit", task }),
       toast: (text) => setToastMsg({ text, key: Date.now() }),
     }),
@@ -120,10 +129,11 @@ function Sheet({
   onDone: (message: string) => void;
 }) {
   const editing = state.mode === "edit" ? state.task : null;
-  const [text, setText] = useState(editing?.title ?? "");
+  const prefill = state.mode === "new" ? state.prefill : undefined;
+  const [text, setText] = useState(editing?.title ?? prefill?.title ?? "");
   // `undefined` = follow what the parser found; anything else = you picked it.
-  const [classPick, setClassPick] = useState<string | null | undefined>(editing ? editing.classId : undefined);
-  const [datePick, setDatePick] = useState<string | null | undefined>(editing ? editing.dueDate : undefined);
+  const [classPick, setClassPick] = useState<string | null | undefined>(editing ? editing.classId : prefill ? prefill.classId : undefined);
+  const [datePick, setDatePick] = useState<string | null | undefined>(editing ? editing.dueDate : prefill ? prefill.dueDate : undefined);
   const [repeat, setRepeat] = useState<RepeatChoice>(editing?.repeat ?? "none");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -156,7 +166,12 @@ function Sheet({
     datePick === undefined && parsed?.when?.hasTime && parsed.when.time
       ? `${String(parsed.when.time.hour).padStart(2, "0")}:${String(parsed.when.time.minute).padStart(2, "0")}`
       : null;
-  const dueTime = editing && datePick === editing.dueDate ? editing.dueTime : parsedTime;
+  const dueTime =
+    editing && datePick === editing.dueDate
+      ? editing.dueTime
+      : prefill && datePick === prefill.dueDate
+        ? prefill.dueTime
+        : parsedTime;
   const cls = classes.find((c) => c.id === classId) ?? null;
 
   // Day chips: Today, Tomorrow, then the next few weekdays by name.
@@ -185,6 +200,7 @@ function Sheet({
         dueDate,
         dueTime,
         repeat,
+        inboxId: prefill?.inboxId,
       });
       if (!result.ok) return setError(result.error);
       const when = dueDate ? ` · ${dueDate === today ? "Today" : formatLocalDate(dueDate)}` : "";

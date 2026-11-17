@@ -9,7 +9,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconPlus, IconSchool, IconSignOut, IconToday } from "@/components/icons";
+import { IconCalendar, IconClasses, IconInbox, IconPlus, IconSchool, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 
 const NAV = [
@@ -17,6 +17,12 @@ const NAV = [
   { href: "/tasks", label: "School", Icon: IconSchool },
   { href: "/calendar", label: "Calendar", Icon: IconCalendar },
   { href: "/classes", label: "Classes", Icon: IconClasses },
+];
+
+/** Less-used places: sidebar on laptops; on phones they're linked from Today and School. */
+const MORE = [
+  { href: "/inbox", label: "Inbox", Icon: IconInbox },
+  { href: "/trash", label: "Trash", Icon: IconTrash },
 ];
 
 export function AppShell({ children, badges }: { children: ReactNode; badges: Record<string, number> }) {
@@ -49,6 +55,22 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
               )}
             >
               <Icon size={20} className={isActive(href) ? "text-accent" : ""} />
+              <span className="flex-1">{label}</span>
+              {badges[href] ? <Badge n={badges[href]} /> : null}
+            </Link>
+          ))}
+        </nav>
+        <nav className="mb-2 flex flex-col gap-1 border-t border-line pt-3">
+          {MORE.map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className={cx(
+                "flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition",
+                isActive(href) ? "bg-accent/10 text-ink" : "text-muted hover:bg-raised hover:text-ink",
+              )}
+            >
+              <Icon size={18} className={isActive(href) ? "text-accent" : ""} />
               <span className="flex-1">{label}</span>
               {badges[href] ? <Badge n={badges[href]} /> : null}
             </Link>
@@ -115,7 +137,7 @@ function TabLink({
 }
 
 /** Count of things that need attention (overdue + due today). */
-function Badge({ n }: { n: number }) {
+export function Badge({ n }: { n: number }) {
   return (
     <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold text-white shadow-glow-danger">
       {n > 9 ? "9+" : n}

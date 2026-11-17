@@ -24,6 +24,8 @@ const saveSchema = z.object({
   /** Only set when typed in quick add ("fri 3pm"); there's no time field. */
   dueTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
   repeat: z.enum(["none", "daily", "weekly", "biweekly", "monthly"]).default("none"),
+  /** Set when this came from reviewing an Inbox item: marks it approved. */
+  inboxId: z.string().uuid().optional(),
 });
 
 export type SaveTaskInput = z.input<typeof saveSchema>;
@@ -53,10 +55,23 @@ export async function saveTaskAction(input: SaveTaskInput): Promise<ActionResult
     repeat,
   };
 
-  const { error } = t.id
-    ? await supabase.from("tasks").update(row).eq("id", t.id)
-    : await supabase.from("tasks").insert({ ...row, source: "quick_add" });
-  if (error) return { ok: false, error: error.message };
+  if (t.id) {
+    const { error } = await supabase.from("tasks").update(row).eq("id", t.id);
+    if (error) return { ok: false, error: error.message };
+  } else {
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert({ ...row, source: t.inboxId ? "inbox" : "quick_add" })
+      .select("id")
+      .single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Couldn't save" };
+    if (t.inboxId) {
+      await supabase
+        .from("inbox_items")
+        .update({ status: "approved", result_table: "tasks", result_id: data.id })
+        .eq("id", t.inboxId);
+    }
+  }
   refresh();
   return { ok: true };
 }

@@ -1,6 +1,7 @@
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { TaskItem } from "@/components/task-item";
 import { AddButton } from "@/components/add-button";
+import Link from "next/link";
 import { groupByDue, loadTaskData } from "./data";
 
 /** School: every task and assignment, grouped by when it's due. */
@@ -59,6 +60,10 @@ export default async function SchoolPage() {
           </ul>
         </details>
       )}
+
+      <Link href="/trash" className="self-center text-xs text-faint hover:text-muted md:hidden">
+        Trash (deleted items, kept 7 days)
+      </Link>
     </div>
   );
 }
