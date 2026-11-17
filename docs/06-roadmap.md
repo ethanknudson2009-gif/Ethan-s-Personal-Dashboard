@@ -11,7 +11,7 @@
 ## Phase 1: Foundation
 - [x] Next.js + TypeScript + Tailwind project; deployed to Vercel (https://ethan-s-personal-dashboard.vercel.app, auto-deploys from `main`)
 - [x] Supabase project; email login
-- [ ] Installable PWA (icon, full screen). No offline mode (decided Nov 10, 2026)
+- [x] Installable PWA (icon, full screen; guide: docs/setup/02-install-on-iphone.md). No offline mode (decided Nov 10, 2026). *To check: Ethan tries it on his iPhone.*
 - [x] "Today" home: Needs doing, Do now, Classes today (with NOW), Coming up
 - [x] Classes (weekly schedule; rotating / A-B supported in the logic) and assignments (due date, repeats). Cushion math is built and tested but hidden: Ethan doesn't want to enter time estimates (Nov 17, 2026)
 - [x] Calendar: Week / Month (Today page covers the day); drag tasks onto another day (laptop)
