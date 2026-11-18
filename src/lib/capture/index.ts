@@ -9,7 +9,7 @@ import { parse, type CaptureDraft, type ClassRef } from "@/lib/parser";
 import { fromLocal } from "@/lib/time";
 import { categorize } from "@/lib/money/categories";
 
-export const CAPTURE_TYPES = ["homework", "task", "food", "workout", "expense", "job", "note", "habit"] as const;
+export const CAPTURE_TYPES = ["homework", "task", "food", "workout", "expense", "note", "habit"] as const;
 export type CaptureType = (typeof CAPTURE_TYPES)[number];
 
 /** Types the dashboard can save today. Others wait in the Inbox until their module exists. */
@@ -49,6 +49,8 @@ export type InboxDraft = {
   category: string | null;
   notes: string | null;
   area?: "school" | "work" | "personal";
+  /** Money coming in (paycheck) instead of spent. */
+  incoming?: boolean;
 };
 
 export type Decision = {
@@ -130,6 +132,7 @@ export function decide(
     category: input.category ?? parsedRaw.category,
     notes: input.notes ?? parsedRaw.notes ?? null,
     area: classId ? "school" : parsedRaw.area,
+    incoming: parsedRaw.incoming,
   };
 
   confidence = Math.round(Math.max(0, Math.min(1, confidence)) * 100) / 100;
@@ -175,9 +178,9 @@ export function moneyRowFromDraft(draft: InboxDraft, today: string) {
   const description = draft.title || draft.category || "Expense";
   return {
     occurred_on: draft.dueDate ?? today,
-    amount_cents: -cents,
+    amount_cents: draft.incoming ? cents : -cents,
     description,
-    category: categorize(`${description} ${draft.category ?? ""}`, -cents),
+    category: categorize(`${description} ${draft.category ?? ""}`, draft.incoming ? cents : -cents),
     source: "capture" as const,
     notes: draft.notes,
   };
@@ -204,5 +207,6 @@ export function readDraft(value: unknown): InboxDraft | null {
     category: d.category ?? null,
     notes: d.notes ?? null,
     area: d.area === "work" || d.area === "school" || d.area === "personal" ? d.area : undefined,
+    incoming: d.incoming === true,
   };
 }

@@ -51,7 +51,7 @@ Between *Dictate Text* and *Get Contents of URL*, add:
    ```text
    Turn my spoken note into JSON for my dashboard. Reply with ONLY one JSON object, no other text.
    Keys:
-   "type": one of homework, task, food, workout, expense, job, note, habit
+   "type": one of homework, task, food, workout, expense, note, habit
    "title": a short title without the class name or any date words
    "class_name": the class if it's school work, else null. My classes: World History, Choir, Human Anatomy, AI Mastermind, College Algebra, Speech, AutoCAD, Church History
    "due_text": the date/time words exactly as I said them (like "friday 3pm"), else null. Do NOT work out the actual date.

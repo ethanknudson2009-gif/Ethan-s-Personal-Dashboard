@@ -23,7 +23,7 @@ You are helping **Ethan** (a student with an iPhone 13 and a Claude Pro plan) bu
 
 ## Product summary
 
-- Modules: homework & classes, calendar & to-dos, gym, calories/nutrition, habits & goals (XP), budget, notes/journal, side business (window-washing jobs). More can be added later.
+- Modules: homework & classes, calendar & to-dos, gym, calories/nutrition, habits & goals (XP), budget, notes/journal, work (Ethan is a Loan Officer Assistant at PRMI; also called "work", "primary", "the office"; his LO is Mike). More can be added later. There is no window-washing side business.
 - Social: friends, groups, school-wide challenges and leaderboards (Phase 5).
 - Capture: one iPhone Lock Screen button → Apple Shortcut "Log It": Dictate → Ask Claude (returns JSON) → POST to `/api/capture` → "Saved ✓". Fallback: raw text → our own date/keyword parser → Inbox.
 - Every AI capture shows a **review-before-save** screen or lands in an Inbox. Nothing silently writes wrong data.

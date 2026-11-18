@@ -114,7 +114,7 @@ export function QuickMoney() {
       </div>
       <div className="flex gap-2">
         <input autoFocus value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" placeholder="$0" className={cx(inputClass, "w-24 text-lg font-semibold")} />
-        <input value={what} onChange={(e) => setWhat(e.target.value)} placeholder={direction === "out" ? "Gas, lunch…" : "Window job, paycheck…"} className={cx(inputClass, "min-w-0 flex-1")} />
+        <input value={what} onChange={(e) => setWhat(e.target.value)} placeholder={direction === "out" ? "Gas, lunch…" : "Paycheck, refund…"} className={cx(inputClass, "min-w-0 flex-1")} />
       </div>
       <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
         {CATEGORIES.filter((c) => c.name !== "Transfers").map((c) => (

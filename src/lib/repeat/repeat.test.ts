@@ -54,7 +54,7 @@ describe("after-completion repeats (count from when you finished)", () => {
     expect(zonedParts(next!, PHX).hour).toBe(18);
   });
 
-  it("window-washing customer every 8 weeks after the last job", () => {
+  it("every 8 weeks after the last time (e.g. a haircut)", () => {
     const rule: RepeatRule = { mode: "after_completion", every: 8, unit: "week" };
     expect(day(nextDue(rule, at("2026-11-14", 9), at("2026-11-15", 11), PHX))).toBe("2027-01-10");
   });

@@ -264,12 +264,12 @@ function Sheet({
         : parsedTime;
   const cls = classes.find((c) => c.id === classId) ?? null;
   const notes = notesEdit !== undefined ? notesEdit : (parsed?.notes ?? "");
-  // Money said out loud: an expense, or getting paid for a window job.
+  // Money said out loud: "spent $12 on gas" (out) or "got paid $400" / "paycheck $600" (in).
   const money =
-    !editing && parsed && parsed.amount && (parsed.type === "expense" || parsed.type === "job")
+    !editing && parsed && parsed.amount && parsed.type === "expense"
       ? {
-          cents: Math.round(parsed.amount * 100) * (parsed.type === "expense" ? -1 : 1),
-          label: parsed.type === "job" ? `Window job${parsed.customerName ? ` · ${parsed.customerName}` : ""}` : parsed.title || "Expense",
+          cents: Math.round(parsed.amount * 100) * (parsed.incoming ? 1 : -1),
+          label: parsed.title || (parsed.incoming ? "Paycheck" : "Expense"),
         }
       : null;
   // A class always means school; otherwise what you picked, or what the parser heard ("at work", "PRMI").
@@ -293,7 +293,7 @@ function Sheet({
       inputRef.current?.focus();
       return;
     }
-    // "spent $12 gas" / "got $80 for the Lopez windows" → Money, not a task.
+    // "spent $12 gas" / "got paid $400" → Money, not a task.
     if (money) {
       startTransition(async () => {
         const result = await addMoneyAction({ amountCents: money.cents, description: money.label });

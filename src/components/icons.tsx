@@ -134,9 +134,3 @@ export const IconMoney = (p: IconProps) => (
   </Svg>
 );
 
-export const IconJobs = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="4" y="3" width="16" height="18" rx="2" />
-    <path d="M12 3v18M4 12h16M7 7l2-2M15 15l2-2" />
-  </Svg>
-);

@@ -52,7 +52,7 @@ These come from Ethan's answers on November 10, 2026.
 │  │  │  ├─ tasks/…                     ← tasks + assignments
 │  │  │  ├─ inbox/page.tsx, trash/page.tsx
 │  │  │  ├─ settings/…                  ← study time, tokens, notifications
-│  │  │  └─ food/ gym/ habits/ budget/ notes/ jobs/   (Phases 3–4)
+│  │  │  └─ food/ gym/ life/ money/ work/ notes/   (Phases 3–4)
 │  │  └─ api/
 │  │     ├─ capture/route.ts            ← iPhone "Log It" Shortcut
 │  │     ├─ capture/file/route.ts       ← Share Sheet file upload
@@ -130,7 +130,7 @@ One `tasks` table holds both to-dos and school work. An **assignment is a task w
 |---|---|
 | `tasks` | `title`, `kind` (`task` \| `assignment` \| `exam` \| `project`), `class_id` null, `notes`, `due_at` timestamptz null, `due_has_time` bool, `estimate_minutes` int null, `minutes_done` int default 0, `priority` (1–3), `status` (`open` \| `done`), `completed_at`, `repeat` jsonb null (§9.2), `series_id` uuid (links repeats), `nag_level` (`off` \| `gentle` \| `persistent`, Phase 2), `source`, `deleted_at` |
 | `time_blocks` | `task_id` null, `title`, `starts_at`, `ends_at`. Created when you **drag a task onto the calendar** ("do date"). It counts as planned study time. |
-| `events` | `title`, `starts_at`, `ends_at`, `all_day`, `location`, `category` (school/gym/job/personal…), `repeat` jsonb null, `source`, `deleted_at` |
+| `events` | `title`, `starts_at`, `ends_at`, `all_day`, `location`, `category` (school/gym/work/personal…), `repeat` jsonb null, `source`, `deleted_at` |
 
 ### 4.4 Capture, Inbox, files
 | Table | Key columns |
@@ -153,10 +153,8 @@ One `tasks` table holds both to-dos and school work. An **assignment is a task w
 | `habits` | `name`, `target` (e.g. 3 times per 10 days), `kind` (`build` \| `cut_back`), `color`, `archived` |
 | `habit_checkins` | `habit_id`, `on_date`, `value` (number or 1) |
 | `budget_categories` | `name`, `kind` (`expense` \| `income`), `monthly_limit`, `hidden_in_chart` |
-| `budget_entries` | `occurred_on`, `amount_cents` (integer, never floats for money), `category_id`, `description`, `job_id` null, `repeat` jsonb null |
+| `budget_entries` | `occurred_on`, `amount_cents` (integer, never floats for money), `category_id`, `description`, `repeat` jsonb null |
 | `notes` | `kind` (`note` \| `journal` \| `morning_plan` \| `shutdown` \| `weekly_review`), `title`, `body` (markdown), `on_date` null, `class_id` null |
-| `customers` | `name`, `phone`, `address`, `lat`/`lng` null, `notes` |
-| `jobs` | `customer_id`, `scheduled_at`, `duration_minutes`, `price_cents`, `status` (`quoted` \| `scheduled` \| `done` \| `paid`), `notes`, `repeat` jsonb null (e.g. every 8 weeks after done) |
 | `xp_events` | `reason` ("task_done", "habit_checkin"…), `ref_table`/`ref_id`, `xp`, `coins`. This is a ledger: totals are sums, so points are never "lost" by bugs and leaderboards can be computed later. |
 | `rewards` | `name`, `cost_coins`, `redeemed_at` |
 
@@ -188,6 +186,8 @@ create policy "own rows" on tasks
 
 ---
 
+> **Update Nov 18, 2026:** there is no window-washing side business (that came from early planning and was removed). Work tasks for Ethan's job at PRMI use `tasks.area = 'work'`; money is `money_transactions` (migration 0009).
+
 ## 6. Capture API: `POST /api/capture`
 
 Used by the iPhone "Log It" Shortcut. It is a private address protected by a per-user token.
@@ -205,19 +205,17 @@ Content-Type: application/json
 {
   "v": 1,
   "raw_text": "bio lab report due friday 11:59pm, about 2 hours",   // always send the original words
-  "type": "homework",          // homework | task | food | workout | expense | job | note | habit
+  "type": "homework",          // homework | task | food | workout | expense | note | habit
   "title": "Bio lab report",
   "due_text": "Fri 11:59pm",   // the date words exactly as said; OUR parser turns this into a date
   "due": "2026-11-13T23:59",   // optional ISO local time (no offset) or "2026-11-13"; checked against due_text
   "class_name": "bio",
   "estimate_minutes": 120,
-  "amount": 12.00,             // dollars: expense, or job income
+  "amount": 12.00,             // dollars: money spent (or received)
   "category": "gas",           // expense category
   "food": [{ "name": "egg", "quantity": "2", "calories": 140, "protein_g": 12, "carbs_g": 1, "fat_g": 10 }],
   "exercises": [{ "name": "bench press", "sets": [{ "reps": 10, "weight_lb": 135 }], "duration_minutes": null, "distance_mi": null }],
   "habit_name": "read",
-  "customer_name": "Mrs. Lopez",
-  "job_date_text": "Saturday 9am",
   "notes": "",
   "confidence": 0.9,           // Claude's own guess, 0–1
   "client_id": "8f1c…"         // optional: unique id so a retried send isn't saved twice
@@ -264,7 +262,7 @@ parse(text: string, ctx: { now: Date; timeZone: string; classes: ClassRef[]; hab
    - expense: `spent`, `paid`, `bought`, `$`
    - food: `ate`, `had`, `drank`, `breakfast`, `lunch`, `dinner`, `snack`, `calories`
    - workout: `bench`, `squat`, `ran`, `run`, `miles`, `sets`, `reps`, `3x10`, `gym`, `lifted`
-   - job: `job`, `washed`, `windows`, `customer`, `quote`
+   - work (area, not a type): `PRMI`, `work`, `primary`, `the office`, `Mike` (his LO). See doc 08.
    - habit: matches one of your habit names, or `did my …`
    - note: starts with `note`, `journal`, `remember that`
    - homework: `due`, `homework`, `essay`, `lab`, `quiz`, `test`, `exam`, `project`, `worksheet`, or a class name
@@ -282,7 +280,7 @@ parse(text: string, ctx: { now: Date; timeZone: string; classes: ClassRef[]; hab
 | `ate 2 eggs` | food · "Eggs" · quantity 2 · calories missing → Inbox |
 | `spent $12 gas` | expense · $12.00 · category "gas" |
 | `math worksheet tomorrow` | homework · Math (if that class exists) · due 2026-11-11, no time (shown as "end of day") |
-| `wash Lopez windows sat 9` | job · Sat Nov 14 09:00 · customer "Lopez" |
+| `primary send Mike the loan files tomorrow` | task · Work · "Send Mike the loan files" · due tomorrow |
 
 ---
 
@@ -327,7 +325,7 @@ parse(text: string, ctx: { now: Date; timeZone: string; classes: ClassRef[]; hab
   "until": "2027-05-28" }    // optional end date
 ```
 - **fixed:** the next due date comes from the *previous due date* ("every Monday").
-- **after_completion:** the next due date comes from *when you actually finished* ("water plants 7 days after I last did it", "wash Lopez windows 8 weeks after the last job").
+- **after_completion:** the next due date comes from *when you actually finished* ("water plants 7 days after I last did it", "haircut 8 weeks after the last one").
 - When a repeating task is marked done, the app creates the next task in the same `series_id`, keeping the due time of day in your time zone. A month repeat on the 31st goes to the last day of shorter months.
 - Pure function: `nextDue(rule, previousDue, completedAt, timeZone) → Date | null`.
 

@@ -33,7 +33,7 @@ School is **Monday–Thursday**, the same every week (a *weekly* schedule, not A
 Just "history" is **ambiguous** (two history classes). The parser doesn't guess: the item goes to the Inbox asking "World History or Church History?"
 
 ## Work
-Ethan works at **PRMI**. He also calls it **"work"**, **"primary"** (which is how speech-to-text often hears "PRMI") or **"the office"**. **Mike** is his **LO** (loan officer). Any of these send a task to the **Work** section (e.g. "primary, send Mike the loan files tomorrow" → Work: "Send Mike the loan files", due tomorrow).
+Ethan is a **Loan Officer Assistant (LOA)** at **PRMI**, part-time hours but treated like a full-time job. He also calls it **"work"**, **"primary"** (which is how speech-to-text often hears "PRMI") or **"the office"**. **Mike** is his **LO** (loan officer). Any of these send a task to the **Work** section (e.g. "primary, send Mike the loan files tomorrow" → Work: "Send Mike the loan files", due tomorrow).
 
 ## Study time
 About **2 hours every weekday** (Mon–Fri). This is the default in the Cushion math.

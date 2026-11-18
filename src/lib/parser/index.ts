@@ -13,7 +13,7 @@ import { parseWhen, type ParsedWhen } from "./dates";
 import { SpanTracker } from "./spans";
 import { editDistance, normalizeSpoken, tolerance } from "./spoken";
 
-export type CaptureType = "homework" | "task" | "food" | "workout" | "expense" | "job" | "note" | "habit";
+export type CaptureType = "homework" | "task" | "food" | "workout" | "expense" | "note" | "habit";
 
 export type ClassRef = { id: string; name: string; shortNames?: string[] };
 
@@ -35,7 +35,7 @@ export type CaptureDraft = {
   when: ParsedWhen | null;
   classId: string | null;
   className: string | null;
-  /** Dollars, for expenses and job income. */
+  /** Dollars, for money spent or received. */
   amount: number | null;
   /** A count, e.g. "2 eggs" → 2. */
   quantity: number | null;
@@ -46,7 +46,8 @@ export type CaptureDraft = {
   /** Expense category, e.g. "gas". */
   category: string | null;
   habitName: string | null;
-  customerName: string | null;
+  /** Money coming in ("got paid $400", "paycheck") rather than spent. */
+  incoming: boolean;
   /** Extra context said after the main thing ("it needs to be 3 pages…"), shown as a caption. */
   notes: string | null;
   /** Which part of life it belongs to: a class → school; "at work"/"PRMI" → work. */
@@ -96,7 +97,8 @@ function cleanNotes(text: string): string | null {
 // ── Keyword lists ───────────────────────────────────────────────────────────
 const NOTE_PREFIX = /^\s*(note|journal|remember that)\b\s*[:\-–]?\s*/i;
 const EXPENSE_VERBS = /\b(spent|spend|paid|pay|bought|buy|cost|costs)\b/;
-const JOB_WORDS = /\b(job|jobs|washed|wash|washing|windows?|customer|quote|quoted)\b/;
+/** Money coming in (saved to Money as income). */
+const INCOME_WORDS = /\b(got paid|get paid|paid me|paycheck|payday|got \$?\d|received \$?\d|earned|refund(?:ed)?)\b/;
 const FOOD_WORDS = /\b(ate|eat|eating|drank|drink|breakfast|lunch|dinner|snack|calories|cals?|kcal)\b/;
 const WORKOUT_WORDS =
   /\b(gym|workout|worked out|lift|lifted|bench|squat|squats|deadlift|deadlifts|ran|run|jog|jogged|miles?|sets?|reps?|push-?ups?|pull-?ups?|curls?|cardio|swim|swam|bike|biked)\b|\b\d+\s*x\s*\d+\b/;
@@ -208,9 +210,9 @@ function matchClass(
 
 function detectType(low: string, ctx: ParseContext, isNote: boolean): CaptureType | null {
   if (isNote) return "note";
+  // Money in or out ("got paid $400" is income; "spent $12" is spending).
+  if ((INCOME_WORDS.test(low) || EXPENSE_VERBS.test(low)) && /\$\s?\d|\d\s*(?:dollars|bucks)\b/.test(low)) return "expense";
   if (EXPENSE_VERBS.test(low)) return "expense";
-  // Window-washing jobs; but anything for PRMI / "at work" is a work task, not a side job.
-  if (JOB_WORDS.test(low) && !WORK_HINTS.test(low)) return "job";
   if (FOOD_WORDS.test(low)) return "food";
   if (WORKOUT_WORDS.test(low)) return "workout";
   if ((ctx.habits ?? []).some((h) => new RegExp(`\\b${escapeRe(h.toLowerCase())}\\b`).test(low))) return "habit";
@@ -245,7 +247,7 @@ const PROPER_NAMES = /\b(mike|prmi|lo)\b/gi;
 
 const DEFAULT_TITLES: Record<CaptureType, string> = {
   homework: "Homework", task: "Task", food: "Food", workout: "Workout",
-  expense: "Expense", job: "Job", note: "Note", habit: "Habit",
+  expense: "Expense", note: "Note", habit: "Habit",
 };
 
 export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
@@ -356,11 +358,11 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     }
   }
 
-  // ── Customer for jobs: a capitalized word that isn't the first word ─────
-  let customerName: string | null = null;
-  if (type === "job") {
-    const m = spans.free(/(?<=\s)(?:(?:[Mm]rs?|[Mm]s)\.?\s+)?[A-Z][a-z']+/g, original)[0];
-    if (m) customerName = m[0].trim();
+  // ── Money in or out ─────────────────────────────────────────────────────
+  const incoming = type === "expense" && INCOME_WORDS.test(low);
+  if (incoming) {
+    // "got paid" / "paycheck" says the direction; keep it out of the title.
+    for (const m of spans.free(/\b(?:got paid|get paid|paid me|got|received|earned)\b(?:\s+(?:for|from))?/g, low)) spans.claim(m.index, m.index + m[0].length);
   }
 
   // ── Work or school? ──────────────────────────────────────────────────────
@@ -407,10 +409,6 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     problems.push("No sets, distance or time found");
     confidence -= 0.2;
   }
-  if (type === "job" && !when) {
-    problems.push("No job date found");
-    confidence -= 0.2;
-  }
 
   return {
     type,
@@ -426,7 +424,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     distanceMiles,
     category,
     habitName,
-    customerName,
+    incoming,
     notes,
     area,
     confidence: clamp01(confidence),
@@ -437,7 +435,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
 function emptyDraft(type: CaptureType, rawText: string): CaptureDraft {
   return {
     type, title: "", rawText, when: null, classId: null, className: null, amount: null, quantity: null,
-    minutes: null, sets: null, distanceMiles: null, category: null, habitName: null, customerName: null,
+    minutes: null, sets: null, distanceMiles: null, category: null, habitName: null, incoming: false,
     notes: null, area: "personal", confidence: 1, problems: [],
   };
 }

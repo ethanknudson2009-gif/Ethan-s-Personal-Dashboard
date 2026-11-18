@@ -51,9 +51,8 @@ describe("the examples from doc 07", () => {
     expect(d.when?.dueAt.toISOString()).toBe("2026-11-12T06:59:00.000Z"); // 11:59 PM local
   });
 
-  it("job: wash Lopez windows sat 9", () => {
-    const d = p("wash Lopez windows sat 9");
-    expect(d).toMatchObject({ type: "job", customerName: "Lopez" });
+  it("a bare hour right after a day: call the bank sat 9", () => {
+    const d = p("call the bank sat 9");
     expect(d.when?.dueAt.toISOString()).toBe(at("2026-11-14", 9).toISOString());
   });
 });
@@ -181,8 +180,10 @@ describe("types and amounts", () => {
     expect(p("drank a protein shake")).toMatchObject({ type: "food", quantity: 1 });
   });
 
-  it("jobs with money are income, not expenses", () => {
-    expect(p("washed Mrs. Lopez windows $80 today")).toMatchObject({ type: "job", amount: 80, customerName: "Mrs. Lopez" });
+  it("money coming in is income, not spending", () => {
+    expect(p("got paid $400 from PRMI")).toMatchObject({ type: "expense", amount: 400, incoming: true });
+    expect(p("paycheck 650 dollars")).toMatchObject({ type: "expense", amount: 650, incoming: true });
+    expect(p("spent $12 gas")).toMatchObject({ incoming: false });
   });
 
   it("habits", () => {

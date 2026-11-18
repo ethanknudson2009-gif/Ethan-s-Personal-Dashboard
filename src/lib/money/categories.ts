@@ -13,7 +13,6 @@ export const CATEGORIES = [
   { name: "Transport", emoji: "🚗", color: "#38bdf8" },
   { name: "Sent", emoji: "↗️", color: "#fb7185" },
   { name: "Paycheck", emoji: "💼", color: "#3ddc97" },
-  { name: "Window washing", emoji: "🧽", color: "#2ee6c9" },
   { name: "Received", emoji: "↙️", color: "#34d399" },
   { name: "Transfers", emoji: "🔄", color: "#64748b" },
   { name: "Other", emoji: "•", color: "#56647f" },
@@ -28,7 +27,6 @@ export function categoryInfo(name: string) {
 const RULES: [CategoryName, RegExp][] = [
   ["Transfers", /\b(cash ?out|transfer|deposit to|withdraw|add(?:ed)? cash|standard deposit|instant deposit|bank)\b/],
   ["Paycheck", /\b(prmi|payroll|paycheck|direct deposit|salary|wages?)\b/],
-  ["Window washing", /\b(window|windows|washing|wash)\b/],
   ["Food", /\b(doordash|uber ?eats|grubhub|mcdonald'?s?|chick-?fil-?a|chipotle|taco bell|wendy'?s|burger|pizza|subway|starbucks|dutch bros|coffee|cafe|restaurant|food|lunch|dinner|breakfast|snack|in-n-out|panda|sonic|raising cane'?s|domino'?s|grocer(?:y|ies)|safeway|fry'?s|walmart grocery|trader joe'?s|sprouts)\b/],
   ["Gas", /\b(gas|fuel|shell|chevron|circle k|quiktrip|qt|arco|exxon|mobil|valero|maverik|76)\b/],
   ["Transport", /\b(uber|lyft|parking|car wash|oil change|auto ?parts|autozone|tire|bus|light rail)\b/],
@@ -46,8 +44,8 @@ export function categorize(text: string, cents: number): CategoryName {
   const t = text.toLowerCase();
   for (const [name, re] of RULES) {
     if (!re.test(t)) continue;
-    // Only incoming money can be a paycheck or a window-washing payment.
-    if ((name === "Paycheck" || name === "Window washing") && cents < 0) continue;
+    // Only incoming money can be a paycheck.
+    if (name === "Paycheck" && cents < 0) continue;
     return name;
   }
   if (/\b(sent|payment to|cash app payment)\b/.test(t) && cents < 0) return "Sent";

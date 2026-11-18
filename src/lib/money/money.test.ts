@@ -34,7 +34,7 @@ describe("categorize", () => {
     expect(categorize("Circle K #123", -4000)).toBe("Gas");
     expect(categorize("Spotify", -1199)).toBe("Subscriptions");
     expect(categorize("PRMI payroll", 85000)).toBe("Paycheck");
-    expect(categorize("Windows for the Lopez house", 8000)).toBe("Window washing");
+    expect(categorize("PRMI direct deposit", 64000)).toBe("Paycheck");
     expect(categorize("Cash Out", -5000)).toBe("Transfers");
     expect(categorize("Sent · Jake", -2000)).toBe("Sent");
     expect(categorize("from Mom", 2500)).toBe("Received");
@@ -46,7 +46,7 @@ describe("readCashAppCsv", () => {
   const csv = [
     "Transaction ID,Date,Transaction Type,Currency,Amount,Fee,Net Amount,Asset Type,Asset Price,Asset Amount,Status,Notes,Name of sender/receiver,Account",
     "abc1,2026-11-15 12:01:00 MST,Cash Card Debit,USD,-$11.42,$0,-$11.42,,,,CARD CHARGED,Chipotle,Chipotle Mexican Grill,Visa Debit 1234",
-    "abc2,2026-11-14 09:00:00 MST,P2P,USD,$80,$0,$80,,,,PAYMENT DEPOSITED,windows,Mrs Lopez,Your Cash",
+    "abc2,2026-11-14 09:00:00 MST,P2P,USD,$80,$0,$80,,,,PAYMENT DEPOSITED,PRMI payroll,PRMI,Your Cash",
     "abc3,2026-11-13 18:30:00 MST,P2P,USD,-$20,$0,-$20,,,,PAYMENT FAILED,pizza,Jake,Your Cash",
     "abc4,2026-11-12 08:00:00 MST,Cash Card Debit,USD,-$45.10,$0,-$45.10,,,,CARD CHARGED,,QuikTrip 456,Visa Debit 1234",
   ].join("\n");
@@ -57,7 +57,7 @@ describe("readCashAppCsv", () => {
     expect(r.skipped).toBe(1);
     expect(r.transactions).toHaveLength(3);
     expect(r.transactions[0]).toMatchObject({ externalId: "abc1", occurredOn: "2026-11-15", amountCents: -1142, category: "Food", counterparty: "Chipotle Mexican Grill" });
-    expect(r.transactions[1]).toMatchObject({ amountCents: 8000, category: "Window washing" });
+    expect(r.transactions[1]).toMatchObject({ amountCents: 8000, category: "Paycheck" });
     expect(r.transactions[2]).toMatchObject({ amountCents: -4510, category: "Gas" });
   });
 
@@ -71,7 +71,7 @@ describe("summary", async () => {
   const { monthTotals, lastMonths, dollars, shiftMonthKey } = await import("./summary");
   const txs = [
     { occurredOn: "2026-11-15", amountCents: -1142, category: "Food" },
-    { occurredOn: "2026-11-14", amountCents: 8000, category: "Window washing" },
+    { occurredOn: "2026-11-14", amountCents: 8000, category: "Paycheck" },
     { occurredOn: "2026-11-12", amountCents: -4510, category: "Gas" },
     { occurredOn: "2026-11-10", amountCents: -5000, category: "Transfers" },
     { occurredOn: "2026-10-03", amountCents: -2000, category: "Food" },

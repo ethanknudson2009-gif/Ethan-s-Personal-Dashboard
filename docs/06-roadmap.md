@@ -57,7 +57,7 @@
 - [ ] Morning Plan / Evening Shutdown + journal; guided weekly review
 - [x] Money (Nov 18): Cash App statement (CSV) import with duplicate protection, auto categories, month totals, 6-month chart, tap-to-hide category chart, "spent $12 gas" from quick add
 - [ ] Recurring bills and budgets per category
-- [ ] Side business: window-washing jobs, customers, income, job locations
+- [x] ~~Side business: window-washing jobs~~ Removed Nov 18, 2026: Ethan doesn't do window washing. Work = LOA at PRMI (Work section).
 - [x] Grades: weighted averages, letter grades, What-If, and "what do I need?" (/grades)
 
 ## Phase 5: Social

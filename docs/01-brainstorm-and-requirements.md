@@ -17,10 +17,10 @@
 - Calendar & to-dos
 - Gym & fitness (workout planner, log, PRs)
 - Calories & nutrition (food log, macros)
-- Money & budget (including side-business income)
+- Money & budget (including paychecks)
 - Habits & goals
 - Notes & journal
-- Side business / work (window-washing jobs and clients)
+- Work: Ethan's job as a Loan Officer Assistant (LOA) at PRMI, part-time hours treated like full-time (correction, Nov 18, 2026: there is no window-washing side business)
 
 ### Social
 - Invite others: friends, niche groups, school-wide

@@ -129,7 +129,7 @@ describe("notes and work", () => {
     expect(d).toMatchObject({ area: "work", type: "task", title: "Send the loan files to my manager" });
     const p = say("PRMI call the client back friday because they had questions about the rate");
     expect(p).toMatchObject({ area: "work", title: "Call the client back", notes: "Because they had questions about the rate" });
-    expect(say("prmi job training thursday").type).toBe("task"); // not a window-washing job
+    expect(say("prmi job training thursday").type).toBe("task"); // a work task
   });
 
   it("school and personal areas", () => {

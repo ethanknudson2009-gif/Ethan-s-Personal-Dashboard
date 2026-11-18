@@ -1,12 +1,12 @@
 # Ethan's Personal Dashboard
 
-A personal "life dashboard" web app, built with Claude for a class assignment. It brings school, fitness, food, money, habits, notes and my window-washing side business into **one place**, with friends and leaderboards. It works on a computer browser and installs on my iPhone like an app.
+A personal "life dashboard" web app, built with Claude for a class assignment. It brings school, fitness, food, money, habits, notes and my job at PRMI into **one place**, with friends and leaderboards. It works on a computer browser and installs on my iPhone like an app.
 
 > **Status:** Live at https://ethan-s-personal-dashboard.vercel.app. Phase 1 (school dashboard) and Phase 2 (iPhone capture, reminders, Claude connector, voice, syllabus import) are done; from Phase 4, habits, XP/levels and grades are done. See the [Roadmap](docs/06-roadmap.md).
 
 ## The idea in one minute
 
-- **One dashboard** for everything: homework and classes, calendar and to-dos, gym, calories, habits and goals, budget, notes/journal, and side-business jobs.
+- **One dashboard** for everything: homework and classes, calendar and to-dos, gym, calories, habits and goals, budget, notes/journal, and work tasks for my job.
 - **One button to talk to it:** press a Lock Screen button on my iPhone, say "bio lab report due Friday" or "ate two eggs and toast," and it's saved, sorted, and on the dashboard.
 - **Claude is the brain:** it reads syllabus PDFs, estimates calories from food photos, and plans my week. It connects through a Claude custom connector, so there are no extra paid AI services.
 - **Social:** invite friends, groups, or the whole school for challenges and leaderboards.
