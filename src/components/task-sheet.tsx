@@ -32,7 +32,16 @@ export type EditableTask = {
   dueDate: string | null;
   dueTime: string | null;
   repeat: RepeatChoice;
+  notes?: string | null;
+  area?: Area;
 };
+
+export type Area = "school" | "work" | "personal";
+const AREAS: { value: Area; label: string }[] = [
+  { value: "school", label: "🎓 School" },
+  { value: "work", label: "💼 PRMI Work" },
+  { value: "personal", label: "🏠 Personal" },
+];
 
 type RepeatChoice = "none" | "daily" | "weekly" | "biweekly" | "monthly";
 
@@ -45,11 +54,13 @@ const REPEAT_CHOICES: { value: RepeatChoice; label: string }[] = [
 
 /** Pre-filled values, e.g. when reviewing an Inbox item. */
 export type SheetPrefill = {
-  title: string;
-  classId: string | null;
-  dueDate: string | null;
-  dueTime: string | null;
+  title?: string;
+  classId?: string | null;
+  dueDate?: string | null;
+  dueTime?: string | null;
   inboxId?: string;
+  notes?: string | null;
+  area?: Area;
 };
 
 type SheetState = { mode: "closed" } | { mode: "new"; prefill?: SheetPrefill; voice?: boolean } | { mode: "edit"; task: EditableTask };
@@ -57,7 +68,7 @@ type SheetState = { mode: "closed" } | { mode: "new"; prefill?: SheetPrefill; vo
 type SheetApi = {
   openNew: (prefill?: SheetPrefill) => void;
   /** Open quick add and start listening right away (hold the + button). */
-  openVoice: () => void;
+  openVoice: (prefill?: SheetPrefill) => void;
   openEdit: (task: EditableTask) => void;
   /** A short message at the bottom. With an action, it shows a button (e.g. Undo) and stays a bit longer. */
   toast: (message: string, action?: { label: string; run: () => void }) => void;
@@ -105,8 +116,8 @@ export function TaskSheetProvider({
   const api = useMemo<SheetApi>(
     () => ({
       // Plain "+" starts listening right away unless you turned auto-mic off.
-      openNew: (prefill) => setState({ mode: "new", prefill, voice: !prefill && autoMicOn() }),
-      openVoice: () => setState({ mode: "new", voice: true }),
+      openNew: (prefill) => setState({ mode: "new", prefill, voice: (!prefill || !prefill.title) && autoMicOn() }),
+      openVoice: (prefill) => setState({ mode: "new", prefill, voice: true }),
       openEdit: (task) => setState({ mode: "edit", task }),
       toast: (text, action) => setToastMsg({ text, key: Date.now(), action }),
       timeZone,
@@ -176,9 +187,12 @@ function Sheet({
   const prefill = state.mode === "new" ? state.prefill : undefined;
   const [text, setText] = useState(editing?.title ?? prefill?.title ?? "");
   // `undefined` = follow what the parser found; anything else = you picked it.
-  const [classPick, setClassPick] = useState<string | null | undefined>(editing ? editing.classId : prefill ? prefill.classId : undefined);
-  const [datePick, setDatePick] = useState<string | null | undefined>(editing ? editing.dueDate : prefill ? prefill.dueDate : undefined);
+  const [classPick, setClassPick] = useState<string | null | undefined>(editing ? editing.classId : prefill?.classId);
+  const [datePick, setDatePick] = useState<string | null | undefined>(editing ? editing.dueDate : prefill?.dueDate);
   const [repeat, setRepeat] = useState<RepeatChoice>(editing?.repeat ?? "none");
+  // `undefined` = follow what the parser found in your words; a string = you edited it.
+  const [notesEdit, setNotesEdit] = useState<string | undefined>(editing ? (editing.notes ?? "") : prefill?.notes != null ? prefill.notes : undefined);
+  const [areaPick, setAreaPick] = useState<Area | undefined>(editing?.area ?? prefill?.area);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -247,6 +261,9 @@ function Sheet({
         ? prefill.dueTime
         : parsedTime;
   const cls = classes.find((c) => c.id === classId) ?? null;
+  const notes = notesEdit !== undefined ? notesEdit : (parsed?.notes ?? "");
+  // A class always means school; otherwise what you picked, or what the parser heard ("at work", "PRMI").
+  const area: Area = cls ? "school" : (areaPick ?? parsed?.area ?? "personal");
 
   // Day chips: Today, Tomorrow, then the next few weekdays by name.
   const dayChips = [
@@ -275,6 +292,8 @@ function Sheet({
         dueTime,
         repeat,
         inboxId: prefill?.inboxId,
+        notes: notes.trim() || null,
+        area,
       });
       if (!result.ok) return setError(result.error);
       const when = dueDate ? ` · ${dueDate === today ? "Today" : formatLocalDate(dueDate)}` : "";
@@ -363,8 +382,25 @@ function Sheet({
           {!editing && title && (
             <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-3 py-2 text-sm">
               {cls && <ColorDot color={cls.color} />}
-              <span className="font-medium">{taskDisplayTitle(title, cls?.name ?? null)}</span>
-              {dueDate && <span className="ml-auto shrink-0 text-muted">{dueDate === today ? "Today" : formatLocalDate(dueDate)}</span>}
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">
+                  {area === "work" && <span className="mr-1 text-warn">💼</span>}
+                  {taskDisplayTitle(title, cls?.name ?? null)}
+                </span>
+                {notes.trim() && <span className="mt-0.5 line-clamp-2 block text-xs text-muted italic">{notes}</span>}
+              </span>
+              {dueDate && <span className="shrink-0 self-start text-muted">{dueDate === today ? "Today" : formatLocalDate(dueDate)}</span>}
+            </div>
+          )}
+
+          {/* Area: school, work, personal */}
+          {!cls && (
+            <div className="flex flex-wrap gap-2">
+              {AREAS.map((a) => (
+                <Chip key={a.value} active={area === a.value} onClick={() => setAreaPick(a.value)}>
+                  {a.label}
+                </Chip>
+              ))}
             </div>
           )}
 
@@ -430,6 +466,19 @@ function Sheet({
               ))}
             </div>
           </div>
+
+          {/* Notes: filled from what you said after the main part; editable */}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium tracking-wide text-muted">Notes</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotesEdit(e.target.value)}
+              rows={notes.length > 80 ? 3 : 2}
+              placeholder="Details, e.g. 3 pages, 2 sources"
+              className={cx(inputClass, "resize-none text-sm")}
+              maxLength={2000}
+            />
+          </label>
 
           {error && <p className="text-sm text-danger">{error}</p>}
 

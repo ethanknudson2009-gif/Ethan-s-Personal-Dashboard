@@ -192,9 +192,11 @@ export function TaskItem({ task }: { task: TaskView }) {
               </span>
             )}
             <span className={cx("title-strike line-clamp-2 leading-snug font-medium break-words", showChecked && "title-strike-on")}>
+              {task.area === "work" && <span className="mr-1">💼</span>}
               {task.displayTitle}
             </span>
           </span>
+          {task.notes && !showChecked && <span className="mt-0.5 line-clamp-2 block text-xs leading-snug text-muted italic">{task.notes}</span>}
           {(task.dueText || task.repeatText || task.focusedText) && (
             <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
               {task.dueText && <span className={DUE_STYLES[task.tone]}>{task.dueText}</span>}

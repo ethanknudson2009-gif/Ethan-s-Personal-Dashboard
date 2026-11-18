@@ -6,7 +6,7 @@ import { groupByDue, loadTaskData } from "./data";
 
 /** School: every task and assignment, grouped by when it's due. */
 export default async function SchoolPage() {
-  const data = await loadTaskData();
+  const data = await loadTaskData({ notArea: "work" });
   const { timeZone } = data.settings;
   const buckets = groupByDue(data.open, data.now, timeZone);
   const overdue = buckets.find((b) => b.key === "overdue")?.tasks.length ?? 0;

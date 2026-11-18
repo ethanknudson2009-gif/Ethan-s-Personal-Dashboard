@@ -110,3 +110,48 @@ describe("picking the best of several hearings", () => {
     expect(pickBestHearing(["buy milk", "by milk"], ctx)).toBe("buy milk");
   });
 });
+
+describe("notes and work", () => {
+  it("splits a long message into title + notes", () => {
+    const d = say("speech outline due thursday it needs to be three pages and include two sources");
+    expect(d).toMatchObject({ classId: "speech", title: "Outline", notes: "It needs to be 3 pages and include 2 sources" });
+    expect(d.when?.date).toBe("2026-11-19");
+  });
+
+  it("a new sentence or 'make sure' starts the notes too", () => {
+    expect(say("anatomy lab report due friday. Use the data from Tuesday's lab").notes).toBe("Use the data from tuesday lab");
+    expect(say("college algebra homework tomorrow make sure to show work").notes).toBe("Make sure to show work");
+    expect(say("call mom tomorrow").notes).toBeNull();
+  });
+
+  it("work tasks for PRMI go to the work area, without 'at work' in the title", () => {
+    const d = say("at work send the loan files to my manager tomorrow");
+    expect(d).toMatchObject({ area: "work", type: "task", title: "Send the loan files to my manager" });
+    const p = say("PRMI call the client back friday because they had questions about the rate");
+    expect(p).toMatchObject({ area: "work", title: "Call the client back", notes: "Because they had questions about the rate" });
+    expect(say("prmi job training thursday").type).toBe("task"); // not a window-washing job
+  });
+
+  it("school and personal areas", () => {
+    expect(say("speech outline due thursday").area).toBe("school");
+    expect(say("pick up my prescription tomorrow").area).toBe("personal");
+  });
+});
+
+describe("Ethan's work words (PRMI = work = primary = the office; Mike is his LO)", () => {
+  it("all the names for work go to the Work area and stay out of the title", () => {
+    expect(say("primary send mike the loan files tomorrow")).toMatchObject({ area: "work", title: "Send Mike the loan files" });
+    expect(say("at the office update the borrower list friday")).toMatchObject({ area: "work", title: "Update the borrower list" });
+    expect(say("P R M I team meeting thursday at nine")).toMatchObject({ area: "work", title: "Team meeting" });
+    expect(say("work: clean up my desk")).toMatchObject({ area: "work", title: "Clean up my desk" });
+  });
+
+  it("mentioning Mike means work", () => {
+    expect(say("ask mike about the closing date tomorrow").area).toBe("work");
+  });
+
+  it("'primary' inside school work stays school", () => {
+    const d = say("world history essay find a primary source due friday");
+    expect(d).toMatchObject({ area: "school", classId: "wh" });
+  });
+});

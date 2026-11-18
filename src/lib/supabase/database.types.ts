@@ -480,6 +480,51 @@ export type Database = {
         }
         Relationships: []
       }
+      money_transactions: {
+        Row: {
+          amount_cents: number
+          category: string
+          counterparty: string | null
+          created_at: string
+          deleted_at: string | null
+          description: string
+          external_id: string | null
+          id: string
+          notes: string | null
+          occurred_on: string
+          source: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          category?: string
+          counterparty?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          description?: string
+          external_id?: string | null
+          id?: string
+          notes?: string | null
+          occurred_on: string
+          source?: string
+          user_id?: string
+        }
+        Update: {
+          amount_cents?: number
+          category?: string
+          counterparty?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          description?: string
+          external_id?: string | null
+          id?: string
+          notes?: string | null
+          occurred_on?: string
+          source?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       no_school_days: {
         Row: {
           created_at: string
@@ -707,6 +752,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          area: string
           class_id: string | null
           completed_at: string | null
           created_at: string
@@ -729,6 +775,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          area?: string
           class_id?: string | null
           completed_at?: string | null
           created_at?: string
@@ -751,6 +798,7 @@ export type Database = {
           user_id?: string
         }
         Update: {
+          area?: string
           class_id?: string | null
           completed_at?: string | null
           created_at?: string

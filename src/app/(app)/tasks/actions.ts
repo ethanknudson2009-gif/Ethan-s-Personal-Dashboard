@@ -26,6 +26,10 @@ const saveSchema = z.object({
   repeat: z.enum(["none", "daily", "weekly", "biweekly", "monthly"]).default("none"),
   /** Set when this came from reviewing an Inbox item: marks it approved. */
   inboxId: z.string().uuid().optional(),
+  /** Extra context, shown as a caption under the task. */
+  notes: z.string().trim().max(2000).nullable().optional(),
+  /** School, work (PRMI) or personal. A class always means school. */
+  area: z.enum(["school", "work", "personal"]).optional(),
 });
 
 export type SaveTaskInput = z.input<typeof saveSchema>;
@@ -53,6 +57,8 @@ export async function saveTaskAction(input: SaveTaskInput): Promise<ActionResult
     due_at: dueAt,
     due_has_time: Boolean(t.dueDate && t.dueTime),
     repeat,
+    area: t.classId ? ("school" as const) : (t.area ?? "personal"),
+    ...(t.notes !== undefined ? { notes: t.notes || null } : {}),
   };
 
   if (t.id) {

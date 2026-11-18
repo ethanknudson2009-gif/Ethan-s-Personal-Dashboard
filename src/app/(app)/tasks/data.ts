@@ -4,7 +4,7 @@ import { daysUntil } from "@/lib/format";
 import { toTaskView, type TaskRecord, type TaskView } from "@/lib/tasks/view";
 import type { StudySettings } from "@/lib/cushion";
 
-const TASK_COLUMNS = "id, title, class_id, due_at, due_has_time, status, repeat, completed_at, minutes_done";
+const TASK_COLUMNS = "id, title, class_id, due_at, due_has_time, status, repeat, completed_at, minutes_done, notes, area";
 
 export type ClassInfo = { id: string; name: string; color: string };
 
@@ -18,7 +18,7 @@ export type TaskData = {
 };
 
 /** Everything the Today and School pages need, loaded in parallel. */
-export async function loadTaskData(): Promise<TaskData> {
+export async function loadTaskData(only?: { area?: "work"; notArea?: "work" }): Promise<TaskData> {
   const supabase = await createClient();
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
@@ -43,9 +43,11 @@ export async function loadTaskData(): Promise<TaskData> {
 
   const now = new Date();
   const classById = new Map((classRes.data ?? []).map((c) => [c.id, c]));
+  const keep = (t: { area?: string | null }) =>
+    only?.area ? t.area === only.area : only?.notArea ? t.area !== only.notArea : true;
   return {
-    open: openRes.data ?? [],
-    recentlyDone: doneRes.data ?? [],
+    open: (openRes.data ?? []).filter(keep),
+    recentlyDone: (doneRes.data ?? []).filter(keep),
     classById,
     settings,
     now,

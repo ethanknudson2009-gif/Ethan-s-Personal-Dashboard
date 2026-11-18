@@ -167,13 +167,18 @@ export function buildMcpServer(userId: string) {
       .optional()
       .describe("The due date/time words exactly as said, e.g. 'friday 3pm' or 'tomorrow'. Do NOT convert to a date; the dashboard does that."),
     repeat: z.enum(["none", "daily", "weekly", "monthly"]).optional(),
+    area: z.enum(["school", "work", "personal"]).optional().describe("'work' for Ethan's job at PRMI; school tasks normally have a class"),
+    notes: z.string().max(2000).optional().describe("Extra details Ethan mentioned (page count, what to bring…)"),
     confirmed_by_user: z
       .boolean()
       .optional()
       .describe("true ONLY if Ethan clearly confirmed these exact details in this chat. Otherwise leave false: it goes to his Inbox to review."),
   };
 
-  async function addTask(args: { title: string; class_name?: string; due_text?: string; repeat?: string; confirmed_by_user?: boolean }, type: "homework" | "task") {
+  async function addTask(
+    args: { title: string; class_name?: string; due_text?: string; repeat?: string; area?: "school" | "work" | "personal"; notes?: string; confirmed_by_user?: boolean },
+    type: "homework" | "task",
+  ) {
     const ctx = await context();
     const input = captureSchema.parse({
       raw_text: [args.class_name, args.title, args.due_text ? `due ${args.due_text}` : ""].filter(Boolean).join(" "),
@@ -182,6 +187,7 @@ export function buildMcpServer(userId: string) {
       class_name: args.class_name,
       due_text: args.due_text,
       confidence: args.confirmed_by_user ? 1 : 0.8,
+      notes: args.notes,
     });
     const decision = decide(input, {
       now: new Date(),
@@ -189,6 +195,7 @@ export function buildMcpServer(userId: string) {
       classes: ctx.classes,
       autoSaveTypes: args.confirmed_by_user ? ["homework", "task"] : ctx.autoSaveTypes,
     });
+    if (args.area) decision.draft.area = args.area;
     const what = describeDraft(decision.draft);
     if (decision.autoSave) {
       const repeat = repeatFromForm(args.repeat ?? "none");

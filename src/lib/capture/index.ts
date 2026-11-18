@@ -47,6 +47,7 @@ export type InboxDraft = {
   amount: number | null;
   category: string | null;
   notes: string | null;
+  area?: "school" | "work" | "personal";
 };
 
 export type Decision = {
@@ -126,7 +127,8 @@ export function decide(
     dueTime: parsedDue ? timeOf(parsedDue) : timeOf(parsedRaw),
     amount: input.amount ?? parsedRaw.amount,
     category: input.category ?? parsedRaw.category,
-    notes: input.notes ?? null,
+    notes: input.notes ?? parsedRaw.notes ?? null,
+    area: classId ? "school" : parsedRaw.area,
   };
 
   confidence = Math.round(Math.max(0, Math.min(1, confidence)) * 100) / 100;
@@ -158,6 +160,7 @@ export function taskRowFromDraft(draft: InboxDraft, timeZone: string, source: st
     due_at: dueAt,
     due_has_time: Boolean(draft.dueDate && draft.dueTime),
     notes: draft.notes,
+    area: draft.classId ? ("school" as const) : (draft.area ?? (draft.type === "homework" ? "school" : "personal")),
     source,
   };
 }
@@ -177,5 +180,6 @@ export function readDraft(value: unknown): InboxDraft | null {
     amount: d.amount ?? null,
     category: d.category ?? null,
     notes: d.notes ?? null,
+    area: d.area === "work" || d.area === "school" || d.area === "personal" ? d.area : undefined,
   };
 }

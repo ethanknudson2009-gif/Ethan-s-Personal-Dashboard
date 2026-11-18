@@ -47,11 +47,51 @@ export type CaptureDraft = {
   category: string | null;
   habitName: string | null;
   customerName: string | null;
+  /** Extra context said after the main thing ("it needs to be 3 pages…"), shown as a caption. */
+  notes: string | null;
+  /** Which part of life it belongs to: a class → school; "at work"/"PRMI" → work. */
+  area: Area;
   /** 0–1. Below the Inbox threshold, or with problems, it goes to review. */
   confidence: number;
   /** Plain-language reasons we're unsure, shown on the review card. */
   problems: string[];
 };
+
+export type Area = "school" | "work" | "personal";
+
+// ── Work (Ethan's job at PRMI) ─────────────────────────────────────────────
+/** Phrases that say a task is for work. These words are removed from the title. */
+// Ethan calls PRMI "work", "primary" (also how speech often hears "PRMI")
+// or "the office". Mike is his LO (loan officer), so mentioning Mike means work.
+const WORK_TAGS = /\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work|primary|the office)\b:?/g;
+/** Words that suggest work but stay in the title ("send Mike the files"). */
+const WORK_HINTS =
+  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loan files?|borrowers?|closing|underwriting)\b|^(?:work|primary)\b/;
+
+// ── Notes: where the main thing ends and extra context begins ─────────────
+const NOTE_MARKERS =
+  /(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|note that|it needs|it has to|it should|it'?s about|it is about|make sure|remember|don'?t forget|because|so that|(?:the )?teacher said|(?:she|he|they) said|also|and also|bring|include|including|details?\s*:)\b)/g;
+
+/** Where notes start in the text, or -1. The main part keeps at least 2 words. */
+export function findNotesStart(low: string): number {
+  const enoughBefore = (i: number) => low.slice(0, i).trim().split(/\s+/).filter(Boolean).length >= 2;
+  const candidates: number[] = [];
+  for (const m of low.matchAll(NOTE_MARKERS)) if (enoughBefore(m.index)) candidates.push(m.index);
+  // A new sentence also starts notes: "Speech outline due Thursday. Three pages."
+  for (const m of low.matchAll(/[.!?]\s+(?=\S)/g)) if (enoughBefore(m.index)) candidates.push(m.index);
+  return candidates.length ? Math.min(...candidates) : -1;
+}
+
+/** Tidy the notes text: drop the leading punctuation and "note:" label, capitalize. */
+function cleanNotes(text: string): string | null {
+  const t = text
+    .replace(/^[\s,.;:!?–-]+/, "")
+    .replace(/^(?:notes?\s*:?|note that)\s*/i, "")
+    .replace(/[\s,;:–-]+$/, "")
+    .trim();
+  if (!t) return null;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
 
 // ── Keyword lists ───────────────────────────────────────────────────────────
 const NOTE_PREFIX = /^\s*(note|journal|remember that)\b\s*[:\-–]?\s*/i;
@@ -169,7 +209,8 @@ function matchClass(
 function detectType(low: string, ctx: ParseContext, isNote: boolean): CaptureType | null {
   if (isNote) return "note";
   if (EXPENSE_VERBS.test(low)) return "expense";
-  if (JOB_WORDS.test(low)) return "job";
+  // Window-washing jobs; but anything for PRMI / "at work" is a work task, not a side job.
+  if (JOB_WORDS.test(low) && !WORK_HINTS.test(low)) return "job";
   if (FOOD_WORDS.test(low)) return "food";
   if (WORKOUT_WORDS.test(low)) return "workout";
   if ((ctx.habits ?? []).some((h) => new RegExp(`\\b${escapeRe(h.toLowerCase())}\\b`).test(low))) return "habit";
@@ -193,9 +234,14 @@ function cleanTitle(leftover: string, type: CaptureType): string {
   words = words.filter((w) => !["due", "by"].includes(w.toLowerCase()));
   while (words.length && FILLER.has(words[0].toLowerCase())) words.shift();
   while (words.length && FILLER.has(words[words.length - 1].toLowerCase())) words.pop();
-  const title = words.join(" ");
+  // Speech arrives lowercase: give names we know their capitals back.
+  const title = words.join(" ").replace(PROPER_NAMES, (w) => PROPER[w.toLowerCase()] ?? w);
   return title.charAt(0).toUpperCase() + title.slice(1);
 }
+
+/** People and places Ethan mentions (Mike is his loan officer at PRMI). */
+const PROPER: Record<string, string> = { mike: "Mike", prmi: "PRMI", lo: "LO" };
+const PROPER_NAMES = /\b(mike|prmi|lo)\b/gi;
 
 const DEFAULT_TITLES: Record<CaptureType, string> = {
   homework: "Homework", task: "Task", food: "Food", workout: "Workout",
@@ -317,6 +363,23 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     if (m) customerName = m[0].trim();
   }
 
+  // ── Work or school? ──────────────────────────────────────────────────────
+  const isWork = WORK_HINTS.test(low) || /\bprmi\b/.test(low);
+  if (isWork) {
+    // "at work" / "for PRMI" just say where it belongs: keep them out of the title.
+    for (const m of spans.free(WORK_TAGS, low)) spans.claim(m.index, m.index + m[0].length);
+  }
+  const area: Area = isWork && !cls ? "work" : cls || type === "homework" ? "school" : "personal";
+
+  // ── Notes: everything after "it needs…", "make sure…", a new sentence… ──
+  // (Dates and classes were already found anywhere in the message.)
+  let notes: string | null = null;
+  const notesStart = findNotesStart(low);
+  if (notesStart >= 0) {
+    notes = cleanNotes(original.slice(notesStart));
+    spans.claim(notesStart, original.length);
+  }
+
   // ── Title & category ─────────────────────────────────────────────────────
   let title = cleanTitle(spans.leftover(original), type);
   let category: string | null = null;
@@ -364,6 +427,8 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     category,
     habitName,
     customerName,
+    notes,
+    area,
     confidence: clamp01(confidence),
     problems,
   };
@@ -373,6 +438,6 @@ function emptyDraft(type: CaptureType, rawText: string): CaptureDraft {
   return {
     type, title: "", rawText, when: null, classId: null, className: null, amount: null, quantity: null,
     minutes: null, sets: null, distanceMiles: null, category: null, habitName: null, customerName: null,
-    confidence: 1, problems: [],
+    notes: null, area: "personal", confidence: 1, problems: [],
   };
 }

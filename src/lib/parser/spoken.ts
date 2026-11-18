@@ -90,6 +90,9 @@ export function normalizeSpoken(input: string): string {
   s = s.replace(/\s(?:um+|uh+|er+|hmm+)[,.]?(?=\s)/g, " ");
   s = s.replace(/\s+/g, " ");
 
+  // "P R M I" / "p.r.m.i." (Ethan's job) → prmi
+  s = s.replace(/\bp\.?\s?r\.?\s?m\.?\s?i\b\.?/g, "prmi");
+
   // "p m" / "p.m." / "a m" → pm / am
   s = s.replace(/\b([ap])\.?\s?m\.?(?=\s|$|[,.!?])/g, "$1m");
 

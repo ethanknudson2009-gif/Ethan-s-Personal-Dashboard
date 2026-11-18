@@ -20,6 +20,8 @@ export type TaskRecord = {
   repeat: unknown;
   completed_at?: string | null;
   minutes_done?: number;
+  notes?: string | null;
+  area?: string;
 };
 
 export type TaskView = {
@@ -31,6 +33,9 @@ export type TaskView = {
   repeatText: string | null;
   /** "⏱ 40m" once you've focused on it. */
   focusedText: string | null;
+  /** Extra context, shown as a small caption. */
+  notes: string | null;
+  area: "school" | "work" | "personal";
   done: boolean;
   edit: {
     id: string;
@@ -39,6 +44,8 @@ export type TaskView = {
     dueDate: string | null;
     dueTime: string | null;
     repeat: "none" | "daily" | "weekly" | "biweekly" | "monthly";
+    notes: string | null;
+    area: "school" | "work" | "personal";
   };
 };
 
@@ -75,9 +82,13 @@ export function toTaskView(
     tone: toneFor(task, now, timeZone),
     repeatText: describeRepeat(rule),
     focusedText: task.minutes_done ? `⏱ ${formatMinutes(task.minutes_done).replace(/ /g, "")}` : null,
+    notes: task.notes ?? null,
+    area: asArea(task.area),
     done: task.status === "done",
     edit: {
       id: task.id,
+      notes: task.notes ?? null,
+      area: asArea(task.area),
       title: task.title,
       classId: task.class_id,
       dueDate: due ? toLocalDate(due, timeZone) : null,
@@ -85,4 +96,8 @@ export function toTaskView(
       repeat: preset === "after_days" ? "none" : preset,
     },
   };
+}
+
+function asArea(a: string | undefined): "school" | "work" | "personal" {
+  return a === "work" || a === "personal" ? a : "school";
 }
