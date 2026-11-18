@@ -38,17 +38,20 @@
 - [x] Focus timer (25 min, logs minutes to the task, chime)
 - [x] Today: progress ring, week strip of the next 7 days, "All clear" state
 - [x] Auto-refresh when the installed app is reopened
+- [x] Habits on Today, in the Claude connector (log_habit) and in the 8 PM reminder
+- [x] Syllabus imports grouped as batches in the Inbox
 
 ## Phase 3: Body
 - [ ] Gym: plans, A/B/C rotations, weights filled in from last time, backup exercise, progress, recovery map (free-exercise-db data)
 - [ ] Calories: quick add, barcode lookup (Open Food Facts), photo logging through Claude, Meal What-If, adaptive goals
 
 ## Phase 4: Life
-- [ ] Habits with a strength score, XP, levels, coins → reward wishlist
+- [x] Habits with a strength score and streaks (Life tab), XP and levels
+- [ ] Coins → reward wishlist
 - [ ] Morning Plan / Evening Shutdown + journal; guided weekly review
 - [ ] Budget (categories, recurring items, hide-a-category chart)
 - [ ] Side business: window-washing jobs, customers, income, job locations
-- [ ] Grades: weighted GPA + What-If
+- [x] Grades: weighted averages, letter grades, What-If, and "what do I need?" (/grades)
 
 ## Phase 5: Social
 - [ ] Friends, groups, school-wide spaces

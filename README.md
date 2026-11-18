@@ -2,7 +2,7 @@
 
 A personal "life dashboard" web app, built with Claude for a class assignment. It brings school, fitness, food, money, habits, notes and my window-washing side business into **one place**, with friends and leaderboards. It works on a computer browser and installs on my iPhone like an app.
 
-> **Status:** Live at https://ethan-s-personal-dashboard.vercel.app. Phase 1 (school dashboard) is done; Phase 2 (iPhone capture, reminders, Claude connector, voice) is mostly done. See the [Roadmap](docs/06-roadmap.md).
+> **Status:** Live at https://ethan-s-personal-dashboard.vercel.app. Phase 1 (school dashboard) and Phase 2 (iPhone capture, reminders, Claude connector, voice, syllabus import) are done; from Phase 4, habits, XP/levels and grades are done. See the [Roadmap](docs/06-roadmap.md).
 
 ## The idea in one minute
 
