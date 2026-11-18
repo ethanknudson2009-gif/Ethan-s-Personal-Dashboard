@@ -11,6 +11,7 @@ async function fakeStore(opts: { autoSaveTypes?: string[] } = {}) {
   const token = generateToken("capture");
   const hash = await hashToken(token);
   const tasks: unknown[] = [];
+  const money: { amount_cents: number; category: string }[] = [];
   const inbox: { client_id: string | null; id: string }[] = [];
   let touched = 0;
   const store: CaptureStore = {
@@ -35,13 +36,17 @@ async function fakeStore(opts: { autoSaveTypes?: string[] } = {}) {
       tasks.push(row);
       return `task-${tasks.length}`;
     },
+    async insertMoney(_u, row) {
+      money.push(row);
+      return `money-${money.length}`;
+    },
     async insertInbox(_u, item) {
       const id = `inbox-${inbox.length + 1}`;
       inbox.push({ client_id: item.client_id, id });
       return id;
     },
   };
-  return { token, store, tasks, inbox, touched: () => touched };
+  return { token, store, tasks, money, inbox, touched: () => touched };
 }
 
 const call = (token: string | null, body: unknown, store: CaptureStore) =>
@@ -92,6 +97,14 @@ describe("POST /api/capture", () => {
     const r = await call(on.token, body, on.store);
     expect(r.body).toMatchObject({ status: "saved", message: "Saved ✓ Human Anatomy: Lab · Fri, Nov 20 · 3:00 PM" });
     expect(on.tasks).toHaveLength(1);
+  });
+
+  it("a confident expense saves straight to Money when allowed", async () => {
+    const on = await fakeStore({ autoSaveTypes: ["expense"] });
+    const r = await call(on.token, { raw_text: "spent 12 dollars on gas", type: "expense", title: "Gas", amount: 12, confidence: 0.95 }, on.store);
+    expect(r.body).toMatchObject({ status: "saved", message: "Saved ✓ $12 · Gas" });
+    expect(on.money[0]).toMatchObject({ amount_cents: -1200, category: "Gas" });
+    expect(on.tasks).toHaveLength(0);
   });
 
   it("a retried send with the same client_id isn't saved twice", async () => {

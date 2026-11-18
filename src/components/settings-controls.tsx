@@ -81,6 +81,7 @@ export function RevokeToken({ id }: { id: string }) {
 const AUTO_SAVE_OPTIONS = [
   { type: "homework", label: "Homework", hint: "e.g. “anatomy lab due friday”" },
   { type: "task", label: "To-dos", hint: "e.g. “pick up prescription tomorrow”" },
+  { type: "expense", label: "Expenses", hint: "e.g. “spent 12 dollars on gas” → Money" },
 ];
 
 export function AutoSaveSwitches({ enabled }: { enabled: string[] }) {

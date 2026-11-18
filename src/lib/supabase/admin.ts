@@ -68,6 +68,12 @@ export function captureStore(db: Admin): CaptureStore {
       return data.id;
     },
 
+    async insertMoney(userId, row) {
+      const { data, error } = await db.from("money_transactions").insert({ ...row, user_id: userId }).select("id").single();
+      if (error || !data) throw new Error(error?.message ?? "insert failed");
+      return data.id;
+    },
+
     async insertInbox(userId, item) {
       const { data, error } = await db
         .from("inbox_items")

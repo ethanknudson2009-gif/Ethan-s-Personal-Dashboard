@@ -3,7 +3,8 @@
 import { refresh } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
-import { readDraft, SAVEABLE_TYPES, taskRowFromDraft } from "@/lib/capture";
+import { moneyRowFromDraft, readDraft, SAVEABLE_TYPES, taskRowFromDraft } from "@/lib/capture";
+import { toLocalDate } from "@/lib/time";
 import type { ActionResult } from "@/app/(app)/tasks/actions";
 
 /*
@@ -24,16 +25,23 @@ async function approveOne(supabase: Awaited<ReturnType<typeof createClient>>, id
   if (!draft) return { ok: false, error: "This item can't be read. Dismiss it and add it again." };
   if (!SAVEABLE_TYPES.includes(draft.type)) return { ok: false, error: `${draft.type} tracking isn't built yet` };
 
-  const { data: task, error: e1 } = await supabase
-    .from("tasks")
-    .insert(taskRowFromDraft(draft, timeZone, item.source))
-    .select("id")
-    .single();
-  if (e1 || !task) return { ok: false, error: e1?.message ?? "Couldn't save" };
+  let saved: { id: string } | null = null;
+  let table: "tasks" | "money_transactions" = "tasks";
+  if (draft.type === "expense") {
+    if (draft.amount == null) return { ok: false, error: "How much was it? Tap Edit to add the amount." };
+    table = "money_transactions";
+    const { data, error: e1 } = await supabase.from("money_transactions").insert(moneyRowFromDraft(draft, toLocalDate(new Date(), timeZone))).select("id").single();
+    if (e1 || !data) return { ok: false, error: e1?.message ?? "Couldn't save" };
+    saved = data;
+  } else {
+    const { data, error: e1 } = await supabase.from("tasks").insert(taskRowFromDraft(draft, timeZone, item.source)).select("id").single();
+    if (e1 || !data) return { ok: false, error: e1?.message ?? "Couldn't save" };
+    saved = data;
+  }
 
   const { error: e2 } = await supabase
     .from("inbox_items")
-    .update({ status: "approved", result_table: "tasks", result_id: task.id })
+    .update({ status: "approved", result_table: table, result_id: saved.id })
     .eq("id", id);
   if (e2) return { ok: false, error: e2.message };
   return { ok: true };

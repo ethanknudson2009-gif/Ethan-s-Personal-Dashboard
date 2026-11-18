@@ -5,7 +5,8 @@
 import { bearerToken, hashToken, scopeOf } from "@/lib/tokens";
 import { formatLocalDate, formatTimeOfDay, taskDisplayTitle } from "@/lib/format";
 import type { ClassRef } from "@/lib/parser";
-import { captureSchema, decide, SAVEABLE_TYPES, taskRowFromDraft, type InboxDraft } from "./index";
+import { captureSchema, decide, moneyRowFromDraft, SAVEABLE_TYPES, taskRowFromDraft, type InboxDraft } from "./index";
+import { toLocalDate } from "@/lib/time";
 
 export const MAX_BODY_BYTES = 32 * 1024;
 
@@ -16,6 +17,7 @@ export interface CaptureStore {
   loadContext(userId: string): Promise<{ timeZone: string; classes: ClassRef[]; autoSaveTypes: string[] }>;
   findByClientId(userId: string, clientId: string): Promise<{ id: string; status: string } | null>;
   insertTask(userId: string, row: ReturnType<typeof taskRowFromDraft>): Promise<string>;
+  insertMoney(userId: string, row: ReturnType<typeof moneyRowFromDraft>): Promise<string>;
   insertInbox(
     userId: string,
     item: { raw_text: string; draft: InboxDraft; type: string; confidence: number; problems: string[]; source: string; client_id: string | null },
@@ -31,6 +33,10 @@ const fail = (status: number, error: string): CaptureResponse => ({ status, body
 
 /** "Speech: Outline · Thu, Nov 19 · 3:00 PM" — what the Shortcut shows. */
 export function describeDraft(draft: InboxDraft): string {
+  if (draft.type === "expense") {
+    const amount = draft.amount != null ? "$" + draft.amount.toFixed(2).replace(/\.00$/, "") + " · " : "";
+    return amount + (draft.title || draft.category || "Expense");
+  }
   const title = taskDisplayTitle(draft.title, draft.className);
   const when = draft.dueDate ? ` · ${formatLocalDate(draft.dueDate)}${draft.dueTime ? ` · ${formatTimeOfDay(draft.dueTime)}` : ""}` : "";
   return `${title}${when}`;
@@ -72,7 +78,10 @@ export async function handleCapture(
   const what = describeDraft(decision.draft);
 
   if (decision.autoSave && SAVEABLE_TYPES.includes(decision.draft.type)) {
-    const id = await store.insertTask(owner.userId, taskRowFromDraft(decision.draft, ctx.timeZone, "shortcut"));
+    const id =
+      decision.draft.type === "expense"
+        ? await store.insertMoney(owner.userId, moneyRowFromDraft(decision.draft, toLocalDate(req.now, ctx.timeZone)))
+        : await store.insertTask(owner.userId, taskRowFromDraft(decision.draft, ctx.timeZone, "shortcut"));
     return { status: 201, body: { ok: true, status: "saved", id, message: `Saved ✓ ${what}` } };
   }
 

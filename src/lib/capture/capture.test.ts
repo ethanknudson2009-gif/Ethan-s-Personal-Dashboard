@@ -56,10 +56,15 @@ describe("decide: Claude's JSON", () => {
   });
 
   it("types without a module yet wait in the Inbox", () => {
-    const d = decide(input({ raw_text: "spent $12 gas", type: "expense", amount: 12, confidence: 0.99 }), { ...ctx, autoSaveTypes: ["expense"] });
-    expect(d.draft).toMatchObject({ type: "expense", amount: 12 });
+    const d = decide(input({ raw_text: "ate 2 eggs", type: "food", confidence: 0.99 }), { ...ctx, autoSaveTypes: ["food"] });
+    expect(d.draft).toMatchObject({ type: "food" });
     expect(d.autoSave).toBe(false);
     expect(d.problems.join(" ")).toMatch(/isn't built yet/);
+  });
+
+  it("expenses can be saved now (to Money)", () => {
+    const d = decide(input({ raw_text: "spent $12 gas", type: "expense", amount: 12, confidence: 0.99 }), { ...ctx, autoSaveTypes: ["expense"] });
+    expect(d).toMatchObject({ autoSave: true, draft: { type: "expense", amount: 12 } });
   });
 });
 

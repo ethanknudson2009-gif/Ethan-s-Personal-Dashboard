@@ -7,12 +7,13 @@
 import { z } from "zod";
 import { parse, type CaptureDraft, type ClassRef } from "@/lib/parser";
 import { fromLocal } from "@/lib/time";
+import { categorize } from "@/lib/money/categories";
 
 export const CAPTURE_TYPES = ["homework", "task", "food", "workout", "expense", "job", "note", "habit"] as const;
 export type CaptureType = (typeof CAPTURE_TYPES)[number];
 
 /** Types the dashboard can save today. Others wait in the Inbox until their module exists. */
-export const SAVEABLE_TYPES: CaptureType[] = ["homework", "task"];
+export const SAVEABLE_TYPES: CaptureType[] = ["homework", "task", "expense"];
 
 /**
  * The JSON the iPhone Shortcut sends (version 1). Only raw_text is required.
@@ -163,6 +164,28 @@ export function taskRowFromDraft(draft: InboxDraft, timeZone: string, source: st
     area: draft.classId ? ("school" as const) : (draft.area ?? (draft.type === "homework" ? "school" : "personal")),
     source,
   };
+}
+
+/**
+ * The money_transactions row for an expense draft ("spent $12 gas").
+ * The "due" date words mean when it was spent ("yesterday"); default today.
+ */
+export function moneyRowFromDraft(draft: InboxDraft, today: string) {
+  const cents = Math.round(Math.abs(draft.amount ?? 0) * 100);
+  const description = draft.title || draft.category || "Expense";
+  return {
+    occurred_on: draft.dueDate ?? today,
+    amount_cents: -cents,
+    description,
+    category: categorize(`${description} ${draft.category ?? ""}`, -cents),
+    source: "capture" as const,
+    notes: draft.notes,
+  };
+}
+
+/** Which table a saveable draft goes to. */
+export function targetTable(draft: InboxDraft): "tasks" | "money_transactions" {
+  return draft.type === "expense" ? "money_transactions" : "tasks";
 }
 
 /** Parses a stored draft back out of the database's JSON column. */

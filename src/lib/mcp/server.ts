@@ -4,7 +4,8 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_TIME_ZONE, addDays, fromLocal, toLocalDate } from "@/lib/time";
 import { formatDue, formatTimeOfDay, taskDisplayTitle } from "@/lib/format";
-import { captureSchema, decide, readDraft, SAVEABLE_TYPES, taskRowFromDraft } from "@/lib/capture";
+import { captureSchema, decide, moneyRowFromDraft, readDraft, SAVEABLE_TYPES, taskRowFromDraft } from "@/lib/capture";
+import { categorize } from "@/lib/money/categories";
 import { nextOccurrence, repeatFromForm } from "@/lib/tasks";
 import { describeDraft } from "@/lib/capture/handle";
 import { classesOn, type ScheduleContext } from "@/lib/schedule";
@@ -350,8 +351,16 @@ export function buildMcpServer(userId: string) {
           results.push(`${id}: can't be saved yet (${d?.type ?? "unknown"} tracking isn't built)`);
           continue;
         }
-        const { data: task } = await db.from("tasks").insert({ ...taskRowFromDraft(d, ctx.timeZone, item.source), user_id: userId }).select("id").single();
-        await db.from("inbox_items").update({ status: "approved", result_table: "tasks", result_id: task?.id ?? null }).eq("id", id).eq("user_id", userId);
+        if (d.type === "expense" && d.amount == null) {
+          results.push(`${id}: needs an amount first`);
+          continue;
+        }
+        const table = d.type === "expense" ? "money_transactions" : "tasks";
+        const { data: saved } =
+          d.type === "expense"
+            ? await db.from("money_transactions").insert({ ...moneyRowFromDraft(d, toLocalDate(new Date(), ctx.timeZone)), user_id: userId }).select("id").single()
+            : await db.from("tasks").insert({ ...taskRowFromDraft(d, ctx.timeZone, item.source), user_id: userId }).select("id").single();
+        await db.from("inbox_items").update({ status: "approved", result_table: table, result_id: saved?.id ?? null }).eq("id", id).eq("user_id", userId);
         results.push(`${id}: approved → ${describeDraft(d)}`);
       }
       return text(results.join("\n"));
@@ -479,11 +488,79 @@ export function buildMcpServer(userId: string) {
     },
   );
 
+  // ── Money ───────────────────────────────────────────────────────────────
+  server.registerTool(
+    "log_expense",
+    {
+      title: "Log money spent or received",
+      description:
+        "Record money Ethan spent (or got paid) in the Money section. Goes to his Inbox for a one-tap check unless he confirmed the exact details in this chat.",
+      inputSchema: {
+        amount: z.number().positive().describe("Dollars, e.g. 12.5"),
+        what: z.string().min(1).max(200).describe("What it was, e.g. 'Gas' or 'Chipotle'"),
+        received: z.boolean().optional().describe("true if he got paid (income) instead of spending"),
+        when_text: z.string().max(60).optional().describe("Date words as said, e.g. 'yesterday'. Default today."),
+        confirmed_by_user: z.boolean().optional(),
+      },
+    },
+    async ({ amount, what, received, when_text, confirmed_by_user }) => {
+      const ctx = await context();
+      const today = toLocalDate(new Date(), ctx.timeZone);
+      if (received) {
+        // Income isn't an "expense" draft: save directly when confirmed, else note it in the Inbox.
+        if (!confirmed_by_user) {
+          await db.from("inbox_items").insert({
+            user_id: userId,
+            raw_text: `got $${amount} for ${what}`,
+            draft: { type: "note", title: `Got $${amount} for ${what}`, classId: null, className: null, dueDate: null, dueTime: null, amount, category: null, notes: "Income: add it on the Money page" },
+            type: "note",
+            confidence: 0.9,
+            problems: ["Income: confirm in the chat or add it on the Money page"],
+            source: "mcp",
+          });
+          return text(`Noted in Ethan's Inbox: got $${amount} for ${what}. Ask him to confirm to save it to Money.`);
+        }
+        const cents = Math.round(amount * 100);
+        await db.from("money_transactions").insert({
+          user_id: userId,
+          occurred_on: today,
+          amount_cents: cents,
+          description: what,
+          category: categorize(what, cents),
+          source: "capture",
+        });
+        return text(`Saved to Money: +$${amount} for ${what}.`);
+      }
+      const input = captureSchema.parse({
+        raw_text: `spent $${amount} on ${what}${when_text ? ` ${when_text}` : ""}`,
+        type: "expense",
+        title: what,
+        amount,
+        due_text: when_text,
+        confidence: confirmed_by_user ? 1 : 0.8,
+      });
+      const decision = decide(input, { now: new Date(), timeZone: ctx.timeZone, classes: [], autoSaveTypes: confirmed_by_user ? ["expense"] : ctx.autoSaveTypes });
+      if (decision.autoSave) {
+        await db.from("money_transactions").insert({ ...moneyRowFromDraft(decision.draft, today), user_id: userId });
+        return text(`Saved to Money: −$${amount} · ${what}.`);
+      }
+      await db.from("inbox_items").insert({
+        user_id: userId,
+        raw_text: input.raw_text,
+        draft: decision.draft,
+        type: "expense",
+        confidence: decision.confidence,
+        problems: decision.problems,
+        source: "mcp",
+      });
+      return text(`Added to Ethan's Inbox for review: −$${amount} · ${what}. One tap saves it to Money.`);
+    },
+  );
+
   // ── Not built yet: these wait in the Inbox ──────────────────────────────
   for (const [name, type, label] of [
     ["log_food", "food", "Log food (calories tracking comes in Phase 3)"],
     ["log_workout", "workout", "Log a workout (gym tracking comes in Phase 3)"],
-    ["log_expense", "expense", "Log an expense (budget comes in Phase 4)"],
     ["add_note", "note", "Save a note or journal entry (notes come in Phase 4)"],
   ] as const) {
     server.registerTool(
