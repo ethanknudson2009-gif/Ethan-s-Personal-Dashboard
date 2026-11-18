@@ -194,7 +194,7 @@ export function TaskItem({ task }: { task: TaskView }) {
               {task.displayTitle}
             </span>
           </span>
-          {(task.dueText || task.repeatText) && (
+          {(task.dueText || task.repeatText || task.focusedText) && (
             <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
               {task.dueText && <span className={DUE_STYLES[task.tone]}>{task.dueText}</span>}
               {task.repeatText && (
@@ -202,6 +202,7 @@ export function TaskItem({ task }: { task: TaskView }) {
                   <IconRepeat size={12} /> {task.repeatText}
                 </span>
               )}
+              {task.focusedText && <span className="text-electric">{task.focusedText}</span>}
             </span>
           )}
         </button>

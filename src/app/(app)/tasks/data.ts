@@ -4,7 +4,7 @@ import { daysUntil } from "@/lib/format";
 import { toTaskView, type TaskRecord, type TaskView } from "@/lib/tasks/view";
 import type { StudySettings } from "@/lib/cushion";
 
-const TASK_COLUMNS = "id, title, class_id, due_at, due_has_time, status, repeat, completed_at";
+const TASK_COLUMNS = "id, title, class_id, due_at, due_has_time, status, repeat, completed_at, minutes_done";
 
 export type ClassInfo = { id: string; name: string; color: string };
 

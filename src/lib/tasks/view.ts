@@ -5,6 +5,7 @@
 import { formatDue, daysUntil, taskDisplayTitle } from "@/lib/format";
 import { toLocalDate, zonedParts } from "@/lib/time";
 import { describeRepeat, parseRepeat, presetFromRule } from "./index";
+import { formatMinutes } from "@/lib/cushion";
 
 /** How urgent a task looks: overdue glows red, today glows teal and pulses, tomorrow gets amber. */
 export type Tone = "overdue" | "today" | "tomorrow" | "normal" | "done";
@@ -18,6 +19,7 @@ export type TaskRecord = {
   status: string;
   repeat: unknown;
   completed_at?: string | null;
+  minutes_done?: number;
 };
 
 export type TaskView = {
@@ -27,6 +29,8 @@ export type TaskView = {
   dueText: string | null;
   tone: Tone;
   repeatText: string | null;
+  /** "⏱ 40m" once you've focused on it. */
+  focusedText: string | null;
   done: boolean;
   edit: {
     id: string;
@@ -70,6 +74,7 @@ export function toTaskView(
     dueText: due ? formatDue(due, task.due_has_time, now, timeZone) : null,
     tone: toneFor(task, now, timeZone),
     repeatText: describeRepeat(rule),
+    focusedText: task.minutes_done ? `⏱ ${formatMinutes(task.minutes_done).replace(/ /g, "")}` : null,
     done: task.status === "done",
     edit: {
       id: task.id,

@@ -135,3 +135,15 @@ export async function deleteTaskAction(id: string): Promise<ActionResult> {
   refresh();
   return { ok: true };
 }
+
+/** Adds focused minutes to a task (from the focus timer). */
+export async function logFocusAction(id: string, minutes: number): Promise<ActionResult> {
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 600) return { ok: false, error: "Invalid minutes" };
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("tasks").select("minutes_done").eq("id", id).single();
+  if (error || !data) return { ok: false, error: "Couldn't find that task" };
+  const { error: e2 } = await supabase.from("tasks").update({ minutes_done: data.minutes_done + minutes }).eq("id", id);
+  if (e2) return { ok: false, error: e2.message };
+  refresh();
+  return { ok: true };
+}

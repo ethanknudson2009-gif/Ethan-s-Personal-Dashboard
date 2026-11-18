@@ -19,6 +19,7 @@ import { formatLocalDate, taskDisplayTitle, WEEKDAY_SHORT } from "@/lib/format";
 import { Button, Chip, ColorDot, cx, inputClass } from "@/components/ui";
 import { IconCalendar, IconClose, IconMic, IconRepeat } from "@/components/icons";
 import { useSpeech } from "@/lib/use-speech";
+import { focusStore } from "@/lib/focus-store";
 
 export type SheetClass = { id: string; name: string; color: string; shortNames: string[] };
 
@@ -401,6 +402,19 @@ function Sheet({
           </div>
 
           {error && <p className="text-sm text-danger">{error}</p>}
+
+          {editing && (
+            <button
+              type="button"
+              onClick={() => {
+                focusStore.start({ id: editing.id, title: taskDisplayTitle(editing.title, cls?.name ?? null), color: cls?.color ?? null });
+                onClose();
+              }}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-electric/40 bg-electric/10 px-4 py-3 text-sm font-semibold text-ink transition hover:bg-electric/20 active:scale-[0.98]"
+            >
+              ⏱ Focus on this for 25 min
+            </button>
+          )}
 
           <div className="flex gap-2 pt-1">
             {editing && (

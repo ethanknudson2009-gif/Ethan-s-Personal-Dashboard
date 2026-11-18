@@ -11,6 +11,7 @@ import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
 import { IconCalendar, IconClasses, IconInbox, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
+import { FocusOverlay } from "@/components/focus-overlay";
 
 const NAV = [
   { href: "/today", label: "Today", Icon: IconToday },
@@ -142,6 +143,8 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-32 md:px-8 md:pt-10 md:pb-12">
         {children}
       </main>
+
+      <FocusOverlay />
 
       {/* Phone: bottom bar with the center "+" */}
       <nav
