@@ -22,7 +22,7 @@
 - [x] `/api/capture` endpoint with a private token (Settings → Connections)
 - [x] "Log It" Apple Shortcut guide: docs/setup/03-log-it-shortcut.md (Version A: Dictate → POST; Version B adds Ask Claude). *To do: Ethan builds it on his iPhone.*
 - [x] MCP server (/api/mcp: get_today, list_due, add_assignment, add_task, complete_task, process_inbox, log_food/workout/expense, add_note → Inbox) + guide docs/setup/04-claude-connector.md. *To do: Ethan adds it on claude.ai.*
-- [ ] Syllabus/PDF upload → extract → review-before-save screen
+- [x] Syllabus/PDF upload (Classes page) → text read on the device (pdf.js) → Claude imports via the connector → Inbox batch to approve
 - [x] Web push: morning summary, tomorrow preview, 1-hour-before reminders (Settings → Reminders; Supabase pg_cron every 15 min)
 - [ ] Snooze buttons on notifications and a "nag level" per item
 
@@ -31,6 +31,13 @@
 - [x] **Design pass 1 (docs 08 + 09):** dark techy theme, bottom-bar screens per area (Today, School, Gym, Finance, Life, Jobs) with a center "+", laptop shows more columns.
 - [x] **Design details:** class-first task titles ("Speech: …"), unfinished items highlighted, a clean and satisfying check-off animation.
 - [ ] **Design gallery before the UI phase:** show me ~20 real, visual layout examples and ~20 color combinations (actual pictures, not descriptions) so I can pick a look.
+
+## Extras built along the way (Nov 17, 2026)
+- [x] Voice: Talk button, hold ＋ to talk, keyboard-dictation fallback (docs/setup/05)
+- [x] Swipe right = done, swipe left = tomorrow; Undo on toasts
+- [x] Focus timer (25 min, logs minutes to the task, chime)
+- [x] Today: progress ring, week strip of the next 7 days, "All clear" state
+- [x] Auto-refresh when the installed app is reopened
 
 ## Phase 3: Body
 - [ ] Gym: plans, A/B/C rotations, weights filled in from last time, backup exercise, progress, recovery map (free-exercise-db data)

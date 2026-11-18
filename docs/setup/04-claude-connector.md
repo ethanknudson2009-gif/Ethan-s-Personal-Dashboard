@@ -26,6 +26,14 @@ It now works everywhere you're signed in to Claude, including the Claude iPhone 
 - "What's in my Inbox?" / "Approve the AutoCAD one."
 - Snap a food photo and say "log this": it's kept in the Inbox until the calorie section is built (Phase 3).
 
+## Import a syllabus (the big time-saver)
+1. Dashboard → **Classes** → on the class, tap **📄 Upload syllabus** and pick the PDF (from Files, email or a download). It shows **Ready for Claude** when done.
+2. In Claude, say: **"Import my Speech syllabus."**
+3. Claude reads it and sends every assignment, quiz, test and project, with its date, to your **Inbox** as one batch. Grade weights and the late policy come along as a note.
+4. Open **Inbox** → check the dates → **Approve all**. Anything with a date Claude couldn't read is flagged so you can fix it.
+
+Photo or scanned syllabus? It shows **"Scan: attach in Claude"**. Attach the photo directly in your Claude chat and say "import this for Speech".
+
 ## Safety
 - Claude only sees **your** dashboard, through this token. Revoke the token in Settings at any time and the connector stops working.
 - Claude never stores your data. Everything lives in the dashboard. Claude is the brain, not a second storage place.
