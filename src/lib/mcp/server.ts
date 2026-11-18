@@ -73,6 +73,11 @@ export function buildMcpServer(userId: string) {
       const tmr = dated.filter((t) => toLocalDate(new Date(t.due_at!), ctx.timeZone) === tomorrow);
 
       const meetings = await todaysClasses(today);
+      const [{ data: habits }, { data: checked }] = await Promise.all([
+        db.from("habits").select("id, name").eq("user_id", userId).is("deleted_at", null).eq("archived", false),
+        db.from("habit_checkins").select("habit_id").eq("user_id", userId).eq("on_date", today),
+      ]);
+      const doneIds = new Set((checked ?? []).map((c) => c.habit_id));
       const { count } = await db.from("inbox_items").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending").is("deleted_at", null);
 
       return text(
@@ -81,6 +86,7 @@ export function buildMcpServer(userId: string) {
           meetings.length ? `Classes today:\n${meetings.map((m) => `- ${m.name} ${formatTimeOfDay(m.starts)}–${formatTimeOfDay(m.ends)}`).join("\n")}` : "No classes today.",
           urgent.length ? `Overdue or due today:\n${urgent.map(line).join("\n")}` : "Nothing overdue or due today.",
           tmr.length ? `Due tomorrow:\n${tmr.map(line).join("\n")}` : "Nothing due tomorrow.",
+          habits?.length ? `Habits today: ${habits.map((h) => `${h.name} ${doneIds.has(h.id) ? "✓" : "✗"}`).join(", ")}.` : "No habits set up.",
           `Inbox items waiting for review: ${count ?? 0}.`,
         ].join("\n\n"),
       );
@@ -255,6 +261,35 @@ export function buildMcpServer(userId: string) {
         });
       }
       return text(`Checked off: ${task.title}.${next ? ` Next one due ${toLocalDate(next, ctx.timeZone)}.` : ""}`);
+    },
+  );
+
+  // ── Habits ──────────────────────────────────────────────────────────────
+  server.registerTool(
+    "log_habit",
+    {
+      title: "Check in a habit",
+      description:
+        "Mark one of Ethan's habits done for today (e.g. when he says 'I went to the gym' or 'did my reading'). Set done=false to undo. Matches the habit by name.",
+      inputSchema: { habit_name: z.string().min(1).max(60), done: z.boolean().optional() },
+    },
+    async ({ habit_name, done }) => {
+      const ctx = await context();
+      const today = toLocalDate(new Date(), ctx.timeZone);
+      const { data: habits } = await db.from("habits").select("id, name").eq("user_id", userId).is("deleted_at", null).eq("archived", false);
+      const wanted = habit_name.toLowerCase();
+      const match =
+        habits?.find((h) => h.name.toLowerCase() === wanted) ??
+        habits?.find((h) => h.name.toLowerCase().includes(wanted) || wanted.includes(h.name.toLowerCase()));
+      if (!match) {
+        return text(`No habit called "${habit_name}". His habits: ${habits?.map((h) => h.name).join(", ") || "none yet (he can add them on the Life tab)"}.`);
+      }
+      if (done === false) {
+        await db.from("habit_checkins").delete().eq("user_id", userId).eq("habit_id", match.id).eq("on_date", today);
+        return text(`Un-checked ${match.name} for today.`);
+      }
+      await db.from("habit_checkins").upsert({ user_id: userId, habit_id: match.id, on_date: today }, { onConflict: "habit_id,on_date" });
+      return text(`Checked in: ${match.name} ✓ for today.`);
     },
   );
 

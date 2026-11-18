@@ -10,6 +10,7 @@ import { RemindersNudge } from "@/components/notifications-card";
 import { ProgressRing } from "@/components/progress-ring";
 import { QuickActions } from "@/components/quick-actions";
 import { WeekStrip, type StripDay } from "@/components/week-strip";
+import { HabitChips } from "@/components/habit-chips";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 
@@ -25,10 +26,14 @@ export default async function TodayPage() {
   const nowParts = zonedParts(data.now, timeZone);
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
 
-  const [classesOn, { count: inboxCount }] = await Promise.all([
+  const supabase = await createClient();
+  const [classesOn, { count: inboxCount }, { data: habits }, { data: habitDone }] = await Promise.all([
     loadSchedule(),
-    (await createClient()).from("inbox_items").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
+    supabase.from("inbox_items").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
+    supabase.from("habits").select("id, name, emoji, color").is("deleted_at", null).eq("archived", false).order("sort").order("created_at"),
+    supabase.from("habit_checkins").select("habit_id").eq("on_date", today),
   ]);
+  const doneHabitIds = new Set((habitDone ?? []).map((c) => c.habit_id));
   const todaysClasses = classesOn(today);
 
   const buckets = groupByDue(data.open, data.now, timeZone);
@@ -112,6 +117,10 @@ export default async function TodayPage() {
       </section>
 
       <WeekStrip days={strip} />
+
+      {habits && habits.length > 0 && (
+        <HabitChips today={today} habits={habits.map((h) => ({ ...h, done: doneHabitIds.has(h.id) }))} />
+      )}
 
       <RemindersNudge />
 

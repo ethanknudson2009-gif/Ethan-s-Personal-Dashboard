@@ -23,6 +23,8 @@ export type PlanInput = {
   tasks: NotifyTask[]; // open tasks with a due date
   inboxCount: number;
   alreadySent: Set<string>; // kinds sent today
+  /** Names of habits not checked in yet today (for the evening nudge). */
+  habitsLeft?: string[];
   morningAt: LocalTime;
   eveningAt: LocalTime;
 };
@@ -67,13 +69,18 @@ export function planNotifications(input: PlanInput): Notification[] {
     }
   }
 
-  // Evening preview: from the chosen time until 11 PM.
-  if (!input.alreadySent.has("evening") && nowMin >= minutesOf(input.eveningAt) && nowMin < 23 * 60 && dueTomorrow.length) {
+  // Evening preview: from the chosen time until 11 PM. What's due tomorrow,
+  // plus habits not done yet today.
+  const habitsLeft = input.habitsLeft ?? [];
+  if (!input.alreadySent.has("evening") && nowMin >= minutesOf(input.eveningAt) && nowMin < 23 * 60 && (dueTomorrow.length || habitsLeft.length)) {
+    const lines: string[] = [];
+    if (dueTomorrow.length) lines.push(list(dueTomorrow, 3));
+    if (habitsLeft.length) lines.push(`Habits left today: ${habitsLeft.slice(0, 3).join(", ")}${habitsLeft.length > 3 ? ` +${habitsLeft.length - 3}` : ""}`);
     out.push({
       kind: "evening",
-      title: `Due tomorrow (${dueTomorrow.length})`,
-      body: list(dueTomorrow, 3),
-      url: "/today",
+      title: dueTomorrow.length ? `Due tomorrow (${dueTomorrow.length})` : "Still time today",
+      body: lines.filter(Boolean).join("\n"),
+      url: dueTomorrow.length ? "/today" : "/life",
       tag: "evening",
     });
   }

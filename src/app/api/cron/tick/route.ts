@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   let sent = 0;
   for (const [userId, devices] of byUser) {
-    const [{ data: profile }, { data: tasks }, { data: classes }, { count: inboxCount }] = await Promise.all([
+    const [{ data: profile }, { data: tasks }, { data: classes }, { count: inboxCount }, { data: habits }] = await Promise.all([
       db.from("profiles").select("timezone, notify_morning, notify_evening").eq("id", userId).maybeSingle(),
       db
         .from("tasks")
@@ -48,10 +48,15 @@ export async function POST(request: Request) {
         .not("due_at", "is", null),
       db.from("classes").select("id, name").eq("user_id", userId),
       db.from("inbox_items").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "pending").is("deleted_at", null),
+      db.from("habits").select("id, name").eq("user_id", userId).is("deleted_at", null).eq("archived", false),
     ]);
     const timeZone = profile?.timezone || DEFAULT_TIME_ZONE;
     const today = toLocalDate(now, timeZone);
-    const { data: log } = await db.from("notification_log").select("kind").eq("user_id", userId).eq("local_date", today);
+    const [{ data: log }, { data: checked }] = await Promise.all([
+      db.from("notification_log").select("kind").eq("user_id", userId).eq("local_date", today),
+      db.from("habit_checkins").select("habit_id").eq("user_id", userId).eq("on_date", today),
+    ]);
+    const doneHabits = new Set((checked ?? []).map((c) => c.habit_id));
     const className = new Map((classes ?? []).map((c) => [c.id, c.name]));
 
     const plan = planNotifications({
@@ -65,6 +70,7 @@ export async function POST(request: Request) {
         dueHasTime: t.due_has_time,
       })),
       inboxCount: inboxCount ?? 0,
+      habitsLeft: (habits ?? []).filter((h) => !doneHabits.has(h.id)).map((h) => h.name),
       alreadySent: new Set((log ?? []).map((l) => l.kind)),
       morningAt: time(profile?.notify_morning ?? "07:00"),
       eveningAt: time(profile?.notify_evening ?? "20:00"),

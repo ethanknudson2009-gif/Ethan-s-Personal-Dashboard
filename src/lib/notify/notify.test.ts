@@ -47,6 +47,13 @@ describe("evening preview", () => {
     expect(n).toMatchObject({ kind: "evening", title: "Due tomorrow (1)", body: "Speech: Outline" });
   });
 
+  it("adds habits not done yet, and nudges even with nothing due tomorrow", () => {
+    const [both] = planNotifications(base({ now: at("2026-11-17", 20, 10), tasks: [speechWed], habitsLeft: ["Gym", "Read 20 min"] }));
+    expect(both.body).toBe("Speech: Outline\nHabits left today: Gym, Read 20 min");
+    const [onlyHabits] = planNotifications(base({ now: at("2026-11-17", 20, 10), tasks: [], habitsLeft: ["Gym"] }));
+    expect(onlyHabits).toMatchObject({ title: "Still time today", body: "Habits left today: Gym", url: "/life" });
+  });
+
   it("nothing tomorrow → no evening message", () => {
     expect(planNotifications(base({ now: at("2026-11-17", 20, 10), tasks: [anatomyTue] }))).toEqual([]);
   });
