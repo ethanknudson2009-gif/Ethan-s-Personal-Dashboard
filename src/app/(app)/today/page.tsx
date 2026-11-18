@@ -11,6 +11,8 @@ import { ProgressRing } from "@/components/progress-ring";
 import { QuickActions } from "@/components/quick-actions";
 import { WeekStrip, type StripDay } from "@/components/week-strip";
 import { HabitChips } from "@/components/habit-chips";
+import { LevelBar } from "@/components/level-bar";
+import { totalXp } from "@/lib/xp";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 
@@ -27,12 +29,20 @@ export default async function TodayPage() {
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
 
   const supabase = await createClient();
-  const [classesOn, { count: inboxCount }, { data: habits }, { data: habitDone }] = await Promise.all([
+  const [classesOn, { count: inboxCount }, { data: habits }, { data: habitDone }, { count: tasksDone }, { count: habitCheckins }, { data: focused }] = await Promise.all([
     loadSchedule(),
     supabase.from("inbox_items").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
     supabase.from("habits").select("id, name, emoji, color").is("deleted_at", null).eq("archived", false).order("sort").order("created_at"),
     supabase.from("habit_checkins").select("habit_id").eq("on_date", today),
+    supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "done").is("deleted_at", null),
+    supabase.from("habit_checkins").select("id", { count: "exact", head: true }),
+    supabase.from("tasks").select("minutes_done").gt("minutes_done", 0).is("deleted_at", null),
   ]);
+  const xp = totalXp({
+    tasksDone: tasksDone ?? 0,
+    habitCheckins: habitCheckins ?? 0,
+    focusMinutes: (focused ?? []).reduce((sum, t) => sum + t.minutes_done, 0),
+  });
   const doneHabitIds = new Set((habitDone ?? []).map((c) => c.habit_id));
   const todaysClasses = classesOn(today);
 
@@ -88,6 +98,8 @@ export default async function TodayPage() {
           </Link>
         </div>
       </PageHeader>
+
+      <LevelBar xp={xp} />
 
       {/* Hero */}
       <section className="hero rounded-3xl border border-accent/30 bg-surface/70 p-5 shadow-glow">

@@ -40,7 +40,7 @@ export function HabitCard({ habit }: { habit: HabitCardData }) {
       setChecked(next);
       const r = await toggleCheckinAction(habit.id, date);
       if (!r.ok) sheet.toast(`Couldn't save: ${r.error}`);
-      else if (willCheck && date === habit.today) sheet.toast(`${habit.emoji ?? "✓"} ${habit.name} done${habit.streak > 0 ? ` · 🔥 keep it going` : ""}`);
+      else if (willCheck && date === habit.today) sheet.toast(`${habit.emoji ?? "✓"} ${habit.name} done · +5 XP`);
     });
   }
 
@@ -66,6 +66,7 @@ export function HabitCard({ habit }: { habit: HabitCardData }) {
           style={{ backgroundColor: doneToday ? habit.color : "transparent", border: `2px solid ${habit.color}`, color: doneToday ? "#04221d" : habit.color }}
         >
           {burst > 0 && <span key={burst} className="check-burst absolute inset-0 rounded-2xl" style={{ backgroundColor: habit.color }} />}
+          {burst > 0 && <span key={`xp${burst}`} className="xp-float">+5 XP</span>}
           <span className="text-xl">{doneToday ? "✓" : (habit.emoji ?? "○")}</span>
         </button>
 

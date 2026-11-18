@@ -39,7 +39,7 @@ export function HabitChips({ habits, today }: { habits: HabitChip[]; today: stri
                   setDone(next);
                   const r = await toggleCheckinAction(h.id, today);
                   if (!r.ok) sheet.toast(`Couldn't save: ${r.error}`);
-                  else if (!on) sheet.toast(`${h.emoji ?? "✓"} ${h.name} done`);
+                  else if (!on) sheet.toast(`${h.emoji ?? "✓"} ${h.name} done · +5 XP`);
                 })
               }
               className={cx(

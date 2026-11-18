@@ -58,7 +58,7 @@ export function TaskItem({ task }: { task: TaskView }) {
         setPhase("idle");
         sheet.toast(`Couldn't update: ${result.error}`);
       } else if (!task.done) {
-        sheet.toast(task.repeatText ? "Done ✓ Next one is scheduled" : "Done ✓", {
+        sheet.toast(task.repeatText ? "Done ✓ +10 XP · next one scheduled" : "Done ✓ +10 XP", {
           label: "Undo",
           run: () => void reopenTaskAction(task.id),
         });
@@ -160,6 +160,7 @@ export function TaskItem({ task }: { task: TaskView }) {
           className="relative flex h-8 w-8 shrink-0 items-center justify-center"
         >
           {checking && !task.done && <span className="check-burst absolute inset-0 rounded-full bg-accent/60" />}
+          {checking && !task.done && <span className="xp-float">+10 XP</span>}
           <span
             className={cx(
               "flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors duration-200",
