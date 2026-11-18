@@ -9,16 +9,21 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconInbox, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconInbox, IconLife, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 import { FocusOverlay } from "@/components/focus-overlay";
 
+/** Laptop sidebar. */
 const NAV = [
   { href: "/today", label: "Today", Icon: IconToday },
   { href: "/tasks", label: "School", Icon: IconSchool },
   { href: "/calendar", label: "Calendar", Icon: IconCalendar },
+  { href: "/life", label: "Life", Icon: IconLife },
   { href: "/classes", label: "Classes", Icon: IconClasses },
 ];
+
+/** Phone bottom bar: two tabs, the center +, two tabs. (Classes lives inside School.) */
+const TABS = [NAV[0], NAV[1], NAV[2], NAV[3]];
 
 /** Less-used places: sidebar on laptops; on phones they're linked from Today and School. */
 const MORE = [
@@ -151,8 +156,8 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
         className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex items-center justify-around rounded-3xl border border-line bg-surface/90 px-2 py-2 shadow-card backdrop-blur-xl md:hidden"
         aria-label="Main"
       >
-        {NAV.slice(0, 2).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href)} badge={badges[item.href]} />
+        {TABS.slice(0, 2).map((item) => (
+          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/tasks" && isActive("/classes"))} badge={badges[item.href]} />
         ))}
         <button
           type="button"
@@ -165,8 +170,8 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
             <IconMic size={11} strokeWidth={2.4} />
           </span>
         </button>
-        {NAV.slice(2).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href)} badge={badges[item.href]} />
+        {TABS.slice(2).map((item) => (
+          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/tasks" && isActive("/classes"))} badge={badges[item.href]} />
         ))}
       </nav>
     </div>

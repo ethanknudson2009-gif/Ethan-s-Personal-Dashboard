@@ -250,6 +250,83 @@ export type Database = {
           },
         ]
       }
+      habit_checkins: {
+        Row: {
+          created_at: string
+          habit_id: string
+          id: string
+          on_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          habit_id: string
+          id?: string
+          on_date: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          habit_id?: string
+          id?: string
+          on_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_checkins_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habits: {
+        Row: {
+          archived: boolean
+          color: string
+          created_at: string
+          deleted_at: string | null
+          emoji: string | null
+          id: string
+          name: string
+          sort: number
+          started_on: string
+          target_per: string
+          target_times: number
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          color?: string
+          created_at?: string
+          deleted_at?: string | null
+          emoji?: string | null
+          id?: string
+          name: string
+          sort?: number
+          started_on?: string
+          target_per?: string
+          target_times?: number
+          user_id?: string
+        }
+        Update: {
+          archived?: boolean
+          color?: string
+          created_at?: string
+          deleted_at?: string | null
+          emoji?: string | null
+          id?: string
+          name?: string
+          sort?: number
+          started_on?: string
+          target_per?: string
+          target_times?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       inbox_items: {
         Row: {
           batch_id: string | null

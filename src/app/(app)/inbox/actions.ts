@@ -79,9 +79,9 @@ export async function dismissInboxAction(id: string): Promise<ActionResult> {
 }
 
 /** Brings something back from the Trash. */
-export async function restoreAction(kind: "task" | "class", id: string): Promise<ActionResult> {
+export async function restoreAction(kind: "task" | "class" | "habit", id: string): Promise<ActionResult> {
   const supabase = await createClient();
-  const table = kind === "task" ? "tasks" : "classes";
+  const table = kind === "task" ? "tasks" : kind === "class" ? "classes" : "habits";
   const { error } = await supabase.from(table).update({ deleted_at: null }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   refresh();

@@ -105,3 +105,10 @@ export const IconMic = (p: IconProps) => (
     <path d="M5 11a7 7 0 0014 0M12 18v3" />
   </Svg>
 );
+
+export const IconLife = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z" />
+    <path d="M8.5 11h2l1-2 1.5 4 1-2h1.5" />
+  </Svg>
+);

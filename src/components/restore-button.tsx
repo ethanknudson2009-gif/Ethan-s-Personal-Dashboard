@@ -4,7 +4,7 @@ import { useTransition } from "react";
 import { restoreAction } from "@/app/(app)/inbox/actions";
 import { useTaskSheet } from "@/components/task-sheet";
 
-export function RestoreButton({ kind, id }: { kind: "task" | "class"; id: string }) {
+export function RestoreButton({ kind, id }: { kind: "task" | "class" | "habit"; id: string }) {
   const sheet = useTaskSheet();
   const [pending, startTransition] = useTransition();
   return (

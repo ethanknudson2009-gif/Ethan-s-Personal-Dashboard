@@ -17,7 +17,15 @@ export default async function SchoolPage() {
   return (
     <div className="stagger flex flex-col gap-5">
       <PageHeader title="School" subtitle="Assignments & tasks">
-        <AddButton />
+        <div className="flex items-center gap-2">
+          <Link
+            href="/classes"
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-sm font-semibold text-muted transition hover:border-accent/50 hover:text-ink"
+          >
+            📚 Classes
+          </Link>
+          <AddButton />
+        </div>
       </PageHeader>
 
       {/* Summary card (reference image 1: one bold card up top) */}

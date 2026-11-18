@@ -4,19 +4,21 @@ import { RestoreButton } from "@/components/restore-button";
 
 const DAY = 86_400_000;
 
-type TrashRow = { kind: "task" | "class"; id: string; label: string; deletedAt: string; daysLeft: number };
+type TrashRow = { kind: "task" | "class" | "habit"; id: string; label: string; deletedAt: string; daysLeft: number };
 
 /** Everything in the Trash, newest first, with how many days until it's removed. */
 async function loadTrash(): Promise<TrashRow[]> {
   const supabase = await createClient();
-  const [{ data: tasks }, { data: classes }] = await Promise.all([
+  const [{ data: tasks }, { data: classes }, { data: habits }] = await Promise.all([
     supabase.from("tasks").select("id, title, deleted_at").not("deleted_at", "is", null),
     supabase.from("classes").select("id, name, deleted_at").not("deleted_at", "is", null),
+    supabase.from("habits").select("id, name, deleted_at").not("deleted_at", "is", null),
   ]);
   const now = Date.now();
   const daysLeft = (deletedAt: string) => Math.max(0, 7 - Math.floor((now - new Date(deletedAt).getTime()) / DAY));
   return [
     ...(classes ?? []).map((c) => ({ kind: "class" as const, id: c.id, label: `Class · ${c.name}`, deletedAt: c.deleted_at!, daysLeft: daysLeft(c.deleted_at!) })),
+    ...(habits ?? []).map((h) => ({ kind: "habit" as const, id: h.id, label: `Habit · ${h.name}`, deletedAt: h.deleted_at!, daysLeft: daysLeft(h.deleted_at!) })),
     ...(tasks ?? []).map((t) => ({ kind: "task" as const, id: t.id, label: t.title, deletedAt: t.deleted_at!, daysLeft: daysLeft(t.deleted_at!) })),
   ].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
 }
