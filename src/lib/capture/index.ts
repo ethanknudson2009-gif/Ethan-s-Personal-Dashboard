@@ -81,7 +81,8 @@ export function decide(
   const fromClaude = Boolean(input.type || input.title || input.due_text || input.class_name);
 
   // Our parser reads the most specific text we have for each part.
-  const parsedRaw = parse(input.raw_text, ctx);
+  // Raw text from the Shortcut is dictated speech: clean it up like the in-app mic does.
+  const parsedRaw = parse(input.raw_text, { ...ctx, spoken: true });
   const parsedDue = input.due_text ? parse(`due ${input.due_text}`, ctx) : null;
   const parsedClass = input.class_name ? parse(input.class_name, { ...ctx, classes: ctx.classes }) : null;
 

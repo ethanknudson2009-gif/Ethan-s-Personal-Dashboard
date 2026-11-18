@@ -12,6 +12,7 @@ type Recognition = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  maxAlternatives: number;
   onresult: ((e: { resultIndex: number; results: ArrayLike<ArrayLike<{ transcript: string }> & { isFinal: boolean }> }) => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
@@ -26,7 +27,11 @@ function getRecognizer(): (new () => Recognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
-export function useSpeech(onText: (text: string, final: boolean) => void) {
+/**
+ * `onText` gets every way the recognizer heard you (best guess first) so the
+ * screen can pick the one that matches your classes and dates best.
+ */
+export function useSpeech(onText: (alternatives: string[], final: boolean) => void) {
   // Only used after a tap (client side), so checking the browser right away is safe.
   const [supported, setSupported] = useState(() => getRecognizer() !== null);
   const [listening, setListening] = useState(false);
@@ -50,14 +55,19 @@ export function useSpeech(onText: (text: string, final: boolean) => void) {
     r.lang = "en-US";
     r.continuous = false; // stops by itself after a pause
     r.interimResults = true; // show words as you speak
+    r.maxAlternatives = 5; // several guesses at what you said; we keep the one that makes most sense
     r.onresult = (e) => {
-      let text = "";
+      // Everything before the last piece uses its best guess; the last piece
+      // offers all its alternatives.
+      let before = "";
       let final = false;
-      for (let i = 0; i < e.results.length; i++) {
-        text += e.results[i][0].transcript;
-        if (e.results[i].isFinal) final = true;
-      }
-      callback.current(text.trim(), final);
+      const last = e.results.length - 1;
+      for (let i = 0; i < last; i++) before += e.results[i][0].transcript;
+      const lastResult = e.results[last];
+      const alternatives: string[] = [];
+      for (let k = 0; k < lastResult.length; k++) alternatives.push(`${before}${lastResult[k].transcript}`.trim());
+      for (let i = 0; i < e.results.length; i++) if (e.results[i].isFinal) final = true;
+      callback.current(alternatives.length ? alternatives : [before.trim()], final);
     };
     r.onerror = (e) => {
       setError(

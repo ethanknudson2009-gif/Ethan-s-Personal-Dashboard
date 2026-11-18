@@ -19,6 +19,8 @@ import { formatLocalDate, taskDisplayTitle, WEEKDAY_SHORT } from "@/lib/format";
 import { Button, Chip, ColorDot, cx, inputClass } from "@/components/ui";
 import { IconCalendar, IconClose, IconMic, IconRepeat } from "@/components/icons";
 import { useSpeech } from "@/lib/use-speech";
+import { normalizeSpoken } from "@/lib/parser/spoken";
+import { pickBestHearing } from "@/lib/parser/best";
 import { focusStore } from "@/lib/focus-store";
 
 export type SheetClass = { id: string; name: string; color: string; shortNames: string[] };
@@ -65,6 +67,23 @@ type SheetApi = {
 
 const SheetContext = createContext<SheetApi | null>(null);
 
+/** "Tap + = start talking" setting, remembered on this device (on unless turned off). */
+const AUTO_MIC_KEY = "dashboard.autoMic";
+function autoMicOn(): boolean {
+  try {
+    return window.localStorage.getItem(AUTO_MIC_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+function setAutoMic(on: boolean) {
+  try {
+    window.localStorage.setItem(AUTO_MIC_KEY, on ? "on" : "off");
+  } catch {
+    // Private mode: the switch just won't be remembered.
+  }
+}
+
 export function useTaskSheet(): SheetApi {
   const ctx = useContext(SheetContext);
   if (!ctx) throw new Error("useTaskSheet must be used inside TaskSheetProvider");
@@ -85,7 +104,8 @@ export function TaskSheetProvider({
 
   const api = useMemo<SheetApi>(
     () => ({
-      openNew: (prefill) => setState({ mode: "new", prefill }),
+      // Plain "+" starts listening right away unless you turned auto-mic off.
+      openNew: (prefill) => setState({ mode: "new", prefill, voice: !prefill && autoMicOn() }),
       openVoice: () => setState({ mode: "new", voice: true }),
       openEdit: (task) => setState({ mode: "edit", task }),
       toast: (text, action) => setToastMsg({ text, key: Date.now(), action }),
@@ -162,7 +182,18 @@ function Sheet({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
-  const speech = useSpeech((heard) => setText(heard));
+  // Text that came from the mic gets the "spoken" cleanup (fillers, number
+  // words, misheard class names). Of the recognizer's guesses, keep the one
+  // that best matches your classes and dates.
+  const [spokenInput, setSpokenInput] = useState(false);
+  const parseCtx = useMemo(
+    () => ({ now: new Date(), timeZone, classes: classes.map((c) => ({ id: c.id, name: c.name, shortNames: c.shortNames })) }),
+    [timeZone, classes],
+  );
+  const speech = useSpeech((heard) => {
+    setSpokenInput(true);
+    setText(normalizeSpoken(pickBestHearing(heard, parseCtx)));
+  });
   const startVoice = speech.start;
   // Opened with "hold +": listen right away (or point to keyboard dictation).
   const wantsVoice = state.mode === "new" && Boolean(state.voice);
@@ -198,12 +229,8 @@ function Sheet({
   // Parse what was typed (new items only).
   const parsed = useMemo(() => {
     if (editing || !text.trim()) return null;
-    return parse(text, {
-      now: new Date(),
-      timeZone,
-      classes: classes.map((c) => ({ id: c.id, name: c.name, shortNames: c.shortNames })),
-    });
-  }, [editing, text, timeZone, classes]);
+    return parse(text, { ...parseCtx, spoken: spokenInput });
+  }, [editing, text, parseCtx, spokenInput]);
 
   const usesParsedTitle = parsed && (parsed.type === "homework" || parsed.type === "task");
   const title = editing ? text.trim() : usesParsedTitle ? parsed.title : text.trim();
@@ -274,10 +301,13 @@ function Sheet({
         className="sheet-in w-full max-w-lg rounded-t-3xl border border-line bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card md:rounded-3xl"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold">{editing ? "Edit" : "What do you need to do?"}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-muted hover:bg-raised hover:text-ink">
-            <IconClose size={20} />
-          </button>
+          <h2 className="font-display text-lg font-semibold">{editing ? "Edit" : speech.listening ? "Listening…" : "What do you need to do?"}</h2>
+          <div className="flex items-center gap-1">
+            {!editing && <AutoMicSwitch />}
+            <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-muted hover:bg-raised hover:text-ink">
+              <IconClose size={20} />
+            </button>
+          </div>
         </div>
 
         <form
@@ -429,5 +459,27 @@ function Sheet({
         </form>
       </div>
     </div>
+  );
+}
+
+/** Small switch in the sheet: should tapping + start the mic right away? */
+function AutoMicSwitch() {
+  const [on, setOn] = useState(autoMicOn);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setAutoMic(!on);
+        setOn(!on);
+      }}
+      aria-pressed={on}
+      title="Start listening as soon as you tap +"
+      className={cx(
+        "flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition",
+        on ? "border-accent/50 bg-accent/10 text-accent" : "border-line text-faint",
+      )}
+    >
+      <IconMic size={12} /> Auto-mic {on ? "on" : "off"}
+    </button>
   );
 }

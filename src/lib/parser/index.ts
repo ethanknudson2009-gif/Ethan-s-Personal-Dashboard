@@ -11,6 +11,7 @@
  */
 import { parseWhen, type ParsedWhen } from "./dates";
 import { SpanTracker } from "./spans";
+import { editDistance, normalizeSpoken, tolerance } from "./spoken";
 
 export type CaptureType = "homework" | "task" | "food" | "workout" | "expense" | "job" | "note" | "habit";
 
@@ -19,6 +20,8 @@ export type ClassRef = { id: string; name: string; shortNames?: string[] };
 export type ParseContext = {
   now: Date;
   timeZone: string;
+  /** True when the text came from speech-to-text: tidy fillers, spoken numbers and near-miss words first. */
+  spoken?: boolean;
   classes?: ClassRef[];
   habits?: string[];
 };
@@ -104,7 +107,48 @@ function matchClass(
       return { cls: c, problem: null };
     }
   }
-  // 2) A word that is the start of a word in a class name: "anat" → "Human Anatomy".
+  // 2) Close-enough matches, for misheard speech: "and atomy" → anatomy,
+  //    "auto cad" → autocad, "master mind" → AI Mastermind. We join 1–3
+  //    neighboring words and compare them to each name, nickname and long word
+  //    of a class name, forgiving about 1 mistake per 5 letters.
+  {
+    const words = [...low.matchAll(/[a-z0-9']+/g)].filter((m) => !spans.isTaken(m.index, m.index + m[0].length));
+    const targets = classes.flatMap((c) =>
+      [c.name, ...(c.shortNames ?? []), ...c.name.split(/\s+/)]
+        .map((n) => n.toLowerCase().replace(/[^a-z0-9]/g, ""))
+        .filter((n) => n.length >= 5)
+        .map((n) => ({ c, n })),
+    );
+    let best: { c: ClassRef; start: number; end: number; d: number; joined: string } | null = null;
+    for (let i = 0; i < words.length; i++) {
+      for (let len = 1; len <= 3 && i + len <= words.length; len++) {
+        const joined = words
+          .slice(i, i + len)
+          .map((w) => w[0])
+          .join("");
+        if (joined.length < 5 || FILLER.has(joined)) continue;
+        for (const t of targets) {
+          if (Math.abs(t.n.length - joined.length) > 2) continue;
+          const d = editDistance(joined, t.n);
+          if (d <= tolerance(t.n.length) && (!best || d < best.d)) {
+            const last = words[i + len - 1];
+            best = { c: t.c, start: words[i].index, end: last.index + last[0].length, d, joined };
+          }
+        }
+      }
+    }
+    if (best) {
+      // Don't guess between two classes that fit equally well ("history").
+      const found = best;
+      const ties = new Set(targets.filter((t) => editDistance(found.joined, t.n) === found.d).map((t) => t.c.id));
+      if (ties.size === 1) {
+        spans.claim(found.start, found.end);
+        return { cls: found.c, problem: null };
+      }
+    }
+  }
+
+  // 3) A word that is the start of a word in a class name: "anat" → "Human Anatomy".
   for (const m of spans.free(/\b[a-z]{3,}\b/g, low)) {
     const word = m[0];
     if (FILLER.has(word)) continue;
@@ -160,7 +204,7 @@ const DEFAULT_TITLES: Record<CaptureType, string> = {
 
 export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   // Same length for both, so match positions line up for building the title.
-  let original = rawText.trim().replace(/\s+/g, " ");
+  let original = (ctx.spoken ? normalizeSpoken(rawText) : rawText).trim().replace(/\s+/g, " ");
   const noteMatch = NOTE_PREFIX.exec(original);
   if (noteMatch) original = original.slice(noteMatch[0].length);
   const low = original.toLowerCase();
