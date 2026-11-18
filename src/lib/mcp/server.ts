@@ -316,6 +316,127 @@ export function buildMcpServer(userId: string) {
     },
   );
 
+  // ── Files & syllabus import ───────────────────────────────────────────────
+  server.registerTool(
+    "list_files",
+    {
+      title: "List uploaded files",
+      description: "Syllabus PDFs and other files Ethan uploaded on the Classes page, with their class and whether the text is ready to read.",
+      annotations: { readOnlyHint: true },
+    },
+    async () => {
+      const ctx = await context();
+      const { data } = await db
+        .from("files")
+        .select("id, filename, class_id, status, created_at")
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      if (!data?.length) return text("No files uploaded yet. Ethan can upload a syllabus on the Classes page.");
+      return text(
+        data
+          .map((f) => `- [id: ${f.id}] ${f.filename} — ${f.class_id ? (ctx.className.get(f.class_id) ?? "?") : "no class"} — ${f.status}`)
+          .join("\n"),
+      );
+    },
+  );
+
+  server.registerTool(
+    "get_file_text",
+    {
+      title: "Read an uploaded file",
+      description:
+        "The text of an uploaded PDF (pulled out on Ethan's device). Use it to find assignments, tests, due dates, grade weights and the late policy, then call import_syllabus. Long files come in parts: pass `part` 2, 3, … if it says there's more.",
+      inputSchema: { file_id: z.string().uuid(), part: z.number().int().min(1).max(50).optional() },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ file_id, part }) => {
+      const { data: f } = await db.from("files").select("filename, extracted_text, status").eq("user_id", userId).eq("id", file_id).maybeSingle();
+      if (!f) return text("No file with that id.");
+      if (!f.extracted_text) {
+        return text(
+          f.status === "needs_claude"
+            ? `"${f.filename}" is an image or scan with no text layer. Ask Ethan to attach it directly in this chat so you can read it.`
+            : `"${f.filename}" has no text yet.`,
+        );
+      }
+      const size = 60_000;
+      const n = part ?? 1;
+      const chunk = f.extracted_text.slice((n - 1) * size, n * size);
+      const more = f.extracted_text.length > n * size;
+      return text(`${f.filename} (part ${n}${more ? `; there's more: ask for part ${n + 1}` : ", last part"}):\n\n${chunk}`);
+    },
+  );
+
+  server.registerTool(
+    "import_syllabus",
+    {
+      title: "Import assignments from a syllabus",
+      description:
+        "After reading a syllabus, send every assignment, quiz, test and project with its date words. They go to Ethan's Inbox as one batch to review and approve with one tap. Put dates in due_text exactly as written (e.g. 'Sept 14', '10/3', 'Friday of week 5'): the dashboard works out the real date.",
+      inputSchema: {
+        class_name: z.string().min(1).max(80).describe("Which of Ethan's classes this syllabus is for"),
+        file_id: z.string().uuid().optional(),
+        items: z
+          .array(
+            z.object({
+              title: z.string().min(1).max(200).describe("e.g. 'Chapter 3 quiz' (no class name)"),
+              due_text: z.string().max(100).optional(),
+              kind: z.enum(["assignment", "exam", "project"]).optional(),
+            }),
+          )
+          .min(1)
+          .max(150),
+        notes: z.string().max(4000).optional().describe("Grade weights, late policy, anything worth keeping"),
+      },
+    },
+    async ({ class_name, file_id, items, notes }) => {
+      const ctx = await context();
+      const batchId = crypto.randomUUID();
+      const rows = items.map((item) => {
+        const input = captureSchema.parse({
+          raw_text: `${class_name} ${item.title}${item.due_text ? ` due ${item.due_text}` : ""}`,
+          type: "homework",
+          title: item.title,
+          class_name,
+          due_text: item.due_text,
+          confidence: 0.85,
+        });
+        const d = decide(input, { now: new Date(), timeZone: ctx.timeZone, classes: ctx.classes, autoSaveTypes: [] });
+        return {
+          user_id: userId,
+          raw_text: input.raw_text,
+          draft: d.draft,
+          type: "homework",
+          confidence: d.confidence,
+          problems: d.problems,
+          source: "syllabus",
+          batch_id: batchId,
+        };
+      });
+      const { error } = await db.from("inbox_items").insert(rows);
+      if (error) return text(`Couldn't import: ${error.message}`);
+      if (file_id) await db.from("files").update({ status: "imported" }).eq("id", file_id).eq("user_id", userId);
+      if (notes) {
+        await db.from("inbox_items").insert({
+          user_id: userId,
+          raw_text: `${class_name} syllabus notes: ${notes}`.slice(0, 2000),
+          draft: { type: "note", title: `${class_name} syllabus notes`, classId: null, className: class_name, dueDate: null, dueTime: null, amount: null, category: null, notes },
+          type: "note",
+          confidence: 1,
+          problems: ["Notes aren't built yet, so this waits here"],
+          source: "syllabus",
+          batch_id: batchId,
+        });
+      }
+      const flagged = rows.filter((r) => r.problems.length).length;
+      return text(
+        `Sent ${rows.length} item${rows.length === 1 ? "" : "s"} to Ethan's Inbox for review${flagged ? ` (${flagged} need a quick check, e.g. a date I couldn't read)` : ""}. He can approve them all with one tap.`,
+      );
+    },
+  );
+
   // ── Not built yet: these wait in the Inbox ──────────────────────────────
   for (const [name, type, label] of [
     ["log_food", "food", "Log food (calories tracking comes in Phase 3)"],

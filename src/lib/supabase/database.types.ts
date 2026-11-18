@@ -197,6 +197,59 @@ export type Database = {
         }
         Relationships: []
       }
+      files: {
+        Row: {
+          class_id: string | null
+          created_at: string
+          deleted_at: string | null
+          extracted_text: string | null
+          filename: string
+          id: string
+          kind: string
+          mime_type: string
+          size_bytes: number
+          status: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          extracted_text?: string | null
+          filename: string
+          id?: string
+          kind?: string
+          mime_type: string
+          size_bytes: number
+          status?: string
+          storage_path: string
+          user_id?: string
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          extracted_text?: string | null
+          filename?: string
+          id?: string
+          kind?: string
+          mime_type?: string
+          size_bytes?: number
+          status?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inbox_items: {
         Row: {
           batch_id: string | null

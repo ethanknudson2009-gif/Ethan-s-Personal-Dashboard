@@ -3,6 +3,8 @@ import { formatTimeOfDay, WEEKDAY_LONG, WEEKDAY_SHORT } from "@/lib/format";
 import { Button, Card, ColorDot, EmptyState, ErrorBanner, Field, Input, PageHeader, Select } from "@/components/ui";
 import { deleteClass, saveClass, saveTerm } from "./actions";
 import Link from "next/link";
+import { SyllabusUpload } from "@/components/syllabus-upload";
+import { FileChip } from "@/components/file-chip";
 
 type Meeting = { id: string; class_id: string; weekday: number | null; starts_at: string; ends_at: string };
 type ClassRow = {
@@ -34,6 +36,22 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
       .order("name"),
     supabase.from("class_meetings").select("id, class_id, weekday, starts_at, ends_at").order("weekday").order("starts_at"),
   ]);
+
+  // Uploaded files (syllabi), with short-lived private links to open them.
+  const { data: files } = await supabase
+    .from("files")
+    .select("id, class_id, filename, status, storage_path")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+  const { data: signed } = files?.length
+    ? await supabase.storage.from("user-files").createSignedUrls(files.map((f) => f.storage_path), 3600)
+    : { data: [] };
+  const urlByPath = new Map((signed ?? []).map((s) => [s.path, s.signedUrl]));
+  const filesByClass = new Map<string, FileInfo[]>();
+  for (const f of files ?? []) {
+    if (!f.class_id) continue;
+    filesByClass.set(f.class_id, [...(filesByClass.get(f.class_id) ?? []), { id: f.id, filename: f.filename, status: f.status, url: urlByPath.get(f.storage_path) ?? null }]);
+  }
 
   const schoolWeekdays = term?.schedules?.school_weekdays ?? [1, 2, 3, 4];
   const meetingsByClass = new Map<string, Meeting[]>();
@@ -85,7 +103,7 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
         {sorted.length === 0 && <EmptyState>No classes yet. Add one below.</EmptyState>}
         <ul className="rows flex flex-col gap-2">
           {sorted.map((c) => (
-            <ClassItem key={c.id} cls={c} meetings={meetingsByClass.get(c.id) ?? []} />
+            <ClassItem key={c.id} cls={c} meetings={meetingsByClass.get(c.id) ?? []} files={filesByClass.get(c.id) ?? []} />
           ))}
         </ul>
         <details className="mt-3">
@@ -142,15 +160,20 @@ function firstMeetingKey(meetings: Meeting[] | undefined): number {
   return (m.weekday ?? 9) * 1440 + h * 60 + min;
 }
 
-function ClassItem({ cls, meetings }: { cls: ClassRow; meetings: Meeting[] }) {
+type FileInfo = { id: string; filename: string; status: string; url: string | null };
+
+function ClassItem({ cls, meetings, files }: { cls: ClassRow; meetings: Meeting[]; files: FileInfo[] }) {
   return (
     <li className="rounded-2xl border border-line bg-raised/70 px-3 py-3">
       <div className="flex items-start gap-3">
         <span className="mt-1.5">
           <ColorDot color={cls.color} />
         </span>
-        <div className="flex-1">
-          <div className="font-medium">{cls.name}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-medium">{cls.name}</span>
+            <SyllabusUpload classId={cls.id} className={cls.name} />
+          </div>
           <div className="text-sm text-muted">
             {meetings.length > 0
               ? meetings
@@ -160,6 +183,13 @@ function ClassItem({ cls, meetings }: { cls: ClassRow; meetings: Meeting[] }) {
           </div>
           {cls.short_names.length > 0 && (
             <div className="text-xs text-faint">Quick-add nicknames: {cls.short_names.join(", ")}</div>
+          )}
+          {files.length > 0 && (
+            <ul className="mt-2 flex flex-col gap-1.5">
+              {files.map((f) => (
+                <FileChip key={f.id} {...f} />
+              ))}
+            </ul>
           )}
         </div>
       </div>
