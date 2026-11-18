@@ -193,8 +193,10 @@ function ClassItem({ cls, meetings, files }: { cls: ClassRow; meetings: Meeting[
           )}
         </div>
       </div>
-      <details className="mt-2 ml-6">
-        <summary className="cursor-pointer text-sm text-muted">Edit</summary>
+      <details className="group/edit mt-2 ml-6">
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded-lg border border-line px-2.5 py-1 text-xs font-medium text-muted transition hover:border-accent/50 hover:text-ink group-open/edit:border-accent/50 group-open/edit:text-accent">
+          ✎ Edit class
+        </summary>
         <div className="mt-3 flex flex-col gap-3">
           <ClassForm cls={cls} meetings={meetings} />
           <form action={deleteClass}>

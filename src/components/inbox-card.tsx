@@ -103,7 +103,7 @@ export function InboxCard({ item }: { item: InboxCardData }) {
   );
 }
 
-export function ApproveAllButton({ count }: { count: number }) {
+export function ApproveAllButton({ count, batchId, label }: { count: number; batchId?: string; label?: string }) {
   const sheet = useTaskSheet();
   const [pending, startTransition] = useTransition();
   if (count === 0) return null;
@@ -113,13 +113,13 @@ export function ApproveAllButton({ count }: { count: number }) {
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
-          const r = await approveAllCleanAction();
+          const r = await approveAllCleanAction(batchId);
           sheet.toast(r.ok ? `Approved ${r.count ?? 0} ✓` : `Couldn't approve: ${r.error}`);
         })
       }
       className="rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-sm font-semibold text-accent transition hover:bg-accent/20 disabled:opacity-40"
     >
-      {pending ? "Approving…" : `Approve all ${count} ✓`}
+      {pending ? "Approving…" : (label ?? `Approve all ${count} ✓`)}
     </button>
   );
 }

@@ -47,15 +47,17 @@ export async function approveInboxAction(id: string): Promise<ActionResult> {
   return result;
 }
 
-/** Approves every pending item that has no problems and can be saved. */
-export async function approveAllCleanAction(): Promise<ActionResult & { count?: number }> {
+/** Approves every pending item that has no problems and can be saved (optionally only one batch). */
+export async function approveAllCleanAction(batchId?: string): Promise<ActionResult & { count?: number }> {
   const supabase = await createClient();
   const { timeZone } = await loadSettings(supabase);
-  const { data: items, error } = await supabase
+  let query = supabase
     .from("inbox_items")
     .select("id, type, problems")
     .eq("status", "pending")
     .is("deleted_at", null);
+  if (batchId) query = query.eq("batch_id", batchId);
+  const { data: items, error } = await query;
   if (error) return { ok: false, error: error.message };
 
   let count = 0;
