@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { formatLocalDate, formatTimeOfDay, WEEKDAY_LONG } from "@/lib/format";
-import { toLocalDate, weekdayOf, zonedParts } from "@/lib/time";
+import { formatLocalDate, formatTimeOfDay, WEEKDAY_LONG, WEEKDAY_SHORT } from "@/lib/format";
+import { addDays, toLocalDate, weekdayOf, zonedParts } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
 import { Card, ColorDot, cx, PageHeader } from "@/components/ui";
 import { TaskItem } from "@/components/task-item";
@@ -9,6 +9,7 @@ import { IconInbox, IconSettings } from "@/components/icons";
 import { RemindersNudge } from "@/components/notifications-card";
 import { ProgressRing } from "@/components/progress-ring";
 import { QuickActions } from "@/components/quick-actions";
+import { WeekStrip, type StripDay } from "@/components/week-strip";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 
@@ -42,6 +43,26 @@ export default async function TodayPage() {
   };
   const nextClass = todaysClasses.find((c) => toMinutes(c.ends_at) > nowMinutes);
   const inClass = nextClass && toMinutes(nextClass.starts_at) <= nowMinutes;
+  // Next 7 days for the strip: a colored dot per thing due.
+  const dueByDay = new Map<string, string[]>();
+  for (const t of data.open) {
+    if (!t.due_at) continue;
+    const d = toLocalDate(new Date(t.due_at), timeZone);
+    const color = (t.class_id && data.classById.get(t.class_id)?.color) || "#2ee6c9";
+    dueByDay.set(d, [...(dueByDay.get(d) ?? []), color]);
+  }
+  const strip: StripDay[] = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(today, i);
+    return {
+      date: d,
+      weekday: WEEKDAY_SHORT[weekdayOf(d)],
+      day: Number(d.slice(8)),
+      isToday: i === 0,
+      dots: dueByDay.get(d) ?? [],
+      hasClasses: classesOn(d).length > 0,
+    };
+  });
+
   const greeting = nowParts.hour < 12 ? "Good morning" : nowParts.hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
@@ -89,6 +110,8 @@ export default async function TodayPage() {
           <QuickActions />
         </div>
       </section>
+
+      <WeekStrip days={strip} />
 
       <RemindersNudge />
 
