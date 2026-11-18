@@ -36,7 +36,7 @@ export default async function WorkPage() {
               {open} open · {thisWeek} this week · {doneWeek} done this week
             </p>
           </div>
-          <ProgressRing done={doneToday} total={doneToday + urgent.length} />
+          <ProgressRing done={doneToday} total={doneToday + urgent.length} color="var(--color-warn)" />
         </div>
         <div className="mt-4">
           <AreaActions area="work" tone="work" />

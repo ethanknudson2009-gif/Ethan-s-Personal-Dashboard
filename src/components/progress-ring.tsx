@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
  * A glowing ring that fills up as you check things off today. It animates
  * from empty on first load, so the progress "draws itself".
  */
-export function ProgressRing({ done, total, size = 92 }: { done: number; total: number; size?: number }) {
+export function ProgressRing({ done, total, size = 92, color = "var(--color-accent)" }: { done: number; total: number; size?: number; color?: string }) {
   const [shown, setShown] = useState(0);
   const ratio = total === 0 ? 1 : done / total;
   useEffect(() => {
@@ -27,17 +27,17 @@ export function ProgressRing({ done, total, size = 92 }: { done: number; total: 
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="var(--color-accent)"
+          stroke={color}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - shown)}
-          style={{ filter: "drop-shadow(0 0 6px rgb(46 230 201 / 0.7))" }}
+          style={{ filter: `drop-shadow(0 0 6px ${color})` }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
         {total === 0 ? (
-          <span className="font-display text-2xl font-semibold text-accent">✓</span>
+          <span className="font-display text-2xl font-semibold" style={{ color }}>✓</span>
         ) : (
           <>
             <span className="font-display text-xl font-semibold">
