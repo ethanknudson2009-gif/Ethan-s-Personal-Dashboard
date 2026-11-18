@@ -45,6 +45,9 @@ export default async function MoneyPage({ searchParams }: PageProps<"/money">) {
     <div className="stagger flex flex-col gap-5">
       <PageHeader title="Money" subtitle="Finance">
         <div className="flex items-center gap-1">
+          <Link href="/jobs" className="mr-1 rounded-xl border border-electric/40 bg-electric/10 px-3 py-1.5 text-sm font-semibold text-electric">
+            🧽 Jobs
+          </Link>
           <Link href={`/money?month=${shiftMonthKey(month, -1)}`} aria-label="Previous month" className="rounded-lg px-3 py-1.5 text-lg text-muted hover:bg-raised hover:text-ink">
             ‹
           </Link>

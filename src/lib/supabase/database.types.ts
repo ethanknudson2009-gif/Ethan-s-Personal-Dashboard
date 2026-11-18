@@ -149,6 +149,45 @@ export type Database = {
           },
         ]
       }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          default_price_cents: number | null
+          deleted_at: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          repeat_weeks: number | null
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          default_price_cents?: number | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          repeat_weeks?: number | null
+          user_id?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          default_price_cents?: number | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          repeat_weeks?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           all_day: boolean
@@ -479,6 +518,63 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      jobs: {
+        Row: {
+          created_at: string
+          customer_id: string
+          deleted_at: string | null
+          id: string
+          money_id: string | null
+          notes: string | null
+          price_cents: number
+          scheduled_on: string
+          scheduled_time: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          deleted_at?: string | null
+          id?: string
+          money_id?: string | null
+          notes?: string | null
+          price_cents?: number
+          scheduled_on: string
+          scheduled_time?: string | null
+          status?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          deleted_at?: string | null
+          id?: string
+          money_id?: string | null
+          notes?: string | null
+          price_cents?: number
+          scheduled_on?: string
+          scheduled_time?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_money_id_fkey"
+            columns: ["money_id"]
+            isOneToOne: false
+            referencedRelation: "money_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       money_transactions: {
         Row: {

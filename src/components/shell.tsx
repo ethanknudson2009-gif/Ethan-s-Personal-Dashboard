@@ -9,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconGrades, IconInbox, IconLife, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconGrades, IconInbox, IconLife, IconJobs, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 import { FocusOverlay } from "@/components/focus-overlay";
 
@@ -23,6 +23,7 @@ const NAV = [
   { href: "/calendar", label: "Calendar", Icon: IconCalendar },
   { href: "/classes", label: "Classes", Icon: IconClasses },
   { href: "/grades", label: "Grades", Icon: IconGrades },
+  { href: "/jobs", label: "Jobs", Icon: IconJobs },
 ];
 
 /**
@@ -177,7 +178,7 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
           </span>
         </button>
         {TABS.slice(3).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href)} badge={badges[item.href]} />
+          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/money" && isActive("/jobs"))} badge={badges[item.href]} />
         ))}
       </nav>
     </div>
