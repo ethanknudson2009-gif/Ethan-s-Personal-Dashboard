@@ -9,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconGrades, IconInbox, IconLife, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconGrades, IconInbox, IconLife, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 import { FocusOverlay } from "@/components/focus-overlay";
 
@@ -17,14 +17,19 @@ import { FocusOverlay } from "@/components/focus-overlay";
 const NAV = [
   { href: "/today", label: "Today", Icon: IconToday },
   { href: "/tasks", label: "School", Icon: IconSchool },
-  { href: "/calendar", label: "Calendar", Icon: IconCalendar },
+  { href: "/work", label: "Work", Icon: IconWork },
+  { href: "/money", label: "Money", Icon: IconMoney },
   { href: "/life", label: "Life", Icon: IconLife },
+  { href: "/calendar", label: "Calendar", Icon: IconCalendar },
   { href: "/classes", label: "Classes", Icon: IconClasses },
   { href: "/grades", label: "Grades", Icon: IconGrades },
 ];
 
-/** Phone bottom bar: two tabs, the center +, two tabs. (Classes lives inside School.) */
-const TABS = [NAV[0], NAV[1], NAV[2], NAV[3]];
+/**
+ * Phone bottom bar: every area, with the glowing + in the middle:
+ * Today · School · Work · + · Money · Life · Calendar. (Classes and Grades live inside School.)
+ */
+const TABS = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4], NAV[5]];
 
 /** Less-used places: sidebar on laptops; on phones they're linked from Today and School. */
 const MORE = [
@@ -154,25 +159,25 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
 
       {/* Phone: bottom bar with the center "+" */}
       <nav
-        className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex items-center justify-around rounded-3xl border border-line bg-surface/90 px-2 py-2 shadow-card backdrop-blur-xl md:hidden"
+        className="fixed inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex items-center justify-around gap-0.5 rounded-3xl border border-line bg-surface/90 px-1.5 py-2 shadow-card backdrop-blur-xl md:hidden"
         aria-label="Main"
       >
-        {TABS.slice(0, 2).map((item) => (
+        {TABS.slice(0, 3).map((item) => (
           <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/tasks" && (isActive("/classes") || isActive("/grades")))} badge={badges[item.href]} />
         ))}
         <button
           type="button"
           {...plusHandlers}
           aria-label="Add something (hold to talk)"
-          className="plus-orb relative -mt-8 flex h-14 w-14 touch-none items-center justify-center rounded-full bg-accent text-accent-ink shadow-glow transition select-none active:scale-90"
+          className="plus-orb relative -mt-8 flex h-14 w-14 shrink-0 touch-none items-center justify-center rounded-full bg-accent text-accent-ink shadow-glow transition select-none active:scale-90"
         >
           <IconPlus size={26} strokeWidth={2.4} />
           <span className="absolute -right-0.5 -bottom-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-surface bg-electric text-white">
             <IconMic size={11} strokeWidth={2.4} />
           </span>
         </button>
-        {TABS.slice(2).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/tasks" && isActive("/classes"))} badge={badges[item.href]} />
+        {TABS.slice(3).map((item) => (
+          <TabLink key={item.href} {...item} active={isActive(item.href)} badge={badges[item.href]} />
         ))}
       </nav>
     </div>
@@ -190,7 +195,7 @@ function TabLink({
     <Link
       href={href}
       className={cx(
-        "relative flex w-[60px] flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[10.5px] font-medium transition-all duration-300",
+        "relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[10px] font-medium transition-all duration-300",
         active ? "bg-accent/10 text-accent" : "text-muted active:scale-95",
       )}
     >

@@ -118,3 +118,18 @@ export const IconGrades = (p: IconProps) => (
     <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
   </Svg>
 );
+
+export const IconWork = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="7" width="18" height="13" rx="2.5" />
+    <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2M3 12h18" />
+  </Svg>
+);
+
+export const IconMoney = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="2.5" y="6" width="19" height="13" rx="2.5" />
+    <circle cx="12" cy="12.5" r="2.5" />
+    <path d="M6 9.5v.01M18 15.5v.01" />
+  </Svg>
+);
