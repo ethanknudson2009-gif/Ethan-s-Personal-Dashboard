@@ -59,3 +59,19 @@ export async function deleteHabitAction(id: string): Promise<Result> {
   refresh();
   return { ok: true };
 }
+
+/** Saves today's journal entry (mood 1–5 and/or text). One entry per day. */
+export async function saveJournalAction(date: string, mood: number | null, body: string): Promise<Result> {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "Bad date" };
+  if (mood !== null && !(Number.isInteger(mood) && mood >= 1 && mood <= 5)) return { ok: false, error: "Bad mood" };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { error } = await supabase
+    .from("journal_entries")
+    .upsert({ user_id: user.id, on_date: date, mood, body: body.slice(0, 10000) }, { onConflict: "user_id,on_date" });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}

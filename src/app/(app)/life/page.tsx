@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/ui";
 import { ProgressRing } from "@/components/progress-ring";
 import { HabitCard, type HabitCardData } from "@/components/habit-card";
 import { NewHabit } from "@/components/new-habit";
+import { JournalCard } from "@/components/journal-card";
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 
@@ -16,10 +17,13 @@ export default async function LifePage() {
   const today = toLocalDate(new Date(), settings.timeZone);
   const since = addDays(today, -70);
 
-  const [{ data: habits }, { data: checkins }] = await Promise.all([
+  const [{ data: habits }, { data: checkins }, { data: journal }] = await Promise.all([
     supabase.from("habits").select("id, name, emoji, color, target_times, target_per, started_on").is("deleted_at", null).eq("archived", false).order("sort").order("created_at"),
     supabase.from("habit_checkins").select("habit_id, on_date").gte("on_date", since),
+    supabase.from("journal_entries").select("on_date, mood, body").gte("on_date", addDays(today, -6)),
   ]);
+  const entryByDay = new Map((journal ?? []).map((j) => [j.on_date, j]));
+  const todayEntry = entryByDay.get(today);
 
   const byHabit = new Map<string, Set<string>>();
   for (const c of checkins ?? []) {
@@ -55,7 +59,7 @@ export default async function LifePage() {
 
   return (
     <div className="stagger flex flex-col gap-5">
-      <PageHeader title="Life" subtitle="Habits" />
+      <PageHeader title="Life" subtitle="Habits & journal" />
 
       {cards.length > 0 ? (
         <section className="hero flex items-center gap-4 rounded-3xl border border-accent/30 bg-surface/70 p-5 shadow-glow">
@@ -85,6 +89,17 @@ export default async function LifePage() {
       )}
 
       <NewHabit open={cards.length === 0} />
+
+      <JournalCard
+        today={today}
+        initialMood={todayEntry?.mood ?? null}
+        initialBody={todayEntry?.body ?? ""}
+        week={Array.from({ length: 7 }, (_, i) => {
+          const d = addDays(today, i - 6);
+          const e = entryByDay.get(d);
+          return { date: d, label: DAY_LETTERS[weekdayOf(d)], mood: e?.mood ?? null, hasText: Boolean(e?.body) };
+        })}
+      />
     </div>
   );
 }
