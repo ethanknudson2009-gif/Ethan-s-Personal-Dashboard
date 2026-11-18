@@ -22,6 +22,9 @@
 - **A satisfying check-off:** the checkbox ring fills, a checkmark draws itself, the row's title gets struck through and the row slides away, with a tiny burst of light in the area color. Short (under half a second), smooth, and never blocking.
 - Charts only where they help (e.g. budget trend, lift progress), styled like reference 2: one glowing line, a highlighted current point.
 
+## Area colors (Nov 18, 2026)
+Each area keeps the same dark base but has its own glow: **School/Today = teal**, **Work (PRMI) = amber**, **Money = green**, **Life = each habit's color**. The hero "aurora" and progress ring take the area's color.
+
 ## How it's built so the design is easy to apply
 All screens use the shared building blocks in `src/components/ui.tsx` (cards, buttons, inputs, task rows, badges). The design phase restyles those pieces plus the color theme, so every screen changes together.
 

@@ -41,6 +41,12 @@
 - [x] Habits on Today, in the Claude connector (log_habit) and in the 8 PM reminder
 - [x] Syllabus imports grouped as batches in the Inbox
 
+## Added Nov 18, 2026
+- [x] Speech: natural phrasing in any order, fillers, spoken numbers/times, fuzzy matching of misheard class names and days, best of 5 transcriptions, Auto-mic on +
+- [x] Notes: extra context said after the main part becomes a caption on the task
+- [x] Work section for PRMI (also "work", "primary", "the office"; Mike = LO)
+- [x] Bottom bar with every area: Today · School · Work · + · Money · Life · Calendar
+
 ## Phase 3: Body
 - [ ] Gym: plans, A/B/C rotations, weights filled in from last time, backup exercise, progress, recovery map (free-exercise-db data)
 - [ ] Calories: quick add, barcode lookup (Open Food Facts), photo logging through Claude, Meal What-If, adaptive goals
@@ -49,7 +55,8 @@
 - [x] Habits with a strength score and streaks (Life tab), XP and levels
 - [ ] Coins → reward wishlist
 - [ ] Morning Plan / Evening Shutdown + journal; guided weekly review
-- [ ] Budget (categories, recurring items, hide-a-category chart)
+- [x] Money (Nov 18): Cash App statement (CSV) import with duplicate protection, auto categories, month totals, 6-month chart, tap-to-hide category chart, "spent $12 gas" from quick add
+- [ ] Recurring bills and budgets per category
 - [ ] Side business: window-washing jobs, customers, income, job locations
 - [x] Grades: weighted averages, letter grades, What-If, and "what do I need?" (/grades)
 
