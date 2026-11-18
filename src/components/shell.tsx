@@ -9,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconInbox, IconLife, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconGrades, IconInbox, IconLife, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 import { FocusOverlay } from "@/components/focus-overlay";
 
@@ -20,6 +20,7 @@ const NAV = [
   { href: "/calendar", label: "Calendar", Icon: IconCalendar },
   { href: "/life", label: "Life", Icon: IconLife },
   { href: "/classes", label: "Classes", Icon: IconClasses },
+  { href: "/grades", label: "Grades", Icon: IconGrades },
 ];
 
 /** Phone bottom bar: two tabs, the center +, two tabs. (Classes lives inside School.) */
@@ -157,7 +158,7 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
         aria-label="Main"
       >
         {TABS.slice(0, 2).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/tasks" && isActive("/classes"))} badge={badges[item.href]} />
+          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/tasks" && (isActive("/classes") || isActive("/grades")))} badge={badges[item.href]} />
         ))}
         <button
           type="button"

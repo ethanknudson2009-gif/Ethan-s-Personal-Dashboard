@@ -250,6 +250,102 @@ export type Database = {
           },
         ]
       }
+      grade_categories: {
+        Row: {
+          class_id: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          class_id: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id?: string
+          weight: number
+        }
+        Update: {
+          class_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grade_categories_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grades: {
+        Row: {
+          category_id: string | null
+          class_id: string
+          created_at: string
+          id: string
+          is_what_if: boolean
+          points_earned: number
+          points_possible: number
+          task_id: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          class_id: string
+          created_at?: string
+          id?: string
+          is_what_if?: boolean
+          points_earned: number
+          points_possible: number
+          task_id?: string | null
+          title: string
+          user_id?: string
+        }
+        Update: {
+          category_id?: string | null
+          class_id?: string
+          created_at?: string
+          id?: string
+          is_what_if?: boolean
+          points_earned?: number
+          points_possible?: number
+          task_id?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grades_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "grade_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grades_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grades_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       habit_checkins: {
         Row: {
           created_at: string

@@ -112,3 +112,9 @@ export const IconLife = (p: IconProps) => (
     <path d="M8.5 11h2l1-2 1.5 4 1-2h1.5" />
   </Svg>
 );
+
+export const IconGrades = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+  </Svg>
+);

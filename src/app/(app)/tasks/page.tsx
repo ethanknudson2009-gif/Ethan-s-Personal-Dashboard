@@ -19,6 +19,12 @@ export default async function SchoolPage() {
       <PageHeader title="School" subtitle="Assignments & tasks">
         <div className="flex items-center gap-2">
           <Link
+            href="/grades"
+            className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-sm font-semibold text-muted transition hover:border-accent/50 hover:text-ink"
+          >
+            📊 Grades
+          </Link>
+          <Link
             href="/classes"
             className="flex items-center gap-1.5 rounded-xl border border-line bg-surface px-3 py-2 text-sm font-semibold text-muted transition hover:border-accent/50 hover:text-ink"
           >
