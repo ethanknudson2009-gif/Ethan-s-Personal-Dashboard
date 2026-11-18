@@ -5,7 +5,7 @@
  * sidebar on laptops (docs/09-design-direction.md). The "+" opens quick add.
  */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
@@ -30,6 +30,25 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
   const pathname = usePathname();
   const sheet = useTaskSheet();
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+  // When you come back to the app (e.g. reopen it on your phone), fetch fresh
+  // data so it never shows yesterday's list. At most every 20 seconds.
+  const router = useRouter();
+  useEffect(() => {
+    let last = Date.now();
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && Date.now() - last > 20_000) {
+        last = Date.now();
+        router.refresh();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+    };
+  }, [router]);
 
   // Opening the app at /today?talk=1 (or ?add=1) jumps straight into quick add.
   useEffect(() => {

@@ -136,6 +136,22 @@ textarea {
 .toast {
   animation: toast 2.2s ease-in-out forwards;
 }
+.toast-long {
+  animation: toast 4.5s ease-in-out forwards;
+}
+
+/* Swipe-to-act on task rows: the colored action layer behind the row. */
+.swipe-under {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  border-radius: inherit;
+  padding: 0 18px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
 
 /* Voice: a pulsing mic and little equalizer bars while listening. */
 @keyframes mic-ring {

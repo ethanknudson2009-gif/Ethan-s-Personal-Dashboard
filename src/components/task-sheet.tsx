@@ -56,7 +56,10 @@ type SheetApi = {
   /** Open quick add and start listening right away (hold the + button). */
   openVoice: () => void;
   openEdit: (task: EditableTask) => void;
-  toast: (message: string) => void;
+  /** A short message at the bottom. With an action, it shows a button (e.g. Undo) and stays a bit longer. */
+  toast: (message: string, action?: { label: string; run: () => void }) => void;
+  /** Your time zone, for "today"/"tomorrow" in client-side code. */
+  timeZone: string;
 };
 
 const SheetContext = createContext<SheetApi | null>(null);
@@ -77,16 +80,17 @@ export function TaskSheetProvider({
   children: ReactNode;
 }) {
   const [state, setState] = useState<SheetState>({ mode: "closed" });
-  const [toastMsg, setToastMsg] = useState<{ text: string; key: number } | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ text: string; key: number; action?: { label: string; run: () => void } } | null>(null);
 
   const api = useMemo<SheetApi>(
     () => ({
       openNew: (prefill) => setState({ mode: "new", prefill }),
       openVoice: () => setState({ mode: "new", voice: true }),
       openEdit: (task) => setState({ mode: "edit", task }),
-      toast: (text) => setToastMsg({ text, key: Date.now() }),
+      toast: (text, action) => setToastMsg({ text, key: Date.now(), action }),
+      timeZone,
     }),
-    [],
+    [timeZone],
   );
 
   return (
@@ -109,10 +113,25 @@ export function TaskSheetProvider({
         <div
           key={toastMsg.key}
           role="status"
-          onAnimationEnd={() => setToastMsg(null)}
-          className="toast fixed bottom-28 left-1/2 z-50 rounded-full border border-accent/50 bg-surface px-4 py-2 text-sm font-medium text-ink shadow-glow md:bottom-8"
+          onAnimationEnd={(e) => e.target === e.currentTarget && setToastMsg(null)}
+          className={cx(
+            "fixed bottom-28 left-1/2 z-50 flex max-w-[92vw] items-center gap-3 rounded-full border border-accent/50 bg-surface/95 py-2 pr-2 pl-4 text-sm font-medium text-ink shadow-glow backdrop-blur md:bottom-8",
+            toastMsg.action ? "toast-long" : "toast pr-4",
+          )}
         >
-          {toastMsg.text}
+          <span className="truncate">{toastMsg.text}</span>
+          {toastMsg.action && (
+            <button
+              type="button"
+              onClick={() => {
+                toastMsg.action?.run();
+                setToastMsg(null);
+              }}
+              className="shrink-0 rounded-full bg-accent/15 px-3 py-1 text-xs font-bold text-accent hover:bg-accent/25"
+            >
+              {toastMsg.action.label}
+            </button>
+          )}
         </div>
       )}
     </SheetContext.Provider>
