@@ -9,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconGrades, IconGym, IconInbox, IconLife, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconGrades, IconGym, IconInbox, IconPalette, IconLife, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 import { FocusOverlay } from "@/components/focus-overlay";
 
@@ -35,6 +35,7 @@ const TABS = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4], NAV[6]];
 /** Less-used places: sidebar on laptops; on phones they're linked from Today and School. */
 const MORE = [
   { href: "/inbox", label: "Inbox", Icon: IconInbox },
+  { href: "/gallery", label: "Design gallery", Icon: IconPalette },
   { href: "/trash", label: "Trash", Icon: IconTrash },
   { href: "/settings", label: "Settings", Icon: IconSettings },
 ];

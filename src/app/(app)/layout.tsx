@@ -5,6 +5,7 @@ import { loadSettings } from "@/lib/profile";
 import { daysUntil } from "@/lib/format";
 import { AppShell } from "@/components/shell";
 import { TaskSheetProvider } from "@/components/task-sheet";
+import { themeById, themeCss } from "@/lib/themes";
 
 /**
  * Wraps every page that needs a login: checks you're signed in, loads what
@@ -25,7 +26,7 @@ async function AuthedShell({ children }: { children: React.ReactNode }) {
     supabase.from("inbox_items").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
     supabase.from("habits").select("name").is("deleted_at", null).eq("archived", false),
     supabase.from("exercises").select("id, name, muscle, bodyweight"),
-    supabase.from("profiles").select("gym_split").maybeSingle(),
+    supabase.from("profiles").select("gym_split, theme").maybeSingle(),
   ]);
 
   const now = new Date();
@@ -38,6 +39,8 @@ async function AuthedShell({ children }: { children: React.ReactNode }) {
       split={profileRes.data?.gym_split?.length ? profileRes.data.gym_split : undefined}
       timeZone={settings.timeZone}
     >
+      {/* Your color theme from the design gallery (no flash: it's in the page itself). */}
+      {profileRes.data?.theme && profileRes.data.theme !== "neon-teal" && <style>{themeCss(themeById(profileRes.data.theme))}</style>}
       <AppShell badges={{ "/tasks": needsAttention, "/inbox": inboxRes.count ?? 0 }}>{children}</AppShell>
     </TaskSheetProvider>
   );

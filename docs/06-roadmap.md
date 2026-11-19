@@ -30,7 +30,7 @@
 - [x] **The dashboard talks to me (part 1: reminders done; asking me questions comes with the Claude connector):** notifications on my iPhone (free web push, no phone number needed), e.g. the morning before something is due ("Bio lab due tomorrow, ~2 h left"). The dashboard can also *ask* me things ("which class is 'chem worksheet' for?") and I answer with a tap or a short reply in a Messages screen. Two-way texting is nice-to-have, not required.
 - [x] **Design pass 1 (docs 08 + 09):** dark techy theme, bottom-bar screens per area (Today, School, Gym, Finance, Life, Jobs) with a center "+", laptop shows more columns.
 - [x] **Design details:** class-first task titles ("Speech: …"), unfinished items highlighted, a clean and satisfying check-off animation.
-- [ ] **Design gallery before the UI phase:** show me ~20 real, visual layout examples and ~20 color combinations (actual pictures, not descriptions) so I can pick a look.
+- [x] **Design gallery before the UI phase:** show me ~20 real, visual layout examples and ~20 color combinations (actual pictures, not descriptions) so I can pick a look. *(Menu → Design gallery: tap a color theme to apply it everywhere; ♥ the layouts you like.)*
 
 ## Extras built along the way (Nov 17, 2026)
 - [x] Voice: Talk button, hold ＋ to talk, keyboard-dictation fallback (docs/setup/05)
