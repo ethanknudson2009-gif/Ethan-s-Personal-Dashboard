@@ -48,7 +48,8 @@
 - [x] Bottom bar with every area: Today · School · Work · + · Money · Life · Calendar
 
 ## Phase 3: Body
-- [ ] Gym: plans, A/B/C rotations, weights filled in from last time, backup exercise, progress, recovery map (free-exercise-db data)
+- [x] Gym (inside Life, `/gym`): live workout with exercise picker (27 starter exercises + your own), sets pre-filled from last time, ✓ starts a 90 s rest timer with a chime, finish shows volume and new PRs (estimated 1-rep max), checks in a "Gym"/"Workout" habit, history and best lifts.
+- [ ] Gym later: plans and A/B/C rotations, backup exercises, progress charts, recovery map (free-exercise-db data)
 - [ ] Calories: quick add, barcode lookup (Open Food Facts), photo logging through Claude, Meal What-If, adaptive goals
 
 ## Phase 4: Life

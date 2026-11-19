@@ -145,6 +145,8 @@ One `tasks` table holds both to-dos and school work. An **assignment is a task w
 | `exercises` | shared list imported from free-exercise-db (public domain, `user_id` null = shared, read-only) plus your own custom exercises |
 | `workouts` | `started_at`, `ended_at`, `plan_day` ("A"/"B"/"C"), `notes` |
 | `workout_sets` | `workout_id`, `exercise_id`, `set_number`, `reps`, `weight_lb`, `duration_s`, `distance_mi` |
+
+*As built (migration 0013): `exercises` (built-in rows have `user_id` null and are read-only), `workouts` (`started_at`, `ended_at` null while live), `workout_sets` (`position`, `weight_lb`, `reps`, `done`). Plans/rotations and cardio fields come later.*
 | `body_metrics` | `measured_on`, `weight_lb` |
 
 ### 4.6 Life (Phase 4)

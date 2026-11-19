@@ -326,3 +326,11 @@ textarea {
     transition-duration: 1ms !important;
   }
 }
+
+/* Gym: a fiery orange-red glow. */
+.hero-gym::before {
+  background:
+    radial-gradient(35% 35% at 25% 30%, rgb(255 107 74 / 0.32), transparent 70%),
+    radial-gradient(30% 30% at 75% 65%, rgb(255 181 71 / 0.2), transparent 70%);
+}
+.glow-gym { box-shadow: 0 0 0 1px rgb(255 107 74 / 0.55), 0 0 26px -6px rgb(255 107 74 / 0.7); }

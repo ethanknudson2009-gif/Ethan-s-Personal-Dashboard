@@ -113,6 +113,12 @@ export const IconLife = (p: IconProps) => (
   </Svg>
 );
 
+export const IconGym = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M6.5 6.5v11M17.5 6.5v11M3.5 9v6M20.5 9v6M6.5 12h11" />
+  </Svg>
+);
+
 export const IconGrades = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />

@@ -9,7 +9,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconGrades, IconInbox, IconLife, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconGrades, IconGym, IconInbox, IconLife, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 import { FocusOverlay } from "@/components/focus-overlay";
 
@@ -20,6 +20,7 @@ const NAV = [
   { href: "/work", label: "Work", Icon: IconWork },
   { href: "/money", label: "Money", Icon: IconMoney },
   { href: "/life", label: "Life", Icon: IconLife },
+  { href: "/gym", label: "Gym", Icon: IconGym },
   { href: "/calendar", label: "Calendar", Icon: IconCalendar },
   { href: "/classes", label: "Classes", Icon: IconClasses },
   { href: "/grades", label: "Grades", Icon: IconGrades },
@@ -27,9 +28,9 @@ const NAV = [
 
 /**
  * Phone bottom bar: every area, with the glowing + in the middle:
- * Today · School · Work · + · Money · Life · Calendar. (Classes and Grades live inside School.)
+ * Today · School · Work · + · Money · Life · Calendar. (Classes and Grades live inside School; Gym lives inside Life.)
  */
-const TABS = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4], NAV[5]];
+const TABS = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4], NAV[6]];
 
 /** Less-used places: sidebar on laptops; on phones they're linked from Today and School. */
 const MORE = [
@@ -177,7 +178,7 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
           </span>
         </button>
         {TABS.slice(3).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href)} badge={badges[item.href]} />
+          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/life" && isActive("/gym"))} badge={badges[item.href]} />
         ))}
       </nav>
     </div>

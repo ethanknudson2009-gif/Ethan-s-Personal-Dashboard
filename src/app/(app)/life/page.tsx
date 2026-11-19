@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
 import { addDays, toLocalDate, weekdayOf } from "@/lib/time";
@@ -59,7 +60,15 @@ export default async function LifePage() {
 
   return (
     <div className="stagger flex flex-col gap-5">
-      <PageHeader title="Life" subtitle="Habits & journal" />
+      <PageHeader title="Life" subtitle="Habits & journal">
+        <Link
+          href="/gym"
+          className="glow-gym rounded-xl border px-3 py-1.5 text-sm font-semibold transition active:scale-95"
+          style={{ borderColor: "#ff6b4a88", color: "#ff6b4a" }}
+        >
+          🏋️ Gym
+        </Link>
+      </PageHeader>
 
       {cards.length > 0 ? (
         <section className="hero flex items-center gap-4 rounded-3xl border border-accent/30 bg-surface/70 p-5 shadow-glow">
