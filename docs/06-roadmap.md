@@ -76,7 +76,8 @@
 - [x] Gym split (Nov 19, migration 0016): Chest → Back & Biceps → Legs → Shoulders & Triceps. "Up next" card, tap a day to switch, **Skip** (kept in history as skipped). Finishing a day moves the rotation to the day after it.
 - [x] Say a whole workout in one breath, any order (`src/lib/gym-speech.ts`, 70+ phrasing tests): "chest day, bench 3x10 at 135, incline 3 sets of 8 at 50, flys 3x12 at 30 and pushups 2x20" → a clean note per exercise. Understands gym numbers ("one thirty five"), per-set weights ("135 for 10, 155 for 8"), rep lists ("8 7 6"), kilos, nicknames (RDL, OHP, DB), new exercises, the muscles hit and "skip chest day". The + sheet previews the exact note before saving.
 - [x] Gym history as standard notes: split-day badge, one line per exercise, tap to open, copy or delete
-- [ ] Gym later: progress charts, backup exercises, recovery map (free-exercise-db data)
+- [x] Gym progress charts (Nov 19): strength line per lift (best estimated 1-rep max each workout, touch a point for the set), pounds moved per week (8 weeks), split balance for the last 30 days, and a "Show numbers" table view (`src/lib/gym-progress.ts`, `src/components/gym-charts.tsx`)
+- [ ] Gym later: backup exercises, recovery map (free-exercise-db data)
 - [x] Food log (Nov 19, migration 0014): say what you ate with calories/protein; a Food card in Life with a daily goal bar, 7-day average, delete + undo; a Food tile on Today
 - [ ] Calories later: barcode lookup (Open Food Facts), photo logging through Claude, Meal What-If, adaptive goals
 

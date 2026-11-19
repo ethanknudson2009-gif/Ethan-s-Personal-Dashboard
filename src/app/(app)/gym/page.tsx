@@ -6,6 +6,8 @@ import { bestByExercise, lastTime, setLabel, volume, type GymSet } from "@/lib/g
 import { DEFAULT_SPLIT, setsSummary, workoutNote, type SpokenEntry } from "@/lib/gym-speech";
 import { PageHeader } from "@/components/ui";
 import { ActiveWorkout, SplitCard, WorkoutNoteCard, type Block, type ExerciseOption } from "@/components/gym-parts";
+import { GymCharts } from "@/components/gym-charts";
+import { chartableExercises, splitCounts, strengthSeries, weeklyVolume, type PastWorkout } from "@/lib/gym-progress";
 
 type SetRow = { id: string; exercise_id: string; position: number; weight_lb: number | null; reps: number | null; done: boolean };
 
@@ -36,7 +38,7 @@ export default async function GymPage() {
       .not("ended_at", "is", null)
       .is("deleted_at", null)
       .order("started_at", { ascending: false })
-      .limit(40),
+      .limit(150), // enough for months of progress charts
     supabase.from("profiles").select("gym_split, gym_next").maybeSingle(),
   ]);
 
@@ -75,6 +77,20 @@ export default async function GymPage() {
   const thisWeek = trained.filter((w) => toLocalDate(new Date(w.started_at), timeZone) >= weekAgo);
   const weekVolume = thisWeek.reduce((n, w) => n + volume((w.workout_sets ?? []).map(toGym)), 0);
   const bests = [...bestByExercise(history.flat()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+
+  // Progress charts: strength per lift, pounds per week, split balance.
+  const pastForCharts: PastWorkout[] = (past ?? []).map((w) => ({
+    date: toLocalDate(new Date(w.started_at), timeZone),
+    day: w.split_day,
+    skipped: w.skipped,
+    sets: (w.workout_sets ?? []).map(toGym),
+  }));
+  const lifts = chartableExercises(pastForCharts)
+    .slice(0, 12)
+    .map((l) => ({ id: l.exerciseId, name: names.get(l.exerciseId) ?? "Exercise", sessions: l.sessions }));
+  const series = Object.fromEntries(lifts.map((l) => [l.id, strengthSeries(pastForCharts, l.id)]));
+  const weeks = weeklyVolume(pastForCharts, today, 8);
+  const balance = splitCounts(pastForCharts, split, addDays(today, -29));
 
   // Each past workout as a standard note: one line per exercise.
   const notes = (past ?? []).slice(0, 20).map((w) => {
@@ -145,6 +161,8 @@ export default async function GymPage() {
           </div>
         </section>
       )}
+
+      <GymCharts lifts={lifts} series={series} weeks={weeks} split={balance} />
 
       <section>
         <h2 className="mb-2 text-xs font-semibold tracking-[0.16em] text-muted uppercase">History</h2>
