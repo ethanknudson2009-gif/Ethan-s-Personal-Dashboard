@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import * as gymMod from "./gym";
 import { bestByExercise, lastTime, matchExercise, newRecords, oneRepMax, setLabel, volume } from "./gym";
 
 describe("gym math", () => {
@@ -72,5 +73,17 @@ describe("matching what you said to an exercise", () => {
     expect(m("incline")).toBe("Incline dumbbell press");
     expect(m("rows")).toBe("Barbell row");
     expect(m("zumba")).toBeNull();
+  });
+});
+
+describe("split rotation", () => {
+  const split = ["Chest", "Back & Biceps", "Legs", "Shoulders & Triceps"];
+  it("moves to the day after the one you trained, and wraps", () => {
+    const { nextAfter } = gymMod;
+    expect(nextAfter(split, "Chest", 0)).toBe(1);
+    expect(nextAfter(split, "Shoulders & Triceps", 3)).toBe(0);
+    // Did legs instead of chest: next is shoulders & triceps.
+    expect(nextAfter(split, "Legs", 0)).toBe(3);
+    expect(nextAfter(split, null, 2)).toBe(2);
   });
 });

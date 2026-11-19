@@ -128,3 +128,10 @@ export function matchExercise<T extends { id: string; name: string }>(said: stri
     .sort((a, b) => a.n.length - b.n.length);
   return candidates[0]?.e ?? null;
 }
+
+/** Where the rotation goes after you train `day`: the day after it (wrapping around). Unknown day → no change. */
+export function nextAfter(split: string[], day: string | null, current: number): number {
+  if (!split.length) return 0;
+  const i = day ? split.findIndex((d) => d.toLowerCase() === day.toLowerCase()) : -1;
+  return i < 0 ? current % split.length : (i + 1) % split.length;
+}
