@@ -334,3 +334,18 @@ textarea {
     radial-gradient(30% 30% at 75% 65%, rgb(255 181 71 / 0.2), transparent 70%);
 }
 .glow-gym { box-shadow: 0 0 0 1px rgb(255 107 74 / 0.55), 0 0 26px -6px rgb(255 107 74 / 0.7); }
+
+/* Swiping between sections: the new page slides in from the side you swiped toward. */
+@keyframes slide-from-right {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-from-left {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: none; }
+}
+.slide-from-right { animation: slide-from-right 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.slide-from-left { animation: slide-from-left 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .slide-from-right, .slide-from-left { animation: none; }
+}

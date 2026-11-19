@@ -6,7 +6,7 @@
  */
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
 import { IconCalendar, IconClasses, IconGrades, IconGym, IconInbox, IconLife, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
@@ -75,6 +75,41 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
       window.history.replaceState(null, "", `${window.location.pathname}${q ? `?${q}` : ""}`);
     }
   }, [sheet]);
+
+  // Thumb swipe left/right on a page moves to the next/previous tab
+  // (Today ⇄ School ⇄ Work ⇄ Money ⇄ Life ⇄ Calendar). Things with their own
+  // sideways gestures (task rows, scrolling chip rows, inputs) are left alone.
+  const tabIndex = TABS.findIndex(
+    (t) => isActive(t.href) || (t.href === "/tasks" && (isActive("/classes") || isActive("/grades"))) || (t.href === "/life" && isActive("/gym")),
+  );
+  const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const [slide, setSlide] = useState<{ dir: "left" | "right"; path: string } | null>(null);
+  const swipeHandlers = {
+    onTouchStart: (e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      const el = e.target as HTMLElement;
+      const edge = touch.clientX < 24 || touch.clientX > window.innerWidth - 24;
+      if (e.touches.length > 1 || edge || el.closest("[data-own-swipe], input, textarea, select, [contenteditable], .overflow-x-auto")) {
+        swipeStart.current = null;
+        return;
+      }
+      swipeStart.current = { x: touch.clientX, y: touch.clientY, t: Date.now() };
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const start = swipeStart.current;
+      swipeStart.current = null;
+      if (!start || tabIndex < 0) return;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - start.x;
+      const dy = touch.clientY - start.y;
+      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2 || Date.now() - start.t > 700) return;
+      const next = tabIndex + (dx < 0 ? 1 : -1);
+      if (next < 0 || next >= TABS.length) return;
+      navigator.vibrate?.(8);
+      setSlide({ dir: dx < 0 ? "left" : "right", path: TABS[next].href });
+      router.push(TABS[next].href);
+    },
+  };
 
   // The center "+": tap to type, press and hold to talk.
   const holdTimer = useRef<number | null>(null);
@@ -152,7 +187,14 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
       </aside>
 
       {/* Page */}
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-32 md:px-8 md:pt-10 md:pb-12">
+      <main
+        key={pathname}
+        {...swipeHandlers}
+        className={cx(
+          "mx-auto w-full max-w-3xl flex-1 px-4 pt-[max(1.25rem,env(safe-area-inset-top))] pb-32 md:px-8 md:pt-10 md:pb-12",
+          slide?.path === pathname && (slide.dir === "left" ? "slide-from-right" : "slide-from-left"),
+        )}
+      >
         {children}
       </main>
 
@@ -160,7 +202,7 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
 
       {/* Phone: bottom bar with the center "+" */}
       <nav
-        className="fixed inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex items-center justify-around gap-0.5 rounded-3xl border border-line bg-surface/90 px-1.5 py-2 shadow-card backdrop-blur-xl md:hidden"
+        className="fixed inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex items-center justify-around gap-0.5 rounded-[1.75rem] border border-line bg-surface/90 px-1 py-1.5 shadow-card backdrop-blur-xl md:hidden"
         aria-label="Main"
       >
         {TABS.slice(0, 3).map((item) => (
@@ -195,19 +237,34 @@ function TabLink({
   return (
     <Link
       href={href}
+      aria-label={label}
+      aria-current={active ? "page" : undefined}
       className={cx(
-        "relative flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl py-1.5 text-[10px] font-medium transition-all duration-300",
-        active ? "bg-accent/10 text-accent" : "text-muted active:scale-95",
+        "relative flex h-12 min-w-0 flex-1 flex-col items-center justify-center rounded-2xl transition-all duration-300",
+        active ? "text-accent" : "text-muted active:scale-90",
       )}
     >
-      <Icon size={22} />
-      {label}
+      <span
+        className={cx(
+          "flex h-9 w-11 items-center justify-center rounded-xl transition-all duration-300",
+          active && "-translate-y-1 bg-accent/15 shadow-glow",
+        )}
+      >
+        <Icon size={23} strokeWidth={active ? 2.1 : 1.8} />
+      </span>
+      <span
+        className={cx(
+          "absolute bottom-0 text-[10px] leading-none font-semibold tracking-wide transition-all duration-300",
+          active ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+        )}
+      >
+        {label}
+      </span>
       {badge ? (
-        <span className="absolute -top-0.5 right-3">
+        <span className="absolute top-0 right-[calc(50%-1.4rem)]">
           <Badge n={badge} />
         </span>
       ) : null}
-      {active && <span className="absolute -bottom-1 h-1 w-1 rounded-full bg-accent shadow-glow" />}
     </Link>
   );
 }

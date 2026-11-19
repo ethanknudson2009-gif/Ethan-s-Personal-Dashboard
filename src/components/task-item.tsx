@@ -140,6 +140,7 @@ export function TaskItem({ task }: { task: TaskView }) {
       )}
 
       <div
+        data-own-swipe
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
