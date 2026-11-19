@@ -89,7 +89,7 @@ export function HabitCard({ habit }: { habit: HabitCardData }) {
 
         {/* Strength ring */}
         <div className="relative shrink-0" style={{ width: size, height: size }} title="Habit strength">
-          <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+          <svg width={size} height={size} className="-rotate-90 overflow-visible" aria-hidden="true">
             <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-line)" strokeWidth={5} />
             <circle
               cx={size / 2}

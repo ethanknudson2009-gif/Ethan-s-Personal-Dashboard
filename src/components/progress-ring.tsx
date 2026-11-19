@@ -19,7 +19,8 @@ export function ProgressRing({ done, total, size = 92, color = "var(--color-acce
   const c = 2 * Math.PI * r;
   return (
     <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+      {/* overflow-visible: the glow spreads past the box instead of ending in a hard square edge */}
+      <svg width={size} height={size} className="-rotate-90 overflow-visible" aria-hidden="true">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-line)" strokeWidth={stroke} />
         <circle
           className="ring-progress"

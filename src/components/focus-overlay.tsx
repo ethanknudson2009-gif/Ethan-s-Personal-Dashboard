@@ -98,7 +98,7 @@ export function FocusOverlay() {
       <p className="max-w-sm text-center font-display text-xl font-semibold text-balance">{session.title}</p>
 
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+        <svg width={size} height={size} className="-rotate-90 overflow-visible" aria-hidden="true">
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--color-line)" strokeWidth={10} />
           <circle
             cx={size / 2}
