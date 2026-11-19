@@ -7,6 +7,7 @@ import { formatLocalDate, formatTimeOfDay, taskDisplayTitle } from "@/lib/format
 import type { ClassRef } from "@/lib/parser";
 import { captureSchema, decide, moneyRowFromDraft, SAVEABLE_TYPES, taskRowFromDraft, type InboxDraft } from "./index";
 import { toLocalDate } from "@/lib/time";
+import { splitItems } from "@/lib/parser/multi";
 
 export const MAX_BODY_BYTES = 32 * 1024;
 
@@ -72,20 +73,49 @@ export async function handleCapture(
     if (existing) return { status: 200, body: { ok: true, status: "duplicate", id: existing.id, message: "Already saved ✓" } };
   }
 
-  // 4. Decide: save straight away, or Inbox for review.
   const ctx = await store.loadContext(owner.userId);
-  const decision = decide(input, { now: req.now, ...ctx });
-  const what = describeDraft(decision.draft);
 
+  // 4. A whole list said at once ("call Mike tomorrow, then buy milk, also…")
+  //    becomes one item each. (Only when Claude didn't already pick one title.)
+  if (!input.title && !input.type) {
+    const { items } = splitItems(input.raw_text, { now: req.now, timeZone: ctx.timeZone, classes: ctx.classes, spoken: true, caseSource: input.raw_text });
+    if (items.length >= 2) {
+      const results: { id: string; saved: boolean; what: string }[] = [];
+      for (const [i, text] of items.entries()) {
+        // Only the first keeps the Shortcut's id, so a retry is still caught as a duplicate.
+        const one = { ...input, raw_text: text, due_text: null, due: null, class_name: null, notes: null, client_id: input.client_id ? (i === 0 ? input.client_id : `${input.client_id}#${i + 1}`) : null };
+        results.push(await saveOne(one, req.now, ctx, owner.userId, store));
+      }
+      const saved = results.filter((r) => r.saved).length;
+      const review = results.length - saved;
+      const message = [saved ? `Saved ${saved} ✓` : "", review ? `📥 ${review} to review` : ""].filter(Boolean).join(", ") + `: ${results.map((r) => r.what).join(" · ")}`;
+      return { status: 201, body: { ok: true, status: saved ? "saved" : "inbox", id: results[0].id, message } };
+    }
+  }
+
+  // 5. One thing: save straight away, or Inbox for review.
+  const r = await saveOne(input, req.now, ctx, owner.userId, store);
+  return { status: 201, body: { ok: true, status: r.saved ? "saved" : "inbox", id: r.id, message: r.saved ? `Saved ✓ ${r.what}` : `📥 To review: ${r.what}` } };
+}
+
+/** Decide on one item and store it: saved for real, or in the Inbox to review. */
+async function saveOne(
+  input: ReturnType<typeof captureSchema.parse>,
+  now: Date,
+  ctx: { timeZone: string; classes: ClassRef[]; autoSaveTypes: string[] },
+  userId: string,
+  store: CaptureStore,
+): Promise<{ id: string; saved: boolean; what: string }> {
+  const decision = decide(input, { now, ...ctx });
+  const what = describeDraft(decision.draft);
   if (decision.autoSave && SAVEABLE_TYPES.includes(decision.draft.type)) {
     const id =
       decision.draft.type === "expense"
-        ? await store.insertMoney(owner.userId, moneyRowFromDraft(decision.draft, toLocalDate(req.now, ctx.timeZone)))
-        : await store.insertTask(owner.userId, taskRowFromDraft(decision.draft, ctx.timeZone, "shortcut"));
-    return { status: 201, body: { ok: true, status: "saved", id, message: `Saved ✓ ${what}` } };
+        ? await store.insertMoney(userId, moneyRowFromDraft(decision.draft, toLocalDate(now, ctx.timeZone)))
+        : await store.insertTask(userId, taskRowFromDraft(decision.draft, ctx.timeZone, "shortcut"));
+    return { id, saved: true, what };
   }
-
-  const id = await store.insertInbox(owner.userId, {
+  const id = await store.insertInbox(userId, {
     raw_text: input.raw_text,
     draft: decision.draft,
     type: decision.draft.type,
@@ -94,5 +124,5 @@ export async function handleCapture(
     source: "shortcut",
     client_id: input.client_id ?? null,
   });
-  return { status: 201, body: { ok: true, status: "inbox", id, message: `📥 To review: ${what}` } };
+  return { id, saved: false, what };
 }

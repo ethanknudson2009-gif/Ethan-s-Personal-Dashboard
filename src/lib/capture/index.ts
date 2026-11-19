@@ -21,7 +21,8 @@ export const SAVEABLE_TYPES: CaptureType[] = ["homework", "task", "expense"];
  */
 export const captureSchema = z.object({
   v: z.literal(1).optional(),
-  raw_text: z.string().trim().min(1, "raw_text is required").max(2000),
+  // Long enough for a minute of talking (a whole list).
+  raw_text: z.string().trim().min(1, "raw_text is required").max(6000),
   type: z.enum(CAPTURE_TYPES).nullish(),
   title: z.string().trim().max(200).nullish(),
   due_text: z.string().trim().max(100).nullish(),

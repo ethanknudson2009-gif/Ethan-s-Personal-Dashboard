@@ -674,7 +674,7 @@ function Sheet({
           )}
 
           {/* Live preview of what will be saved */}
-          {!editing && title && !money && !lift && !other && (
+          {!editing && !multi && title && !money && !lift && !other && (
             <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-3 py-2 text-sm">
               {cls && <ColorDot color={cls.color} />}
               <span className="min-w-0 flex-1">

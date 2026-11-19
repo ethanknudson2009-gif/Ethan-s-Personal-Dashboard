@@ -107,6 +107,24 @@ describe("POST /api/capture", () => {
     expect(on.tasks).toHaveLength(0);
   });
 
+  it("a whole spoken list becomes one Inbox item each", async () => {
+    const { token, store, inbox } = await fakeStore();
+    const r = await call(token, { raw_text: "Call Mike tomorrow about the Johnson file, he wants the appraisal. Then speech outline due thursday. Also buy milk and eggs", client_id: "x1" }, store);
+    expect(r.body).toMatchObject({ ok: true, status: "inbox", message: "📥 3 to review: Call Mike about the Johnson file · Wed, Nov 18 · Speech: Outline · Thu, Nov 19 · Buy milk and eggs" });
+    expect(inbox.map((i) => i.client_id)).toEqual(["x1", "x1#2", "x1#3"]);
+    // Sent again (bad connection): caught as a duplicate, nothing new.
+    expect((await call(token, { raw_text: "Call Mike tomorrow…", client_id: "x1" }, store)).body).toMatchObject({ status: "duplicate" });
+    expect(inbox).toHaveLength(3);
+  });
+
+  it("raw speech never saves silently, even a list with auto-save on", async () => {
+    const { token, store, tasks, inbox } = await fakeStore({ autoSaveTypes: ["homework", "task"] });
+    const r = await call(token, { raw_text: "anatomy lab report due friday it needs 3 sources. then call mom tonight" }, store);
+    expect(r.body).toMatchObject({ ok: true, status: "inbox", message: "📥 2 to review: Human Anatomy: Lab report · Fri, Nov 20 · Call mom · Tue, Nov 17" });
+    expect(tasks).toHaveLength(0);
+    expect(inbox).toHaveLength(2);
+  });
+
   it("a retried send with the same client_id isn't saved twice", async () => {
     const { token, store, inbox } = await fakeStore();
     await call(token, { raw_text: "call mom", client_id: "abc" }, store);
