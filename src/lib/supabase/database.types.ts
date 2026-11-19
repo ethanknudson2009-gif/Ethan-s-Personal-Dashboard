@@ -147,6 +147,42 @@ export type Database = {
           },
         ]
       }
+      day_plans: {
+        Row: {
+          created_at: string
+          focus_task_ids: string[]
+          id: string
+          intention: string | null
+          on_date: string
+          planned_at: string | null
+          shutdown_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          focus_task_ids?: string[]
+          id?: string
+          intention?: string | null
+          on_date: string
+          planned_at?: string | null
+          shutdown_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          focus_task_ids?: string[]
+          id?: string
+          intention?: string | null
+          on_date?: string
+          planned_at?: string | null
+          shutdown_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           all_day: boolean

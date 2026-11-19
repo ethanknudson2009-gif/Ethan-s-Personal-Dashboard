@@ -19,6 +19,7 @@ import { dollars, monthKey, monthTotals } from "@/lib/money/summary";
 import { MOODS } from "@/lib/moods";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
+import { ritualFor } from "@/lib/day-plan";
 
 /**
  * Today: one glance answers "what needs doing?" A hero card with today's
@@ -49,6 +50,7 @@ export default async function TodayPage() {
     supabase.from("food_entries").select("calories").eq("on_date", today),
     supabase.from("profiles").select("calorie_goal").maybeSingle(),
   ]);
+  const { data: dayPlan } = await supabase.from("day_plans").select("focus_task_ids, intention, planned_at, shutdown_at").eq("on_date", today).maybeSingle();
   const caloriesToday = (food ?? []).reduce((n, f) => n + (f.calories ?? 0), 0);
   const calorieGoal = profile?.calorie_goal ?? null;
   const monthMoney = monthTotals(
@@ -154,6 +156,47 @@ export default async function TodayPage() {
           <QuickActions />
         </div>
       </section>
+
+      {/* Morning Plan / Evening Shutdown, and today's top 3 once planned. */}
+      {(() => {
+        const ritual = ritualFor(data.now, timeZone);
+        const focus = (dayPlan?.focus_task_ids ?? []).map((id) => data.open.find((t) => t.id === id)).filter((t) => t !== undefined);
+        const focusDone = (dayPlan?.focus_task_ids?.length ?? 0) - focus.length;
+        const prompt =
+          ritual === "morning" && !dayPlan?.planned_at
+            ? { emoji: "☀️", title: "Plan your day", small: "Pick your top 3 · 1 min" }
+            : ritual === "evening" && !dayPlan?.shutdown_at
+              ? { emoji: "🌙", title: "Evening shutdown", small: "Check off, move the rest, how was today · 2 min" }
+              : null;
+        return (
+          <>
+            {prompt && (
+              <Link href="/plan" className="flex items-center gap-3 rounded-2xl border border-electric/40 bg-electric/10 px-4 py-3 transition active:scale-[0.99]">
+                <span className="text-2xl">{prompt.emoji}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{prompt.title}</span>
+                  <span className="block text-xs text-muted">{prompt.small}</span>
+                </span>
+                <span className="text-muted">›</span>
+              </Link>
+            )}
+            {dayPlan?.planned_at && (focus.length > 0 || focusDone > 0) && (
+              <Card title={`Top 3 · ${focusDone}/${focusDone + focus.length} done`} action={<Link href="/plan" className="text-xs text-muted hover:text-ink">Change</Link>}>
+                {dayPlan.intention && <p className="mb-2 text-sm text-muted italic">“{dayPlan.intention}”</p>}
+                {focus.length ? (
+                  <ul className="rows flex flex-col gap-2">
+                    {focus.map((t) => (
+                      <TaskItem key={t.id} task={data.view(t)} />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm font-semibold text-ok">All three done 🎉</p>
+                )}
+              </Card>
+            )}
+          </>
+        );
+      })()}
 
       <WeekStrip days={strip} />
 

@@ -84,7 +84,8 @@
 ## Phase 4: Life
 - [x] Habits with a strength score and streaks (Life tab), XP and levels
 - [ ] Coins → reward wishlist
-- [ ] Morning Plan / Evening Shutdown + journal; guided weekly review
+- [x] Morning Plan / Evening Shutdown (Nov 19, migration 0018, `/plan`): the morning plan shows the day, pre-picks your top 3 (most urgent first) and asks for one line on what would make today a win; Today then shows "Top 3 · 1/3 done". The evening shutdown: tap what got done, move the rest to tomorrow (same time of day), mood + best part of the day into the journal. Today shows a ☀️/🌙 prompt at the right time (`src/lib/day-plan.ts` + tests).
+- [ ] Guided weekly review
 - [x] Money (Nov 18): Cash App statement (CSV) import with duplicate protection, auto categories, month totals, 6-month chart, tap-to-hide category chart, "spent $12 gas" from quick add
 - [ ] Recurring bills and budgets per category
 - [x] ~~Side business: window-washing jobs~~ Removed Nov 18, 2026: Ethan doesn't do window washing. Work = LOA at PRMI (Work section).

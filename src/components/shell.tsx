@@ -34,6 +34,7 @@ const TABS = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4], NAV[6]];
 
 /** Less-used places: sidebar on laptops; on phones they're linked from Today and School. */
 const MORE = [
+  { href: "/plan", label: "Plan my day", Icon: IconCalendar },
   { href: "/inbox", label: "Inbox", Icon: IconInbox },
   { href: "/gallery", label: "Design gallery", Icon: IconPalette },
   { href: "/trash", label: "Trash", Icon: IconTrash },
