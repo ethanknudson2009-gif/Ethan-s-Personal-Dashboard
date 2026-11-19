@@ -11,6 +11,7 @@
  */
 import { parseWhen, type ParsedWhen } from "./dates";
 import { SpanTracker } from "./spans";
+import { organizeNotes, stripLeadIn } from "./notes";
 import { editDistance, normalizeSpoken, tolerance } from "./spoken";
 
 export type CaptureType = "homework" | "task" | "food" | "workout" | "expense" | "note" | "habit";
@@ -22,6 +23,8 @@ export type ParseContext = {
   timeZone: string;
   /** True when the text came from speech-to-text: tidy fillers, spoken numbers and near-miss words first. */
   spoken?: boolean;
+  /** The words exactly as the recognizer wrote them, so names it capitalized ("Johnson") keep their capitals. */
+  caseSource?: string;
   classes?: ClassRef[];
   habits?: string[];
 };
@@ -55,6 +58,8 @@ export type CaptureDraft = {
   repeat: "daily" | "weekly" | "biweekly" | "monthly" | null;
   /** Money coming in ("got paid $400", "paycheck") rather than spent. */
   incoming: boolean;
+  /** True when the day was only found in the details ("…he wants it before Thursday"). */
+  whenFromNotes?: boolean;
   /** Extra context said after the main thing ("it needs to be 3 pages…"), shown as a caption. */
   notes: string | null;
   /** Which part of life it belongs to: a class → school; "at work"/"PRMI" → work. */
@@ -71,18 +76,18 @@ export type Area = "school" | "work" | "personal";
 /** Phrases that say a task is for work. These words are removed from the title. */
 // Ethan calls PRMI "work", "primary" (also how speech often hears "PRMI")
 // or "the office". Mike is his LO (loan officer), so mentioning Mike means work.
-const WORK_TAGS = /\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work|primary|the office)\b:?/g;
+const WORK_TAGS = /\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work(?!\s+on\b)|primary|the office)\b:?/g;
 /** Words that suggest work but stay in the title ("send Mike the files"). */
 const WORK_HINTS =
-  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loans?|loan files?|borrowers?|closing|closings|underwriting|underwriter|appraisals?|disclosures?|escrow|title company|pre-?approvals?|preapproval letter|rate locks?|lock the rate|refi|refinance|conditions|voe|1003|loan estimate|closing disclosure|processor|realtors?|pipeline|encompass|credit pull|pull credit|paystubs?|w-?2s?|bank statements?)\b|^(?:work|primary)\b/;
+  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loans?|loan files?|borrowers?|closing|closings|underwriting|underwriter|appraisals?|disclosures?|escrow|title company|pre-?approvals?|preapproval letter|rate locks?|lock the rate|refi|refinance|conditions|voe|1003|loan estimate|closing disclosure|processor|realtors?|pipeline|encompass|credit pull|pull credit|paystubs?|w-?2s?|bank statements?)\b|^(?:work(?!\s+on\b)|primary)\b/;
 
 // ── Notes: where the main thing ends and extra context begins ─────────────
 const NOTE_MARKERS =
-  /(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|note that|it needs|it has to|it should|it'?s about|it is about|make sure|remember|don'?t forget|because|so that|(?:the )?teacher said|(?:she|he|they) said|also|and also|bring|include|including|it covers|it'?s on|it is on|it'?s worth|i need to|i have to|i should|details?\s*:)\b)/g;
+  /(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|note that|it needs|it has to|it should|it must|it'?s about|it is about|make sure|be sure|remember|don'?t forget|dont forget|because|cause|so that|so i can|so we can|so i|so we|(?:the |my )?teacher said|(?:she|he|they|mike) said|(?:she|he|they|mike) wants?|(?:she|he|they|mike) needs?|also|and also|plus|another thing|one more thing|oh and|bring|include|including|it covers|it'?s on|it is on|it'?s worth|it is worth|it'?s for|it is for|it'?ll be|it will be|it'?s going to be|it'?s gonna be|it'?s like|it'?s only|it'?s just|it'?s a|it is a|it'?s an|it'?s the|it'?s due|it is due|it'?s at|it is at|it'?s|it is|it was|that'?s|which is|which|i need to|i have to|i should|i gotta|i'?ve got to|i want to|we need to|we have to|and ask|ask (?:him|her|them|mike|about)|and tell|tell (?:him|her|them|mike)|details?\s*:)\b)/g;
 
 /** Where notes start in the text, or -1. The main part keeps at least 2 words. */
 export function findNotesStart(low: string): number {
-  const enoughBefore = (i: number) => low.slice(0, i).trim().split(/\s+/).filter(Boolean).length >= 2;
+  const enoughBefore = (i: number) => low.slice(0, i).trim().split(/\s+/).filter(Boolean).length >= 1;
   const candidates: number[] = [];
   for (const m of low.matchAll(NOTE_MARKERS)) if (enoughBefore(m.index)) candidates.push(m.index);
   // A new sentence also starts notes: "Speech outline due Thursday. Three pages."
@@ -90,16 +95,6 @@ export function findNotesStart(low: string): number {
   return candidates.length ? Math.min(...candidates) : -1;
 }
 
-/** Tidy the notes text: drop the leading punctuation and "note:" label, capitalize. */
-function cleanNotes(text: string): string | null {
-  const t = text
-    .replace(/^[\s,.;:!?–-]+/, "")
-    .replace(/^(?:notes?\s*:?|note that)\s*/i, "")
-    .replace(/[\s,;:–-]+$/, "")
-    .trim();
-  if (!t) return null;
-  return t.charAt(0).toUpperCase() + t.slice(1);
-}
 
 // ── Keyword lists ───────────────────────────────────────────────────────────
 const NOTE_PREFIX = /^\s*(note|journal|remember that)\b\s*[:\-–]?\s*/i;
@@ -111,6 +106,9 @@ const INCOME_WORDS = /\b(got paid|get paid|paid me|paycheck|payday|got \$?\d|rec
 const FOOD_WORDS = /\b(ate|eat|eating|drank|drink|breakfast|lunch|dinner|snack|calories|cals?|kcal|protein)\b/;
 const WORKOUT_WORDS =
   /\b(gym|workout|worked out|lift|lifted|bench|squat|squats|deadlift|deadlifts|ran|run|jog|jogged|miles?|sets?|reps?|push-?ups?|pull-?ups?|curls?|cardio|swim|swam|bike|biked|hiked?|hiking|rowed|elliptical|treadmill|stairmaster|leg day|arm day|chest day|back day|push day|pull day)\b|\b\d+\s*x\s*\d+\b/;
+/** Starts that make it a to-do even when food or gym words come later. */
+const TASK_VERB_START =
+  /^(?:pick up|drop off|call|text|email|e-mail|message|buy|grab|order|cook|meal prep|prep|schedule|book|go to|meet|send|pay|finish|study|clean|wash|take out|bring|plan|make|get|return|cancel|sign up|register|reply|respond|print|submit|turn in|fill out|look up|set up|ask|tell|remind)\b/;
 /** "I feel great today", "today was rough": a journal line. */
 const JOURNAL_START = /^(?:i feel|i'?m feeling|i felt|feeling|today was|today i|tonight i|dear diary|mood\b|my day was|had a (?:good|great|rough|bad|long|productive) day)/;
 /** Mood words scored 1 (rough) to 5 (great). */
@@ -148,7 +146,7 @@ const NUMBER_WORDS: Record<string, number> = {
 /** Words that carry no meaning once the date/amount/class are pulled out. */
 const FILLER = new Set([
   "due", "by", "on", "at", "for", "is", "it's", "its", "i", "need", "to", "have", "has", "the", "about", "around",
-  "~", "@", "and", "&", "of", "a", "an",
+  "~", "@", "and", "&", "of", "a", "an", "in", "my",
 ]);
 /** Verbs dropped from the start of the title for these types ("ate eggs" → "Eggs"). */
 const LEAD_VERBS: Partial<Record<CaptureType, RegExp>> = {
@@ -286,18 +284,21 @@ function detectType(low: string, ctx: ParseContext, isNote: boolean): CaptureTyp
     !/\bdue\b|\bevery\b|\bdaily\b|\bweekly\b|\bmonthly\b|\d+\s*x\s*\d+|\bsets?\b|calories|cals?\b|kcal/.test(low)
   )
     return "habit";
-  if (FOOD_WORDS.test(low)) return "food";
-  if (WORKOUT_WORDS.test(low)) return "workout";
+  // "pick up mom and grab lunch", "go to the gym at 6": a plan, so a task.
+  const plan = TASK_VERB_START.test(low) && !/\d+\s*x\s*\d+|\bsets?\s+of\b/.test(low);
+  if (!plan && FOOD_WORDS.test(low)) return "food";
+  if (!plan && WORKOUT_WORDS.test(low)) return "workout";
   if (/\$\s?\d/.test(low)) return "expense";
-  if (SCHOOL_WORDS.test(low)) return "homework";
+  if (SCHOOL_WORDS.test(low) && !/^(?:call|text|email|e-mail|message|ask|tell|meet|remind)\b/.test(low)) return "homework";
   return null; // decided later (a class match makes it homework, otherwise task)
 }
 
 function cleanTitle(leftover: string, type: CaptureType): string {
   let words = leftover
-    .replace(/[,;!?]+/g, " ")
+    .replace(/[;!?]+/g, " ")
+    .replace(/\s*,\s*/g, " , ")
     .split(/\s+/)
-    .map((w) => w.replace(/^[^\w$#'"]+|[^\w'"]+$/g, ""))
+    .map((w) => (w === "," ? w : w.replace(/^[^\w$#'"]+|[^\w'"]+$/g, "")))
     .filter((w) => w.length > 0);
   const lead = LEAD_VERBS[type];
   while (words.length > 0 && lead && lead.test(words.slice(0, 2).join(" ").toLowerCase())) {
@@ -306,10 +307,13 @@ function cleanTitle(leftover: string, type: CaptureType): string {
   }
   // Drop filler words at the start and end, and "due"/"by" anywhere.
   words = words.filter((w) => !["due", "by"].includes(w.toLowerCase()));
-  while (words.length && FILLER.has(words[0].toLowerCase())) words.shift();
-  while (words.length && FILLER.has(words[words.length - 1].toLowerCase())) words.pop();
+  const edgeJunk = (w: string) => FILLER.has(w.toLowerCase()) || w === ",";
+  while (words.length && edgeJunk(words[0])) words.shift();
+  while (words.length && edgeJunk(words[words.length - 1])) words.pop();
+  // Only commas between two real words stay; "milk , , eggs" → "milk, eggs".
+  words = words.filter((w, i) => w !== "," || (words[i - 1] !== "," && i > 0));
   // Speech arrives lowercase: give names we know their capitals back.
-  const title = words.join(" ").replace(PROPER_NAMES, (w) => PROPER[w.toLowerCase()] ?? w);
+  const title = words.join(" ").replace(/ ,/g, ",").replace(PROPER_NAMES, (w) => PROPER[w.toLowerCase()] ?? w);
   return title.charAt(0).toUpperCase() + title.slice(1);
 }
 
@@ -322,9 +326,42 @@ const DEFAULT_TITLES: Record<CaptureType, string> = {
   expense: "Expense", note: "Note", habit: "Habit",
 };
 
+/** Words a long title can be cut before ("Essay on the Civil War | about the causes…"). */
+// Best spots first: "…using three quotes", "…that he sent", then "and", then "about/for/to".
+const TITLE_CUTS: { words: string[]; latest: boolean }[] = [
+  { words: [","], latest: true },
+  { words: ["using", "with", "that", "which", "because", "so", "since", "where", "when", "but", "while"], latest: true },
+  { words: ["and"], latest: true },
+  { words: ["about", "for", "to", "on"], latest: false },
+];
+const MAX_TITLE_WORDS = 9;
+
+/** Split a run-on title into a short title and the rest (or null if it's short enough). */
+export function cutLongTitle(title: string): { title: string; rest: string } | null {
+  const words = title.split(/\s+/).filter(Boolean);
+  if (words.length <= MAX_TITLE_WORDS) return null;
+  for (const { words: cuts, latest } of TITLE_CUTS) {
+    const spots: number[] = [];
+    for (let i = 3; i <= MAX_TITLE_WORDS && i < words.length - 1; i++) {
+      // A comma cut goes after the word with the comma.
+      if (cuts[0] === "," ? words[i - 1].endsWith(",") : cuts.includes(words[i].toLowerCase())) spots.push(i);
+    }
+    if (spots.length) {
+      const i = latest ? spots[spots.length - 1] : spots[0];
+      return { title: words.slice(0, i).join(" ").replace(/,$/, ""), rest: words.slice(i).join(" ") };
+    }
+  }
+  return { title: words.slice(0, 7).join(" ").replace(/,$/, ""), rest: words.slice(7).join(" ") };
+}
+
 export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   // Same length for both, so match positions line up for building the title.
   let original = (ctx.spoken ? normalizeSpoken(rawText) : rawText).trim().replace(/\s+/g, " ");
+  // "Okay so I need to…", "remind me to…": warm-up words aren't the thing.
+  // ("At work I need to…" still says it's for work.)
+  const saidWorkFirst = /^(?:\W*(?:okay|ok|so|then|and|alright|um|uh)\b[\s,]*)*(?:at|for) (?:work|the office|prmi|primary)\b/i.test(original);
+  original = stripLeadIn(original);
+  const caseText = ctx.caseSource ? `${rawText}\n${ctx.caseSource}` : rawText;
   const noteMatch = NOTE_PREFIX.exec(original);
   if (noteMatch) original = original.slice(noteMatch[0].length);
   const low = original.toLowerCase();
@@ -333,13 +370,19 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   const problems: string[] = [];
   let confidence = 1;
 
-  const type0 = detectType(low, ctx, Boolean(noteMatch));
+  // What kind of thing it is comes from the main part, not the details
+  // ("pick up mom at 5, grab lunch on the way" is a task, not food).
+  const notesStart = findNotesStart(low);
+  const head = notesStart > 0 ? low.slice(0, notesStart) : low;
+  const type0 = detectType(head, ctx, Boolean(noteMatch)) ?? (JOURNAL_START.test(low) ? "note" : null);
 
   // Notes keep their words exactly; we don't pull dates or amounts out of them.
   if (type0 === "note") {
     return {
       ...emptyDraft("note", rawText),
-      title: original ? restoreCase(original.charAt(0).toUpperCase() + original.slice(1), rawText) : DEFAULT_TITLES.note,
+      title: original
+        ? restoreCase(original.charAt(0).toUpperCase() + original.slice(1), caseText).replace(/\bi\b/g, "I").replace(/\bi'(m|ll|ve|d)\b/g, "I'$1")
+        : DEFAULT_TITLES.note,
       mood: moodOf(low),
       confidence: 1,
     };
@@ -412,7 +455,13 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   }
 
   // ── Date & time ───────────────────────────────────────────────────────────
-  const dateResult = parseWhen(low, spans, ctx.now, ctx.timeZone);
+  // The day said in the main part wins ("math test next monday, so start studying on the weekend").
+  let dateResult = parseWhen(head, spans, ctx.now, ctx.timeZone);
+  let whenFromNotes = false;
+  if (!dateResult.when && head.length < low.length) {
+    dateResult = parseWhen(low, spans, ctx.now, ctx.timeZone);
+    whenFromNotes = Boolean(dateResult.when);
+  }
   problems.push(...dateResult.problems);
   confidence -= dateResult.penalty;
   const when = dateResult.when;
@@ -486,7 +535,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   }
 
   // ── Work or school? ──────────────────────────────────────────────────────
-  const isWork = WORK_HINTS.test(low) || /\bprmi\b/.test(low);
+  const isWork = saidWorkFirst || WORK_HINTS.test(low) || /\bprmi\b/.test(low);
   if (isWork) {
     // "at work" / "for PRMI" just say where it belongs: keep them out of the title.
     for (const m of spans.free(WORK_TAGS, low)) spans.claim(m.index, m.index + m[0].length);
@@ -496,14 +545,13 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   // ── Notes: everything after "it needs…", "make sure…", a new sentence… ──
   // (Dates and classes were already found anywhere in the message.)
   let notes: string | null = null;
-  const notesStart = findNotesStart(low);
   if (notesStart >= 0) {
-    notes = cleanNotes(original.slice(notesStart));
+    notes = organizeNotes(original.slice(notesStart));
     spans.claim(notesStart, original.length);
   }
 
   // ── Title & category ─────────────────────────────────────────────────────
-  let title = restoreCase(cleanTitle(spans.leftover(original), type), rawText);
+  let title = restoreCase(cleanTitle(spans.leftover(original), type), caseText);
   if (type === "workout") {
     // "ran 2 miles in 18 min" → "Run" (the miles and minutes are kept separately).
     const cardio: Record<string, string> = { ran: "Run", run: "Run", jogged: "Jog", jog: "Jog", biked: "Bike ride", bike: "Bike ride", swam: "Swim", swim: "Swim", hiked: "Hike", hike: "Hike", rowed: "Row" };
@@ -513,7 +561,15 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   if (type === "expense") category = title ? title.toLowerCase() : null;
   if (!title) title = cls && type === "homework" ? DEFAULT_TITLES.homework : incoming ? "Paycheck" : DEFAULT_TITLES[type];
   title = title.replace(/\bi\b/g, "I");
-  if (notes) notes = restoreCase(notes, rawText).replace(/\bi\b/g, "I");
+  // A title is a few words. A long run-on gets cut at a natural spot; the rest becomes notes.
+  if (type === "homework" || type === "task") {
+    const cut = cutLongTitle(title);
+    if (cut) {
+      title = cut.title;
+      notes = organizeNotes([cut.rest, notes ? notes.replace(/^• /gm, "") : ""].filter(Boolean).join("\n"));
+    }
+  }
+  if (notes) notes = restoreCase(notes, caseText).replace(/\bi\b/g, "I");
 
   // ── What's missing? ──────────────────────────────────────────────────────
   if (type === "homework" && !when) {
@@ -556,6 +612,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     mood: null,
     repeat,
     incoming,
+    whenFromNotes,
     notes,
     area,
     confidence: clamp01(confidence),
@@ -585,8 +642,12 @@ export function moodOf(low: string): number | null {
  */
 function restoreCase(title: string, rawText: string): string {
   const caps = new Map<string, string>();
-  const words = rawText.match(/[A-Za-z][A-Za-z']*/g) ?? [];
-  for (const w of words.slice(1)) if (/^[A-Z]/.test(w) && w !== "I") caps.set(w.toLowerCase(), w);
+  for (const m of rawText.matchAll(/[A-Za-z][A-Za-z']*/g)) {
+    const w = m[0];
+    // Capitals at the start of a sentence don't make a name.
+    if (!/^[A-Z]/.test(w) || w === "I" || /^I'/.test(w) || /(?:^|[.!?:;\n]\s*)$/.test(rawText.slice(0, m.index))) continue;
+    caps.set(w.toLowerCase(), w);
+  }
   if (!caps.size) return title;
   return title.replace(/[A-Za-z][A-Za-z']*/g, (w: string, offset: number) => (offset === 0 ? w : (caps.get(w.toLowerCase()) ?? w)));
 }

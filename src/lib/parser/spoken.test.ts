@@ -114,7 +114,7 @@ describe("picking the best of several hearings", () => {
 describe("notes and work", () => {
   it("splits a long message into title + notes", () => {
     const d = say("speech outline due thursday it needs to be three pages and include two sources");
-    expect(d).toMatchObject({ classId: "speech", title: "Outline", notes: "It needs to be 3 pages and include 2 sources" });
+    expect(d).toMatchObject({ classId: "speech", title: "Outline", notes: "Needs to be 3 pages and include 2 sources" });
     expect(d.when?.date).toBe("2026-11-19");
   });
 

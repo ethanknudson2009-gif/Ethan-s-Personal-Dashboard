@@ -6,19 +6,22 @@
  * New: one text box. As you type, our own parser (src/lib/parser) picks out
  * the class and the day, shown as chips you can tap to change. "Add" saves
  * and closes, with a small "Added ✓" toast.
+ * Say (or type) a whole list and it becomes many items at once: each one is
+ * shown with its title, day and notes so you can check it, then "Save all".
  * Edit: title, class, day and repeat, plus Delete.
  *
  * Kept deliberately simple (Ethan: "I don't want to be scared of my
  * dashboard"): no due time, estimate or priority fields.
  */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { deleteTaskAction, saveTaskAction } from "@/app/(app)/tasks/actions";
+import { deleteTaskAction, saveTaskAction, saveTasksAction, type SaveTaskInput } from "@/app/(app)/tasks/actions";
 import { addMoneyAction } from "@/app/(app)/money/actions";
 import { logCardioAction, logSpokenWorkoutAction } from "@/app/(app)/gym/actions";
 import { DEFAULT_SPLIT, readWorkout, setsSummary, type GymExercise } from "@/lib/gym-speech";
 import { addToJournalAction, checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
 import { dollars } from "@/lib/money/summary";
-import { parse } from "@/lib/parser";
+import { parse, type CaptureDraft } from "@/lib/parser";
+import { parseMany, type ManyItem } from "@/lib/parser/multi";
 import { addDays, toLocalDate, weekdayOf } from "@/lib/time";
 import { formatLocalDate, taskDisplayTitle, WEEKDAY_SHORT } from "@/lib/format";
 import { Button, Chip, ColorDot, cx, inputClass } from "@/components/ui";
@@ -63,6 +66,8 @@ const VOICE_EXAMPLES = [
   "did my reading",
   "today was great, I felt productive",
   "every monday take out the trash",
+  "call Mike tomorrow, then buy milk, also english essay due friday",
+  "for work: order the appraisal, send the disclosures, follow up with title",
 ];
 
 const REPEAT_CHOICES: { value: RepeatChoice; label: string }[] = [
@@ -234,9 +239,14 @@ function Sheet({
   // `undefined` = follow what the parser found in your words; a string = you edited it.
   const [notesEdit, setNotesEdit] = useState<string | undefined>(editing ? (editing.notes ?? "") : prefill?.notes != null ? prefill.notes : undefined);
   const [areaPick, setAreaPick] = useState<Area | undefined>(editing?.area ?? prefill?.area);
+  // A spoken list: items you removed from it, and "keep it as one item".
+  const [removed, setRemoved] = useState<Set<string>>(() => new Set());
+  const [asOne, setAsOne] = useState(false);
+  // The words exactly as the recognizer wrote them (it capitalizes names like "Johnson").
+  const [heardRaw, setHeardRaw] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   // Text that came from the mic gets the "spoken" cleanup (fillers, number
   // words, misheard class names). Of the recognizer's guesses, keep the one
   // that best matches your classes and dates.
@@ -247,7 +257,9 @@ function Sheet({
   );
   const speech = useSpeech((heard) => {
     setSpokenInput(true);
-    setText(normalizeSpoken(pickBestHearing(heard, parseCtx)));
+    const best = pickBestHearing(heard, parseCtx);
+    setHeardRaw(best);
+    setText(normalizeSpoken(best));
   });
   const startVoice = speech.start;
   // Opened with "hold +": listen right away (or point to keyboard dictation).
@@ -256,7 +268,9 @@ function Sheet({
 
   function micPressed() {
     if (speech.listening) return speech.stop();
-    if (!startVoice()) {
+    // Tapping the mic again keeps going: new words are added after what's there.
+    const started = text.trim() && !editing ? speech.resume(text) : startVoice();
+    if (!started) {
       // No built-in recognizer here (common in iPhone home-screen apps):
       // focus the box so the keyboard's own 🎤 dictation button is one tap away.
       setVoiceTip(true);
@@ -284,8 +298,17 @@ function Sheet({
   // Parse what was typed (new items only).
   const parsed = useMemo(() => {
     if (editing || !text.trim()) return null;
-    return parse(text, { ...parseCtx, spoken: spokenInput });
-  }, [editing, text, parseCtx, spokenInput]);
+    return parse(text, { ...parseCtx, spoken: spokenInput, caseSource: heardRaw || undefined });
+  }, [editing, text, parseCtx, spokenInput, heardRaw]);
+
+  // A whole list said at once → one draft per item.
+  const many = useMemo<ManyItem[]>(() => {
+    if (editing || asOne || !text.trim()) return [];
+    const items = parseMany(text, { ...parseCtx, spoken: spokenInput, caseSource: heardRaw || undefined });
+    return items.length >= 2 ? items : [];
+  }, [editing, asOne, text, parseCtx, spokenInput, heardRaw]);
+  const multi = many.length >= 2;
+  const keptItems = many.filter((it) => !removed.has(it.text));
 
   const usesParsedTitle = parsed && (parsed.type === "homework" || parsed.type === "task");
   const title = editing ? text.trim() : usesParsedTitle ? parsed.title : text.trim();
@@ -305,7 +328,7 @@ function Sheet({
   const cls = classes.find((c) => c.id === classId) ?? null;
   const notes = notesEdit !== undefined ? notesEdit : (parsed?.notes ?? "");
   // Money said out loud: "spent $12 on gas" (out) or "got paid $400" / "paycheck $600" (in).
-  const routed = !editing && !asTask ? parsed : null;
+  const routed = !editing && !asTask && !multi ? parsed : null;
   const money =
     routed && routed.amount && routed.type === "expense"
       ? {
@@ -443,6 +466,31 @@ function Sheet({
     });
   }
 
+  function saveAll() {
+    setError(null);
+    const list = keptItems;
+    if (!list.length) return setError("Nothing left to save. Tap ↩ to bring items back.");
+    startTransition(async () => {
+      const tasks: SaveTaskInput[] = [];
+      let others = 0;
+      const failed: string[] = [];
+      // Money, food, workouts, habits and journal lines go to their own pages; to-dos are saved together.
+      for (const { text: itemText, draft } of list) {
+        const outside = await saveOutsideTasks(itemText, draft);
+        if (outside === null) tasks.push(draftToTask(draft));
+        else if (outside.ok) others++;
+        else failed.push(`${draft.title}: ${outside.error}`);
+      }
+      if (tasks.length) {
+        const r = await saveTasksAction(tasks);
+        if (!r.ok) return setError(others ? `Saved ${others}, but the to-dos didn't save: ${r.error}` : r.error);
+      }
+      const saved = tasks.length + others;
+      if (failed.length) return setError(`Saved ${saved}. Couldn't save ${failed.join("; ")}`);
+      onDone(`Added ${saved} item${saved === 1 ? "" : "s"} ✓`);
+    });
+  }
+
   function remove() {
     if (!editing) return;
     startTransition(async () => {
@@ -474,28 +522,37 @@ function Sheet({
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            save();
+            if (multi) saveAll();
+            else save();
           }}
           className="flex flex-col gap-4"
         >
           <div className="relative">
-            <input
+            <textarea
               ref={inputRef}
               autoFocus={!wantsVoice}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={speech.listening ? "Listening…" : editing ? "Title" : "speech memorization due wed"}
-              className={cx(inputClass, "w-full py-3 pr-14 text-lg sm:text-base", speech.listening && "border-accent shadow-glow")}
+              onKeyDown={(e) => {
+                // Enter saves (Shift+Enter starts a new line for a typed list).
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  e.currentTarget.form?.requestSubmit();
+                }
+              }}
+              placeholder={speech.listening ? "Listening… keep talking" : editing ? "Title" : "speech memorization due wed"}
+              rows={Math.min(8, Math.max(1, Math.ceil(text.length / 34) + (text.match(/\n/g)?.length ?? 0)))}
+              className={cx(inputClass, "w-full resize-none py-3 pr-14 text-lg leading-snug sm:text-base", speech.listening && "border-accent shadow-glow")}
               enterKeyHint="done"
-              maxLength={200}
+              maxLength={editing ? 200 : 5000}
             />
             {!editing && (
               <button
                 type="button"
                 onClick={micPressed}
-                aria-label={speech.listening ? "Stop listening" : "Speak instead of typing"}
+                aria-label={speech.listening ? "Stop listening" : text.trim() ? "Keep talking (adds to this)" : "Speak instead of typing"}
                 className={cx(
-                  "absolute top-1/2 right-2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full transition active:scale-90",
+                  "absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-full transition active:scale-90",
                   speech.listening ? "mic-live bg-accent text-accent-ink" : "bg-raised text-accent hover:bg-accent/15",
                 )}
               >
@@ -511,13 +568,45 @@ function Sheet({
                 <i />
                 <i />
               </span>
-              Listening… try “{example}”
+              <span className="min-w-0 flex-1">
+                Listening <span className="tabular-nums">{Math.floor(speech.seconds / 60)}:{String(speech.seconds % 60).padStart(2, "0")}</span>
+                <span className="block text-xs text-muted">
+                  {text ? "Keep going. Say “next” or “also” between things. Tap the mic when you're done." : `Try “${example}”`}
+                </span>
+              </span>
+              <button type="button" onClick={speech.stop} className="shrink-0 rounded-full border border-accent/50 px-3 py-1 text-xs font-semibold">
+                Done
+              </button>
             </div>
           )}
           {!speech.listening && (speech.error || voiceTip) && (
             <p className="rounded-xl border border-electric/30 bg-electric/10 px-3 py-2 text-xs text-muted">
               {speech.error ?? "Tap the 🎤 microphone on your keyboard and speak. It types for you."}
             </p>
+          )}
+
+          {/* A whole list: every item it heard, ready to check and save together */}
+          {multi && (
+            <ManyPreview
+              items={many}
+              removed={removed}
+              classes={classes}
+              today={today}
+              onToggle={(key) =>
+                setRemoved((r) => {
+                  const next = new Set(r);
+                  if (next.has(key)) next.delete(key);
+                  else next.add(key);
+                  return next;
+                })
+              }
+              onKeepAsOne={() => setAsOne(true)}
+            />
+          )}
+          {asOne && (
+            <button type="button" onClick={() => setAsOne(false)} className="-mt-1 self-end text-xs text-faint hover:text-ink">
+              ↩ Split it into separate items again
+            </button>
           )}
 
           {/* Money preview: this will be saved to Money instead of as a task */}
@@ -593,12 +682,14 @@ function Sheet({
                   {area === "work" && <span className="mr-1 text-warn">💼</span>}
                   {taskDisplayTitle(title, cls?.name ?? null)}
                 </span>
-                {notes.trim() && <span className="mt-0.5 line-clamp-2 block text-xs text-muted italic">{notes}</span>}
+                {notes.trim() && <span className="mt-0.5 line-clamp-4 block text-xs whitespace-pre-line text-muted italic">{notes}</span>}
               </span>
               {dueDate && <span className="shrink-0 self-start text-muted">{dueDate === today ? "Today" : formatLocalDate(dueDate)}</span>}
             </div>
           )}
 
+          {!multi && (
+            <>
           {/* Area: school, work, personal */}
           {!cls && (
             <div className="flex flex-wrap gap-2">
@@ -679,12 +770,14 @@ function Sheet({
             <textarea
               value={notes}
               onChange={(e) => setNotesEdit(e.target.value)}
-              rows={notes.length > 80 ? 3 : 2}
+              rows={Math.min(6, Math.max(2, (notes.match(/\n/g)?.length ?? 0) + 1 + Math.floor(notes.length / 60)))}
               placeholder="Details, e.g. 3 pages, 2 sources"
               className={cx(inputClass, "resize-none text-sm")}
               maxLength={2000}
             />
           </label>
+            </>
+          )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
 
@@ -707,8 +800,8 @@ function Sheet({
                 Delete
               </Button>
             )}
-            <Button type="submit" disabled={pending || !title} className="flex-1 py-3 text-base">
-              {pending ? "Saving…" : editing ? "Save" : "Add"}
+            <Button type="submit" disabled={pending || (multi ? keptItems.length === 0 : !title)} className="flex-1 py-3 text-base">
+              {pending ? "Saving…" : editing ? "Save" : multi ? `Save all ${keptItems.length}` : "Add"}
             </Button>
           </div>
         </form>
@@ -736,5 +829,123 @@ function AutoMicSwitch() {
     >
       <IconMic size={12} /> Auto-mic {on ? "on" : "off"}
     </button>
+  );
+}
+
+/** A spoken-list item that's a to-do, ready for saveTasksAction. */
+function draftToTask(d: CaptureDraft): SaveTaskInput {
+  const t = d.when?.hasTime && d.when.time ? `${String(d.when.time.hour).padStart(2, "0")}:${String(d.when.time.minute).padStart(2, "0")}` : null;
+  return {
+    title: d.title.slice(0, 200),
+    classId: d.classId,
+    dueDate: d.when?.date ?? null,
+    dueTime: t,
+    repeat: d.repeat ?? "none",
+    notes: d.notes?.slice(0, 2000) ?? null,
+    area: d.classId ? "school" : d.area,
+  };
+}
+
+type Saved = { ok: true } | { ok: false; error: string };
+const asSaved = (r: { ok: boolean; error?: string }): Saved => (r.ok ? { ok: true } : { ok: false, error: r.error ?? "Couldn't save" });
+
+/**
+ * Saves a list item that isn't a to-do where it belongs (Money, Food, Gym,
+ * Habits, Journal). Returns null for to-dos, which are saved together.
+ */
+async function saveOutsideTasks(text: string, d: CaptureDraft): Promise<Saved | null> {
+  if (d.type === "expense" && d.amount) {
+    const cents = Math.round(d.amount * 100) * (d.incoming ? 1 : -1);
+    return asSaved(await addMoneyAction({ amountCents: cents, description: d.title || (d.incoming ? "Paycheck" : "Expense") }));
+  }
+  if (d.type === "workout") {
+    if (!d.sets && (d.distanceMiles !== null || d.minutes !== null)) return asSaved(await logCardioAction({ name: d.title || "Workout", miles: d.distanceMiles, minutes: d.minutes }));
+    return asSaved(await logSpokenWorkoutAction(text));
+  }
+  if (d.type === "habit" && d.habitName) return asSaved(await checkInHabitByNameAction(d.habitName));
+  if (d.type === "note") return asSaved(await addToJournalAction(d.title, d.mood));
+  if (d.type === "food") return asSaved(await logFoodAction({ name: d.title, calories: d.calories, proteinG: d.proteinG }));
+  return null;
+}
+
+/** Where a list item will go, as an emoji and a short label. */
+function itemKind(d: CaptureDraft): { emoji: string; to: string | null } {
+  if (d.type === "expense" && d.amount) return { emoji: d.incoming ? "💰" : "💸", to: `Money · ${dollars(Math.round(d.amount * 100))}` };
+  if (d.type === "workout") return { emoji: "🏋️", to: "Gym" };
+  if (d.type === "habit" && d.habitName) return { emoji: "✅", to: "Habits" };
+  if (d.type === "note") return { emoji: "📓", to: "Journal" };
+  if (d.type === "food") return { emoji: "🍽️", to: d.calories !== null ? `Food · ${d.calories} cal` : "Food" };
+  if (d.classId || d.type === "homework") return { emoji: "📚", to: null };
+  if (d.area === "work") return { emoji: "💼", to: null };
+  return { emoji: "☑️", to: null };
+}
+
+/** The list it heard: one row per item, with its day and notes. Tap ✕ to leave one out. */
+function ManyPreview({
+  items,
+  removed,
+  classes,
+  today,
+  onToggle,
+  onKeepAsOne,
+}: {
+  items: ManyItem[];
+  removed: Set<string>;
+  classes: SheetClass[];
+  today: string;
+  onToggle: (key: string) => void;
+  onKeepAsOne: () => void;
+}) {
+  const kept = items.filter((it) => !removed.has(it.text)).length;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-sm font-semibold">
+          🪄 Heard {items.length} things{kept !== items.length ? ` · saving ${kept}` : ""}
+        </p>
+        <button type="button" onClick={onKeepAsOne} className="text-xs text-faint hover:text-ink">
+          Keep as one item
+        </button>
+      </div>
+      <ul className="flex max-h-[42vh] flex-col gap-1.5 overflow-y-auto pr-0.5">
+        {items.map(({ text, draft: d }, i) => {
+          const off = removed.has(text);
+          const cls = classes.find((c) => c.id === d.classId) ?? null;
+          const kind = itemKind(d);
+          const day = d.when?.date ?? null;
+          return (
+            <li
+              key={`${i}-${text}`}
+              className={cx(
+                "flex items-start gap-2.5 rounded-xl border px-3 py-2 text-sm transition",
+                off ? "border-dashed border-line opacity-45" : "border-accent/30 bg-accent/5",
+              )}
+              style={cls && !off ? { borderLeftColor: cls.color, borderLeftWidth: 3 } : undefined}
+            >
+              <span className="mt-px text-base leading-none">{kind.emoji}</span>
+              <span className="min-w-0 flex-1">
+                <span className={cx("block font-medium", off && "line-through")}>{taskDisplayTitle(d.title, cls?.name ?? null)}</span>
+                {d.notes && !off && <span className="mt-0.5 line-clamp-4 block text-xs whitespace-pre-line text-muted italic">{d.notes}</span>}
+                {kind.to && !off && <span className="mt-0.5 block text-[10px] font-bold tracking-wider text-accent uppercase">→ {kind.to}</span>}
+              </span>
+              {day && !off && (
+                <span className="shrink-0 text-xs text-muted">
+                  {day === today ? "Today" : formatLocalDate(day)}
+                  {d.when?.hasTime && d.when.time ? ` ${d.when.time.hour % 12 || 12}${d.when.time.minute ? `:${String(d.when.time.minute).padStart(2, "0")}` : ""}${d.when.time.hour < 12 ? "a" : "p"}` : ""}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => onToggle(text)}
+                aria-label={off ? `Put back ${d.title}` : `Leave out ${d.title}`}
+                className="-my-1 -mr-1 shrink-0 rounded-full p-1 text-faint hover:bg-raised hover:text-ink"
+              >
+                {off ? "↩" : <IconClose size={16} />}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

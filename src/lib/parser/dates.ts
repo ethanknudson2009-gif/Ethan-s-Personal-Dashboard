@@ -42,7 +42,7 @@ const END_OF_DAY: LocalTime = { hour: 23, minute: 59 };
 
 /** What may NOT follow a bare number for it to count as a time ("at 3 sets" isn't 3 PM). */
 const NOT_A_TIME =
-  "\\s*(?:x|\\/|%|\\.\\d|lbs?|pounds|miles?|mi|km|min|mins|minutes?|hours?|hrs?|sets?|reps?|dollars|bucks|st|nd|rd|th)";
+  "\\s*(?:x|\\/|%|\\.\\d|(?:lbs?|pounds|miles?|mi|km|min|mins|minutes?|hours?|hrs?|sets?|reps?|dollars|bucks|st|nd|rd|th)\\b)";
 
 const wd = Object.keys(WEEKDAYS).sort((a, b) => b.length - a.length).join("|");
 const mo = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join("|");

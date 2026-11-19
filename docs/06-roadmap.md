@@ -65,6 +65,10 @@
   - repeats ("every Monday", "every other week", "monthly"); names keep their capitals
   - The + sheet shows where each item will go (→ Money, Gym, Food, Habits, Journal) with "Save as a task instead" if it guessed wrong
   - Shortcut and Claude captures of these kinds wait in the Inbox, and one tap logs them in the right place
+- [x] **Long talks and whole lists (Nov 19):** the mic keeps listening until you tap Done (minutes, not seconds), restarting itself and stitching the pieces without repeats (`src/lib/use-speech.ts`, `src/lib/speech-join.ts`).
+  - One long thought → a short title + organized bullet notes: warm-up words ("okay so I need to…") dropped, details ("it needs…", "make sure…", "he wants…", "the teacher said…") become points (`src/lib/parser/notes.ts`).
+  - A whole list → many items at once (`src/lib/parser/multi.ts`): "first / next / also / and then / another thing", sentences, commas, or just a new to-do verb with no punctuation. "For tomorrow:" / "for work:" up front applies to every item. The + sheet shows every item (title, day, notes, where it goes); ✕ to leave one out; **Save all** writes them in one go.
+  - Tested in `src/lib/parser/long-speech.test.ts`: real 30–45 second talks plus 6,000 generated lists (with and without punctuation, 25 tasks × 10 kinds of details × 20 connectors × 11 openers), all exactly right.
 - [ ] **Idea (later, not now):** connect Ethan's work Outlook (PRMI) so Claude can read and prioritize emails into Work tasks. Needs a check first: work accounts usually need the company's IT to approve any app that reads mail, so ask PRMI IT before building. Free options to look at: Microsoft Graph with a free app registration, or forwarding chosen emails into the Inbox.
 
 ## Phase 3: Body

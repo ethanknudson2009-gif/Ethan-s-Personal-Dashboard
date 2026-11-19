@@ -197,7 +197,7 @@ export function TaskItem({ task }: { task: TaskView }) {
               {task.displayTitle}
             </span>
           </span>
-          {task.notes && !showChecked && <span className="mt-0.5 line-clamp-2 block text-xs leading-snug text-muted italic">{task.notes}</span>}
+          {task.notes && !showChecked && <span className="mt-0.5 line-clamp-3 block text-xs leading-snug whitespace-pre-line text-muted italic">{task.notes}</span>}
           {(task.dueText || task.repeatText || task.focusedText) && (
             <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
               {task.dueText && <span className={DUE_STYLES[task.tone]}>{task.dueText}</span>}

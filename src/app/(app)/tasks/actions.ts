@@ -82,6 +82,45 @@ export async function saveTaskAction(input: SaveTaskInput): Promise<ActionResult
   return { ok: true };
 }
 
+/**
+ * Saves many new tasks at once (a whole spoken list), in one database write,
+ * so ten items take as long as one.
+ */
+export async function saveTasksAction(inputs: SaveTaskInput[]): Promise<ActionResult & { count?: number }> {
+  if (!inputs.length) return { ok: true, count: 0 };
+  if (inputs.length > 50) return { ok: false, error: "That's a lot! Save up to 50 at a time." };
+  const parsed = inputs.map((i) => saveSchema.safeParse({ ...i, id: undefined, inboxId: undefined }));
+  const bad = parsed.find((p) => !p.success);
+  if (bad && !bad.success) return { ok: false, error: bad.error.issues[0].message };
+
+  const supabase = await createClient();
+  const { timeZone } = await loadSettings(supabase);
+  const rows = parsed.map((p) => {
+    const t = p.data!;
+    let dueAt: string | null = null;
+    if (t.dueDate) {
+      const [h, m] = (t.dueTime ?? "23:59").split(":").map(Number);
+      dueAt = fromLocal(t.dueDate, { hour: h, minute: m }, timeZone).toISOString();
+    }
+    return {
+      title: t.title,
+      class_id: t.classId,
+      kind: t.classId ? ("assignment" as const) : ("task" as const),
+      due_at: dueAt,
+      due_has_time: Boolean(t.dueDate && t.dueTime),
+      // Repeating needs a day; without one it's saved once.
+      repeat: dueAt ? repeatFromForm(t.repeat) : null,
+      area: t.classId ? ("school" as const) : (t.area ?? "personal"),
+      notes: t.notes || null,
+      source: "quick_add" as const,
+    };
+  });
+  const { error } = await supabase.from("tasks").insert(rows);
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true, count: rows.length };
+}
+
 /** Check a task off. If it repeats, the next copy is created right away. */
 export async function completeTaskAction(id: string): Promise<ActionResult> {
   const supabase = await createClient();

@@ -24,7 +24,7 @@ describe("every category from the mic", () => {
   it("school: extra details become notes", () => {
     const d = p("study for the algebra test thursday it covers chapters 4 and 5 and I need to review the practice problems");
     expect(d.title).toBe("Study for the test");
-    expect(d.notes).toMatch(/^It covers chapters 4 and 5/);
+    expect(d.notes).toBe("• Covers chapters 4 and 5\n• Review the practice problems");
   });
 
   it("work: mortgage words, names keep their capitals, 'end of day' is 5 PM today", () => {
