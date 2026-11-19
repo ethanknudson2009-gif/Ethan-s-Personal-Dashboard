@@ -28,7 +28,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
   const first = days[0];
   const afterLast = addDays(days[days.length - 1], 1);
 
-  const [taskRes, classRes, classesOn] = await Promise.all([
+  const [taskRes, classRes, classesOn, gymRes] = await Promise.all([
     supabase
       .from("tasks")
       .select("id, title, class_id, due_at, due_has_time, status, repeat")
@@ -38,7 +38,21 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
       .order("due_at"),
     supabase.from("classes").select("id, name, color").is("deleted_at", null),
     loadSchedule(),
+    supabase
+      .from("workouts")
+      .select("started_at, split_day, skipped, name")
+      .is("deleted_at", null)
+      .not("ended_at", "is", null)
+      .gte("started_at", fromLocal(first, { hour: 0, minute: 0 }, timeZone).toISOString())
+      .lt("started_at", fromLocal(afterLast, { hour: 0, minute: 0 }, timeZone).toISOString()),
   ]);
+  // Workouts per day: "Chest", "Skipped Legs", or the cardio name.
+  const gymByDay = new Map<string, string[]>();
+  for (const w of gymRes.data ?? []) {
+    const d = toLocalDate(new Date(w.started_at), timeZone);
+    const label = w.skipped ? `Skipped ${w.split_day ?? "day"}` : (w.split_day ?? w.name ?? "Workout");
+    gymByDay.set(d, [...(gymByDay.get(d) ?? []), label]);
+  }
 
   const classById = new Map((classRes.data ?? []).map((c) => [c.id, c]));
   const byDay = new Map<string, TaskRecord[]>();
@@ -97,23 +111,29 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
               dayNumber: Number(d.slice(8)),
               isToday: d === today,
               isPast: compareLocalDates(d, today) < 0,
-              classes: classesOn(d).map((c) => ({ id: c.id, name: c.name, color: c.color, starts_at: c.starts_at })),
+              classes: classesOn(d).map((c) => ({ id: c.id, name: c.name, color: c.color, starts_at: c.starts_at, ends_at: c.ends_at })),
               tasks: (byDay.get(d) ?? []).map(view_),
+              gym: gymByDay.get(d) ?? [],
             }),
           )}
         />
       ) : (
         <>
-          <MonthGrid focus={focus} today={today} byDay={byDay} classById={classById} classesOn={classesOn} href={href} />
+          <MonthGrid focus={focus} today={today} byDay={byDay} classById={classById} classesOn={classesOn} gymByDay={gymByDay} href={href} />
           <DayAgenda
             title={focus === today ? "Today" : formatLocalDate(focus)}
             classes={classesOn(focus)}
             tasks={(byDay.get(focus) ?? []).map(view_)}
+            gym={gymByDay.get(focus) ?? []}
           />
         </>
       )}
 
-      <p className="hidden text-xs text-faint lg:block">Tip: drag a task onto another day to move it.</p>
+      <p className="text-xs text-faint">
+        <span className="lg:hidden">Tap a task to change its day. </span>
+        <span className="hidden lg:inline">Tip: drag a task onto another day to move it. </span>
+        Swipe left/right to change sections.
+      </p>
     </div>
   );
 }
@@ -124,6 +144,7 @@ function MonthGrid({
   byDay,
   classById,
   classesOn,
+  gymByDay,
   href,
 }: {
   focus: string;
@@ -131,6 +152,7 @@ function MonthGrid({
   byDay: Map<string, TaskRecord[]>;
   classById: Map<string, { color: string }>;
   classesOn: (d: string) => { id: string; color: string }[];
+  gymByDay: Map<string, string[]>;
   href: (v: string, d: string) => string;
 }) {
   return (
@@ -169,6 +191,7 @@ function MonthGrid({
                 >
                   {Number(date.slice(8))}
                 </span>
+                {(gymByDay.get(date) ?? []).some((g) => !g.startsWith("Skipped")) && <span className="text-[9px] leading-none">🏋️</span>}
                 {classes.length > 0 && (
                   <span className="flex gap-px" title="Class day">
                     {classes.slice(0, 2).map((c) => (
@@ -203,10 +226,12 @@ function DayAgenda({
   title,
   classes,
   tasks,
+  gym,
 }: {
   title: string;
   classes: { id: string; name: string; color: string; starts_at: string; ends_at: string }[];
   tasks: TaskView[];
+  gym: string[];
 }) {
   return (
     <section className="fade-in flex flex-col gap-3 rounded-3xl border border-line bg-surface/80 p-4 shadow-card">
@@ -223,6 +248,15 @@ function DayAgenda({
             </li>
           ))}
         </ul>
+      )}
+      {gym.length > 0 && (
+        <p className="flex flex-wrap gap-1.5 text-xs">
+          {gym.map((g) => (
+            <span key={g} className="rounded-md bg-[#ff6b4a]/15 px-2 py-1 font-semibold text-[#ff6b4a]">
+              {g.startsWith("Skipped") ? `⏭️ ${g}` : `🏋️ ${g} day`}
+            </span>
+          ))}
+        </p>
       )}
       {tasks.length > 0 ? (
         <ul className="rows flex flex-col gap-2">

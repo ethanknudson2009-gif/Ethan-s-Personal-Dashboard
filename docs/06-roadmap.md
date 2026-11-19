@@ -49,6 +49,7 @@
 
 ## Added Nov 19, 2026
 - [x] Calendar month view: taller cells with real titles, tap a day to see its classes and tasks below
+- [x] Calendar week, tidied: class times on one line each, free days take one line, "2 due" / "All done ✓" per day, past days fold under "Earlier this week" on the phone (unless something is overdue), workouts show as 🏋️ day badges (also in month view)
 - [x] Bottom bar: icon-only tabs, the active one lifts and shows its name (no more squished labels)
 - [x] Swipe left/right with your thumb to move between sections
 - [x] Today: Work / Money / Gym / Journal tiles, the whole week in Coming up, plus Later
