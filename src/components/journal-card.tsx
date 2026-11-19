@@ -4,19 +4,13 @@
  * Today's journal: tap a mood, write (or talk) a few lines. It saves itself
  * a moment after you stop typing. Below: the last 7 days of moods.
  */
+import { MOODS } from "@/lib/moods";
 import { useEffect, useRef, useState } from "react";
 import { saveJournalAction } from "@/app/(app)/life/actions";
 import { useSpeech } from "@/lib/use-speech";
 import { IconMic } from "@/components/icons";
 import { cx, inputClass } from "@/components/ui";
 
-export const MOODS = [
-  { value: 1, emoji: "😞", label: "Rough" },
-  { value: 2, emoji: "😕", label: "Meh" },
-  { value: 3, emoji: "😐", label: "Okay" },
-  { value: 4, emoji: "🙂", label: "Good" },
-  { value: 5, emoji: "😄", label: "Great" },
-];
 
 const PROMPTS = ["What went well today?", "What's on your mind?", "One thing you're grateful for?", "What would make tomorrow great?"];
 

@@ -13,6 +13,8 @@ import { WeekStrip, type StripDay } from "@/components/week-strip";
 import { HabitChips } from "@/components/habit-chips";
 import { LevelBar } from "@/components/level-bar";
 import { totalXp } from "@/lib/xp";
+import { dollars, monthKey, monthTotals } from "@/lib/money/summary";
+import { MOODS } from "@/lib/moods";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 
@@ -38,6 +40,19 @@ export default async function TodayPage() {
     supabase.from("habit_checkins").select("id", { count: "exact", head: true }),
     supabase.from("tasks").select("minutes_done").gt("minutes_done", 0).is("deleted_at", null),
   ]);
+  const [{ data: money }, { data: workouts }, { data: journal }] = await Promise.all([
+    supabase.from("money_transactions").select("occurred_on, amount_cents, category").gte("occurred_on", `${today.slice(0, 7)}-01`).is("deleted_at", null),
+    supabase.from("workouts").select("started_at").not("ended_at", "is", null).is("deleted_at", null).order("started_at", { ascending: false }).limit(10),
+    supabase.from("journal_entries").select("mood, body").eq("on_date", today).maybeSingle(),
+  ]);
+  const monthMoney = monthTotals(
+    (money ?? []).map((m) => ({ occurredOn: m.occurred_on, amountCents: m.amount_cents, category: m.category })),
+    monthKey(today),
+  );
+  const gymThisWeek = (workouts ?? []).filter((w) => toLocalDate(new Date(w.started_at), timeZone) >= addDays(today, -6)).length;
+  const lastWorkout = workouts?.[0] ? toLocalDate(new Date(workouts[0].started_at), timeZone) : null;
+  const mood = MOODS.find((m) => m.value === journal?.mood);
+  const workOpen = data.open.filter((t) => t.area === "work");
   const xp = totalXp({
     tasksDone: tasksDone ?? 0,
     habitCheckins: habitCheckins ?? 0,
@@ -49,7 +64,8 @@ export default async function TodayPage() {
   const buckets = groupByDue(data.open, data.now, timeZone);
   const overdue = buckets.find((b) => b.key === "overdue")?.tasks ?? [];
   const doNow = [...overdue, ...(buckets.find((b) => b.key === "today")?.tasks ?? [])];
-  const comingUp = [...(buckets.find((b) => b.key === "tomorrow")?.tasks ?? []), ...(buckets.find((b) => b.key === "week")?.tasks ?? [])].slice(0, 6);
+  const comingUp = [...(buckets.find((b) => b.key === "tomorrow")?.tasks ?? []), ...(buckets.find((b) => b.key === "week")?.tasks ?? [])];
+  const later = buckets.find((b) => b.key === "later")?.tasks ?? [];
   const doneToday = data.recentlyDone.filter((t) => t.completed_at && toLocalDate(new Date(t.completed_at), timeZone) === today).length;
 
   const toMinutes = (t: string) => {
@@ -134,6 +150,38 @@ export default async function TodayPage() {
         <HabitChips today={today} habits={habits.map((h) => ({ ...h, done: doneHabitIds.has(h.id) }))} />
       )}
 
+      {/* Every area at a glance: tap a tile to jump there. */}
+      <section aria-label="At a glance" className="rows grid grid-cols-2 gap-2.5">
+        <GlanceTile
+          href="/work"
+          color="#ffb547"
+          label="💼 Work"
+          big={workOpen.length === 0 ? "Clear" : `${workOpen.length} open`}
+          small={workOpen[0]?.title ?? "Nothing for Mike right now"}
+        />
+        <GlanceTile
+          href="/money"
+          color="#3ddc97"
+          label="💸 Money"
+          big={`${dollars(monthMoney.outCents)} out`}
+          small={monthMoney.inCents ? `${dollars(monthMoney.inCents)} in this month` : "Spent this month"}
+        />
+        <GlanceTile
+          href="/gym"
+          color="#ff6b4a"
+          label="🏋️ Gym"
+          big={`${gymThisWeek} this week`}
+          small={lastWorkout ? (lastWorkout === today ? "Trained today 💪" : `Last: ${formatLocalDate(lastWorkout).split(",")[0]}`) : "Start your first workout"}
+        />
+        <GlanceTile
+          href="/life"
+          color="#5b8cff"
+          label="📓 Journal"
+          big={mood ? `${mood.emoji} ${mood.label}` : "Not yet"}
+          small={journal?.body ? journal.body.slice(0, 60) : "How was today?"}
+        />
+      </section>
+
       <RemindersNudge />
 
       <Card title="Do now">
@@ -185,7 +233,7 @@ export default async function TodayPage() {
       )}
 
       {comingUp.length > 0 && (
-        <Card title="Coming up">
+        <Card title="Coming up this week">
           <ul className="rows flex flex-col gap-2">
             {comingUp.map((t) => (
               <TaskItem key={t.id} task={data.view(t)} />
@@ -193,6 +241,43 @@ export default async function TodayPage() {
           </ul>
         </Card>
       )}
+
+      {later.length > 0 && (
+        <Card
+          title="Later"
+          action={
+            <Link href="/tasks" className="text-xs text-muted hover:text-ink">
+              See all →
+            </Link>
+          }
+        >
+          <ul className="rows flex flex-col gap-2">
+            {later.slice(0, 8).map((t) => (
+              <TaskItem key={t.id} task={data.view(t)} />
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <p className="pb-2 text-center text-xs text-faint">Swipe left or right to move between sections.</p>
     </div>
+  );
+}
+
+/** A small glowing tile that sums up one area and links to it. */
+function GlanceTile({ href, color, label, big, small }: { href: string; color: string; label: string; big: string; small: string }) {
+  return (
+    <Link
+      href={href}
+      className="relative flex min-w-0 flex-col gap-0.5 overflow-hidden rounded-2xl border bg-surface/80 px-3.5 py-3 transition active:scale-[0.97]"
+      style={{ borderColor: `${color}55`, boxShadow: `0 0 22px -12px ${color}` }}
+    >
+      <span className="pointer-events-none absolute -top-8 -right-8 h-20 w-20 rounded-full opacity-25 blur-2xl" style={{ backgroundColor: color }} />
+      <span className="text-[11px] font-semibold tracking-wide" style={{ color }}>
+        {label}
+      </span>
+      <span className="truncate font-display text-lg leading-tight font-semibold">{big}</span>
+      <span className="truncate text-xs text-muted">{small}</span>
+    </Link>
   );
 }
