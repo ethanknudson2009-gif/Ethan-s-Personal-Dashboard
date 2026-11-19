@@ -868,6 +868,7 @@ export type Database = {
           priority: number
           repeat: Json | null
           series_id: string | null
+          snoozed_until: string | null
           source: string
           status: string
           title: string
@@ -891,6 +892,7 @@ export type Database = {
           priority?: number
           repeat?: Json | null
           series_id?: string | null
+          snoozed_until?: string | null
           source?: string
           status?: string
           title: string
@@ -914,6 +916,7 @@ export type Database = {
           priority?: number
           repeat?: Json | null
           series_id?: string | null
+          snoozed_until?: string | null
           source?: string
           status?: string
           title?: string

@@ -22,7 +22,10 @@ self.addEventListener("push", (event) => {
       tag: data.tag,
       icon: "/icons/192.png",
       badge: "/icons/192.png",
-      data: { url: data.url || "/today" },
+      data: { url: data.url || "/today", taskId: data.taskId },
+      // About one task: offer a Snooze button. (iPhone doesn't show these
+      // buttons; tapping the notification opens the snooze bar instead.)
+      actions: data.taskId ? [{ action: "snooze", title: "Snooze 1 hr" }] : [],
     }),
   );
 });
@@ -30,6 +33,18 @@ self.addEventListener("push", (event) => {
 // Tapping a notification opens (or focuses) the dashboard on the right page.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const taskId = event.notification.data?.taskId;
+  if (event.action === "snooze" && taskId) {
+    event.waitUntil(
+      fetch("/api/tasks/snooze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ id: taskId, preset: "1h" }),
+      }).catch(() => undefined),
+    );
+    return;
+  }
   const url = new URL(event.notification.data?.url || "/today", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {

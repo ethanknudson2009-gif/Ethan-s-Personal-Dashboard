@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPush } from "@/lib/push";
-import { planNotifications } from "@/lib/notify";
+import { planNotifications, type NagLevel } from "@/lib/notify";
 import { DEFAULT_TIME_ZONE, toLocalDate } from "@/lib/time";
 
 /**
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       db.from("profiles").select("timezone, notify_morning, notify_evening").eq("id", userId).maybeSingle(),
       db
         .from("tasks")
-        .select("id, title, class_id, due_at, due_has_time")
+        .select("id, title, class_id, due_at, due_has_time, nag_level, snoozed_until")
         .eq("user_id", userId)
         .eq("status", "open")
         .is("deleted_at", null)
@@ -68,6 +68,8 @@ export async function POST(request: Request) {
         className: t.class_id ? (className.get(t.class_id) ?? null) : null,
         dueAt: new Date(t.due_at!),
         dueHasTime: t.due_has_time,
+        nagLevel: (t.nag_level as NagLevel | null) ?? "gentle",
+        snoozedUntil: t.snoozed_until ? new Date(t.snoozed_until) : null,
       })),
       inboxCount: inboxCount ?? 0,
       habitsLeft: (habits ?? []).filter((h) => !doneHabits.has(h.id)).map((h) => h.name),

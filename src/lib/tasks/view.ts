@@ -22,7 +22,11 @@ export type TaskRecord = {
   minutes_done?: number;
   notes?: string | null;
   area?: string;
+  nag_level?: string;
+  snoozed_until?: string | null;
 };
+
+export type NagLevel = "off" | "gentle" | "persistent";
 
 export type TaskView = {
   id: string;
@@ -37,6 +41,8 @@ export type TaskView = {
   notes: string | null;
   area: "school" | "work" | "personal";
   done: boolean;
+  /** "⏰ 8:00 PM" while a snooze is still running. */
+  snoozedText: string | null;
   edit: {
     id: string;
     title: string;
@@ -46,6 +52,8 @@ export type TaskView = {
     repeat: "none" | "daily" | "weekly" | "biweekly" | "monthly";
     notes: string | null;
     area: "school" | "work" | "personal";
+    nagLevel: NagLevel;
+    snoozedUntil: string | null;
   };
 };
 
@@ -85,6 +93,7 @@ export function toTaskView(
     notes: task.notes ?? null,
     area: asArea(task.area),
     done: task.status === "done",
+    snoozedText: snoozedText(task.snoozed_until, now, timeZone),
     edit: {
       id: task.id,
       notes: task.notes ?? null,
@@ -94,8 +103,25 @@ export function toTaskView(
       dueDate: due ? toLocalDate(due, timeZone) : null,
       dueTime,
       repeat: preset === "after_days" ? "none" : preset,
+      nagLevel: asNag(task.nag_level),
+      snoozedUntil: task.snoozed_until && new Date(task.snoozed_until).getTime() > now.getTime() ? task.snoozed_until : null,
     },
   };
+}
+
+function asNag(n: string | undefined): NagLevel {
+  return n === "off" || n === "persistent" ? n : "gentle";
+}
+
+/** "⏰ 8:00 PM" (today) or "⏰ Fri 7:00 AM" while snoozed; null once it's over. */
+export function snoozedText(until: string | null | undefined, now: Date, timeZone: string): string | null {
+  if (!until) return null;
+  const end = new Date(until);
+  if (end.getTime() <= now.getTime()) return null;
+  const p = zonedParts(end, timeZone);
+  const clock = `${p.hour % 12 || 12}:${String(p.minute).padStart(2, "0")} ${p.hour < 12 ? "AM" : "PM"}`;
+  const sameDay = toLocalDate(end, timeZone) === toLocalDate(now, timeZone);
+  return `⏰ ${sameDay ? "" : `${end.toLocaleDateString("en-US", { weekday: "short", timeZone })} `}${clock}`;
 }
 
 function asArea(a: string | undefined): "school" | "work" | "personal" {

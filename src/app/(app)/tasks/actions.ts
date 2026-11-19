@@ -4,7 +4,8 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
-import { fromLocal } from "@/lib/time";
+import { DEFAULT_TIME_ZONE, fromLocal } from "@/lib/time";
+import { snoozeUntil, type SnoozePreset } from "@/lib/notify";
 import { nextOccurrence, repeatFromForm } from "@/lib/tasks";
 
 /*
@@ -30,6 +31,8 @@ const saveSchema = z.object({
   notes: z.string().trim().max(2000).nullable().optional(),
   /** School, work (PRMI) or personal. A class always means school. */
   area: z.enum(["school", "work", "personal"]).optional(),
+  /** How hard reminders push: off, gentle (1 hour before) or persistent. */
+  nagLevel: z.enum(["off", "gentle", "persistent"]).optional(),
 });
 
 export type SaveTaskInput = z.input<typeof saveSchema>;
@@ -59,6 +62,7 @@ export async function saveTaskAction(input: SaveTaskInput): Promise<ActionResult
     repeat,
     area: t.classId ? ("school" as const) : (t.area ?? "personal"),
     ...(t.notes !== undefined ? { notes: t.notes || null } : {}),
+    ...(t.nagLevel ? { nag_level: t.nagLevel } : {}),
   };
 
   if (t.id) {
@@ -161,6 +165,29 @@ export async function completeTaskAction(id: string): Promise<ActionResult> {
   }
   refresh();
   return { ok: true };
+}
+
+const SNOOZES = ["15m", "1h", "3h", "tonight", "tomorrow"] as const;
+
+/**
+ * Snoozes a task's reminders: quiet until then, then one "⏰" reminder.
+ * `null` cancels the snooze.
+ */
+export async function snoozeTaskAction(id: string, preset: SnoozePreset | null): Promise<ActionResult & { until?: string }> {
+  if (!z.string().uuid().safeParse(id).success) return { ok: false, error: "Couldn't find that task" };
+  if (preset !== null && !SNOOZES.includes(preset)) return { ok: false, error: "Pick a snooze time" };
+  const supabase = await createClient();
+  const { data: profile } = await supabase.from("profiles").select("timezone, notify_morning").maybeSingle();
+  const timeZone = profile?.timezone || DEFAULT_TIME_ZONE;
+  const morning = profile?.notify_morning ?? "07:00";
+  const until = preset
+    ? snoozeUntil(preset, new Date(), timeZone, { hour: Number(morning.slice(0, 2)), minute: Number(morning.slice(3, 5)) }).toISOString()
+    : null;
+  const { data, error } = await supabase.from("tasks").update({ snoozed_until: until }).eq("id", id).select("id");
+  if (error) return { ok: false, error: error.message };
+  if (!data?.length) return { ok: false, error: "Couldn't find that task" };
+  refresh();
+  return { ok: true, ...(until ? { until } : {}) };
 }
 
 /** Undo a check-off. (A repeat copy that was already created stays.) */

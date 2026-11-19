@@ -24,7 +24,7 @@
 - [x] MCP server (/api/mcp: get_today, list_due, add_assignment, add_task, complete_task, process_inbox, log_food/workout/expense, add_note → Inbox) + guide docs/setup/04-claude-connector.md. *To do: Ethan adds it on claude.ai.*
 - [x] Syllabus/PDF upload (Classes page) → text read on the device (pdf.js) → Claude imports via the connector → Inbox batch to approve
 - [x] Web push: morning summary, tomorrow preview, 1-hour-before reminders (Settings → Reminders; Supabase pg_cron every 15 min)
-- [ ] Snooze buttons on notifications and a "nag level" per item
+- [x] Snooze and nag levels (Nov 19, migration 0017): tap a task reminder → a bar on Today with **Done ✓** and **Snooze 1 hr / 3 hr / Tonight / Tomorrow** (iPhone hides buttons on notifications, so they live in the app; laptops/Android also get a "Snooze 1 hr" button on the notification). Each task's edit sheet has **Reminders: Off / Gentle / Persistent** (persistent = an hour before, at the time, then every 3 hours 9 AM–9 PM until done, up to 3 days) and the same snooze chips. Snoozed tasks show ⏰ and the time (`src/lib/notify/nag.test.ts`).
 
 ## Requested next (Nov 17, 2026, after Phase 1)
 - [x] **The dashboard talks to me (part 1: reminders done; asking me questions comes with the Claude connector):** notifications on my iPhone (free web push, no phone number needed), e.g. the morning before something is due ("Bio lab due tomorrow, ~2 h left"). The dashboard can also *ask* me things ("which class is 'chem worksheet' for?") and I answer with a tap or a short reply in a Messages screen. Two-way texting is nice-to-have, not required.

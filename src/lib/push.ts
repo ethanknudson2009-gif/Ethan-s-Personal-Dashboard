@@ -17,7 +17,7 @@ function configure() {
 }
 
 export type PushTarget = { endpoint: string; p256dh: string; auth: string };
-export type PushMessage = { title: string; body: string; url: string; tag: string };
+export type PushMessage = { title: string; body: string; url: string; tag: string; taskId?: string };
 
 /** "sent", or "gone" when the phone unsubscribed (we then forget that subscription). */
 export async function sendPush(target: PushTarget, message: PushMessage): Promise<"sent" | "gone" | "failed"> {

@@ -8,13 +8,15 @@
  * and closes, with a small "Added ✓" toast.
  * Say (or type) a whole list and it becomes many items at once: each one is
  * shown with its title, day and notes so you can check it, then "Save all".
- * Edit: title, class, day and repeat, plus Delete.
+ * Edit: title, class, day, repeat, reminders (off / gentle / persistent)
+ * and snooze, plus Delete.
  *
  * Kept deliberately simple (Ethan: "I don't want to be scared of my
  * dashboard"): no due time, estimate or priority fields.
  */
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { deleteTaskAction, saveTaskAction, saveTasksAction, type SaveTaskInput } from "@/app/(app)/tasks/actions";
+import { deleteTaskAction, saveTaskAction, saveTasksAction, snoozeTaskAction, type SaveTaskInput } from "@/app/(app)/tasks/actions";
+import { snoozedText, type NagLevel } from "@/lib/tasks/view";
 import { addMoneyAction } from "@/app/(app)/money/actions";
 import { logCardioAction, logSpokenWorkoutAction } from "@/app/(app)/gym/actions";
 import { DEFAULT_SPLIT, readWorkout, setsSummary, type GymExercise } from "@/lib/gym-speech";
@@ -42,7 +44,22 @@ export type EditableTask = {
   repeat: RepeatChoice;
   notes?: string | null;
   area?: Area;
+  nagLevel?: NagLevel;
+  snoozedUntil?: string | null;
 };
+
+const NAG_CHOICES: { value: NagLevel; label: string; hint: string }[] = [
+  { value: "off", label: "🔕 Off", hint: "Only in the morning and evening summaries." },
+  { value: "gentle", label: "🔔 Gentle", hint: "One reminder an hour before (if it has a time)." },
+  { value: "persistent", label: "📣 Persistent", hint: "An hour before, at the time, then every 3 hours (9 AM–9 PM) until it's done." },
+];
+
+const SNOOZE_CHOICES = [
+  { value: "1h", label: "1 hr" },
+  { value: "3h", label: "3 hr" },
+  { value: "tonight", label: "Tonight" },
+  { value: "tomorrow", label: "Tomorrow" },
+] as const;
 
 export type Area = "school" | "work" | "personal";
 const AREAS: { value: Area; label: string }[] = [
@@ -239,6 +256,8 @@ function Sheet({
   // `undefined` = follow what the parser found in your words; a string = you edited it.
   const [notesEdit, setNotesEdit] = useState<string | undefined>(editing ? (editing.notes ?? "") : prefill?.notes != null ? prefill.notes : undefined);
   const [areaPick, setAreaPick] = useState<Area | undefined>(editing?.area ?? prefill?.area);
+  const [nagLevel, setNagLevel] = useState<NagLevel>(editing?.nagLevel ?? "gentle");
+  const [snoozed, setSnoozed] = useState<string | null>(editing?.snoozedUntil ?? null);
   // A spoken list: items you removed from it, and "keep it as one item".
   const [removed, setRemoved] = useState<Set<string>>(() => new Set());
   const [asOne, setAsOne] = useState(false);
@@ -459,6 +478,7 @@ function Sheet({
         inboxId: prefill?.inboxId,
         notes: notes.trim() || null,
         area,
+        ...(editing ? { nagLevel } : {}),
       });
       if (!result.ok) return setError(result.error);
       const when = dueDate ? ` · ${dueDate === today ? "Today" : formatLocalDate(dueDate)}` : "";
@@ -763,6 +783,56 @@ function Sheet({
               ))}
             </div>
           </div>
+
+          {/* Reminders: how hard this one nags, and snooze (editing only) */}
+          {editing && (
+            <div>
+              <p className="mb-2 text-xs font-medium tracking-wide text-muted">🔔 Reminders</p>
+              <div className="flex flex-wrap gap-2">
+                {NAG_CHOICES.map((n) => (
+                  <Chip key={n.value} active={nagLevel === n.value} onClick={() => setNagLevel(n.value)}>
+                    {n.label}
+                  </Chip>
+                ))}
+              </div>
+              <p className="mt-1.5 text-xs text-faint">{NAG_CHOICES.find((n) => n.value === nagLevel)?.hint}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted">Snooze:</span>
+                {SNOOZE_CHOICES.map((s) => (
+                  <Chip
+                    key={s.value}
+                    onClick={() =>
+                      startTransition(async () => {
+                        const r = await snoozeTaskAction(editing.id, s.value);
+                        if (!r.ok) return setError(r.error);
+                        setSnoozed(r.until ?? null);
+                      })
+                    }
+                  >
+                    {s.label}
+                  </Chip>
+                ))}
+              </div>
+              {snoozed && snoozedText(snoozed, new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone) && (
+                <p className="mt-1.5 flex items-center gap-2 text-xs text-electric">
+                  Snoozed until {snoozedText(snoozed, new Date(), Intl.DateTimeFormat().resolvedOptions().timeZone)?.slice(2)}
+                  <button
+                    type="button"
+                    className="text-muted underline"
+                    onClick={() =>
+                      startTransition(async () => {
+                        const r = await snoozeTaskAction(editing.id, null);
+                        if (!r.ok) return setError(r.error);
+                        setSnoozed(null);
+                      })
+                    }
+                  >
+                    Cancel
+                  </button>
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Notes: filled from what you said after the main part; editable */}
           <label className="flex flex-col gap-1.5">

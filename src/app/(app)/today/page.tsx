@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { formatLocalDate, formatTimeOfDay, WEEKDAY_LONG, WEEKDAY_SHORT } from "@/lib/format";
 import { addDays, toLocalDate, weekdayOf, zonedParts } from "@/lib/time";
 import { createClient } from "@/lib/supabase/server";
@@ -12,6 +13,7 @@ import { QuickActions } from "@/components/quick-actions";
 import { WeekStrip, type StripDay } from "@/components/week-strip";
 import { HabitChips } from "@/components/habit-chips";
 import { LevelBar } from "@/components/level-bar";
+import { SnoozeBar } from "@/components/snooze-bar";
 import { totalXp } from "@/lib/xp";
 import { dollars, monthKey, monthTotals } from "@/lib/money/summary";
 import { MOODS } from "@/lib/moods";
@@ -118,6 +120,11 @@ export default async function TodayPage() {
           </Link>
         </div>
       </PageHeader>
+
+      {/* Opened from a task reminder: Done / Snooze in one tap. */}
+      <Suspense fallback={null}>
+        <SnoozeBar tasks={data.open.map((t) => ({ id: t.id, title: data.view(t).displayTitle }))} />
+      </Suspense>
 
       <LevelBar xp={xp} />
 
