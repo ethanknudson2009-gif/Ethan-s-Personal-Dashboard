@@ -169,6 +169,16 @@ export function parseWhen(low: string, spans: SpanTracker, now: Date, timeZone: 
     take(relative);
   }
 
+  // "by end of day", "EOD", "close of business": today, 5 PM (work hours).
+  {
+    const eod = spans.free(/\b(?:by\s+)?(?:the\s+)?(?:end\s+of\s+(?:the\s+)?(?:day|business)|eod|cob|close\s+of\s+business)\b/g, low)[0];
+    if (eod) {
+      date ??= today;
+      time ??= { hour: 17, minute: 0 };
+      take(eod);
+    }
+  }
+
   if (!date) {
     const inN = spans.free(RE.inN, low)[0];
     if (inN) {

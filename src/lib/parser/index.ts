@@ -46,6 +46,13 @@ export type CaptureDraft = {
   /** Expense category, e.g. "gas". */
   category: string | null;
   habitName: string | null;
+  /** Food: calories and grams of protein, if said ("700 calories", "30g protein"). */
+  calories: number | null;
+  proteinG: number | null;
+  /** Journal: how the day felt, 1 (rough) to 5 (great), from words like "great" or "rough". */
+  mood: number | null;
+  /** "every Monday", "daily", "every other week", "monthly". */
+  repeat: "daily" | "weekly" | "biweekly" | "monthly" | null;
   /** Money coming in ("got paid $400", "paycheck") rather than spent. */
   incoming: boolean;
   /** Extra context said after the main thing ("it needs to be 3 pages…"), shown as a caption. */
@@ -67,11 +74,11 @@ export type Area = "school" | "work" | "personal";
 const WORK_TAGS = /\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work|primary|the office)\b:?/g;
 /** Words that suggest work but stay in the title ("send Mike the files"). */
 const WORK_HINTS =
-  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loan files?|borrowers?|closing|underwriting)\b|^(?:work|primary)\b/;
+  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loans?|loan files?|borrowers?|closing|closings|underwriting|underwriter|appraisals?|disclosures?|escrow|title company|pre-?approvals?|preapproval letter|rate locks?|lock the rate|refi|refinance|conditions|voe|1003|loan estimate|closing disclosure|processor|realtors?|pipeline|encompass|credit pull|pull credit|paystubs?|w-?2s?|bank statements?)\b|^(?:work|primary)\b/;
 
 // ── Notes: where the main thing ends and extra context begins ─────────────
 const NOTE_MARKERS =
-  /(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|note that|it needs|it has to|it should|it'?s about|it is about|make sure|remember|don'?t forget|because|so that|(?:the )?teacher said|(?:she|he|they) said|also|and also|bring|include|including|details?\s*:)\b)/g;
+  /(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|note that|it needs|it has to|it should|it'?s about|it is about|make sure|remember|don'?t forget|because|so that|(?:the )?teacher said|(?:she|he|they) said|also|and also|bring|include|including|it covers|it'?s on|it is on|it'?s worth|i need to|i have to|i should|details?\s*:)\b)/g;
 
 /** Where notes start in the text, or -1. The main part keeps at least 2 words. */
 export function findNotesStart(low: string): number {
@@ -96,12 +103,40 @@ function cleanNotes(text: string): string | null {
 
 // ── Keyword lists ───────────────────────────────────────────────────────────
 const NOTE_PREFIX = /^\s*(note|journal|remember that)\b\s*[:\-–]?\s*/i;
-const EXPENSE_VERBS = /\b(spent|spend|paid|pay|bought|buy|cost|costs)\b/;
+const EXPENSE_VERBS = /\b(spent|spend|paid|pay|bought|buy|cost|costs|venmo'?d|venmoed|zelled|zelle'?d|cash ?app'?d|cash ?apped|sent)\b/;
+/** Money already gone ("spent", "paid", "venmo'd"): spending even without a $ sign. Future "pay the bill" stays a task. */
+const SPENT_VERBS = /\b(spent|paid|bought|cost|costs|venmo'?d|venmoed|zelled|zelle'?d|cash ?app'?d|cash ?apped)\b/;
 /** Money coming in (saved to Money as income). */
-const INCOME_WORDS = /\b(got paid|get paid|paid me|paycheck|payday|got \$?\d|received \$?\d|earned|refund(?:ed)?)\b/;
-const FOOD_WORDS = /\b(ate|eat|eating|drank|drink|breakfast|lunch|dinner|snack|calories|cals?|kcal)\b/;
+const INCOME_WORDS = /\b(got paid|get paid|paid me|paycheck|payday|got \$?\d|received \$?\d|earned|refund(?:ed)?|direct deposit|venmo'?d me|sent me)\b/;
+const FOOD_WORDS = /\b(ate|eat|eating|drank|drink|breakfast|lunch|dinner|snack|calories|cals?|kcal|protein)\b/;
 const WORKOUT_WORDS =
-  /\b(gym|workout|worked out|lift|lifted|bench|squat|squats|deadlift|deadlifts|ran|run|jog|jogged|miles?|sets?|reps?|push-?ups?|pull-?ups?|curls?|cardio|swim|swam|bike|biked)\b|\b\d+\s*x\s*\d+\b/;
+  /\b(gym|workout|worked out|lift|lifted|bench|squat|squats|deadlift|deadlifts|ran|run|jog|jogged|miles?|sets?|reps?|push-?ups?|pull-?ups?|curls?|cardio|swim|swam|bike|biked|hiked?|hiking|rowed|elliptical|treadmill|stairmaster|leg day|arm day|chest day|back day|push day|pull day)\b|\b\d+\s*x\s*\d+\b/;
+/** "I feel great today", "today was rough": a journal line. */
+const JOURNAL_START = /^(?:i feel|i'?m feeling|i felt|feeling|today was|today i|tonight i|dear diary|mood\b|my day was|had a (?:good|great|rough|bad|long|productive) day)/;
+/** Mood words scored 1 (rough) to 5 (great). */
+const MOOD_WORDS: [RegExp, number][] = [
+  [/\b(terrible|awful|horrible|miserable|depressed|the worst|really bad|sad|rough|bad)\b/, 1],
+  [/\b(meh|tired|exhausted|stressed|anxious|bored|blah|not great|kinda bad)\b/, 2],
+  [/\b(okay|ok|fine|alright|all right|average|normal|so-so)\b/, 3],
+  [/\b(good|productive|happy|nice|solid|chill|relaxed|calm)\b/, 4],
+  [/\b(great|amazing|awesome|fantastic|incredible|excellent|best|perfect|on fire)\b/, 5],
+];
+/** School subjects people say instead of the class name ("math" → College Algebra). */
+const SUBJECTS: Record<string, string[]> = {
+  math: ["algebra", "calculus", "geometry", "trig", "statistics", "math", "precalc"],
+  maths: ["algebra", "calculus", "geometry", "trig", "statistics", "math"],
+  bio: ["biology", "anatomy", "physiology"],
+  science: ["biology", "anatomy", "chemistry", "physics", "science"],
+  english: ["english", "literature", "writing", "composition"],
+  cad: ["autocad", "cad ", "drafting"],
+  drafting: ["autocad", "drafting"],
+  singing: ["choir", "chorus", "music"],
+  music: ["choir", "chorus", "music", "band"],
+  bible: ["church", "religion", "bible", "scripture"],
+  religion: ["church", "religion"],
+  seminary: ["church", "religion"],
+  ai: ["ai ", "artificial", "mastermind"],
+};
 const SCHOOL_WORDS =
   /\b(homework|hw|essay|lab|quiz|test|exam|midterm|final|project|worksheet|assignment|chapter|ch|reading|study|paper|presentation|report)\b/;
 
@@ -118,7 +153,7 @@ const FILLER = new Set([
 /** Verbs dropped from the start of the title for these types ("ate eggs" → "Eggs"). */
 const LEAD_VERBS: Partial<Record<CaptureType, RegExp>> = {
   food: /^(ate|eat|eating|drank|drink|had)\b/,
-  expense: /^(spent|spend|paid|pay|bought|buy)\b/,
+  expense: /^(spent|spend|paid|pay|bought|buy|venmo'?d|venmoed|zelled|zelle'?d|sent)\b/,
   workout: /^(i did|i went|i worked out|did|went|worked out)\b/,
   habit: /^(did my|did)\b/,
 };
@@ -190,7 +225,18 @@ function matchClass(
     }
   }
 
-  // 3) A word that is the start of a word in a class name: "anat" → "Human Anatomy".
+  // 3) A subject word: "math" → College Algebra (only if exactly one class fits).
+  for (const m of spans.free(/\b[a-z]{2,}\b/g, low)) {
+    const options = SUBJECTS[m[0]];
+    if (!options) continue;
+    const fits = classes.filter((cl) => options.some((o) => `${cl.name.toLowerCase()} `.includes(o)));
+    if (fits.length === 1) {
+      spans.claim(m.index, m.index + m[0].length);
+      return { cls: fits[0], problem: null };
+    }
+  }
+
+  // 4) A word that is the start of a word in a class name: "anat" → "Human Anatomy".
   for (const m of spans.free(/\b[a-z]{3,}\b/g, low)) {
     const word = m[0];
     if (FILLER.has(word)) continue;
@@ -208,14 +254,40 @@ function matchClass(
   return { cls: null, problem: null };
 }
 
+/** Rough word stem so "meditated" matches "Meditate" and "reading" matches "Reading". */
+function stem(w: string): string {
+  return w.length > 4 ? w.replace(/(ing|ed|es|s)$/, "").replace(/e$/, "") : w;
+}
+
+/** The habit a sentence mentions: every word of its name (by stem) appears. Longest name wins. */
+export function findHabit(low: string, habits: string[]): string | null {
+  const said = new Set((low.match(/[a-z0-9']+/g) ?? []).map(stem));
+  const fits = habits.filter((h) => {
+    const words = (h.toLowerCase().match(/[a-z0-9']+/g) ?? []).filter((w) => !FILLER.has(w) && w !== "my");
+    return words.length > 0 && words.every((w) => said.has(stem(w)));
+  });
+  return fits.sort((a, b) => b.length - a.length)[0] ?? null;
+}
+
 function detectType(low: string, ctx: ParseContext, isNote: boolean): CaptureType | null {
-  if (isNote) return "note";
+  if (isNote || JOURNAL_START.test(low)) return "note";
   // Money in or out ("got paid $400" is income; "spent $12" is spending).
   if ((INCOME_WORDS.test(low) || EXPENSE_VERBS.test(low)) && /\$\s?\d|\d\s*(?:dollars|bucks)\b/.test(low)) return "expense";
-  if (EXPENSE_VERBS.test(low)) return "expense";
+  if (INCOME_WORDS.test(low) && /\d/.test(low)) return "expense";
+  if (SPENT_VERBS.test(low)) return "expense";
+  // A habit you named ("did my reading", "drank water"), unless there are sets or calories to log.
+  // ("church history reading due wed" is homework: a class or "due" wins over the habit.)
+  const saysClass = (ctx.classes ?? []).some((c) =>
+    c.name.toLowerCase().split(/\s+/).some((w) => w.length >= 4 && low.includes(w)),
+  );
+  if (
+    findHabit(low, ctx.habits ?? []) &&
+    !saysClass &&
+    !/\bdue\b|\bevery\b|\bdaily\b|\bweekly\b|\bmonthly\b|\d+\s*x\s*\d+|\bsets?\b|calories|cals?\b|kcal/.test(low)
+  )
+    return "habit";
   if (FOOD_WORDS.test(low)) return "food";
   if (WORKOUT_WORDS.test(low)) return "workout";
-  if ((ctx.habits ?? []).some((h) => new RegExp(`\\b${escapeRe(h.toLowerCase())}\\b`).test(low))) return "habit";
   if (/\$\s?\d/.test(low)) return "expense";
   if (SCHOOL_WORDS.test(low)) return "homework";
   return null; // decided later (a class match makes it homework, otherwise task)
@@ -267,9 +339,24 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   if (type0 === "note") {
     return {
       ...emptyDraft("note", rawText),
-      title: original ? original.charAt(0).toUpperCase() + original.slice(1) : DEFAULT_TITLES.note,
+      title: original ? restoreCase(original.charAt(0).toUpperCase() + original.slice(1), rawText) : DEFAULT_TITLES.note,
+      mood: moodOf(low),
       confidence: 1,
     };
+  }
+
+  // ── Repeat: "every monday", "daily", "every other week" ─────────────────
+  let repeat: CaptureDraft["repeat"] = null;
+  {
+    const r = spans.free(
+      /\b(every\s+other\s+week|every\s+two\s+weeks|biweekly|bi-weekly|every\s+(?:day|morning|night|evening)|each\s+day|daily|every\s+week|weekly|every\s+month|monthly|each\s+month)\b|\b(every|each)(?=\s+(?:mon|tue|wed|thu|fri|sat|sun))/g,
+      low,
+    )[0];
+    if (r) {
+      const w = r[0];
+      repeat = /other|two|bi/.test(w) ? "biweekly" : /day|morning|night|evening|daily/.test(w) ? "daily" : /month/.test(w) ? "monthly" : "weekly";
+      spans.claim(r.index, r.index + r[0].length);
+    }
   }
 
   // ── Money: "$12", "$12.50", "12 dollars" ─────────────────────────────────
@@ -315,7 +402,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   // ── Duration / estimate: "about 2 hours", "45 min", "1.5 hrs" ────────────
   let minutes: number | null = null;
   const dur = spans.free(
-    /\b(?:(?:about|around|takes?|for)\s+|~\s*)?(\d+(?:\.\d+)?|an?|half an?)\s*(hours?|hrs?|hr|h|minutes?|mins?|min)\b/g,
+    /\b(?:(?:about|around|takes?|for|in)\s+|~\s*)?(\d+(?:\.\d+)?|an?|half an?)\s*(hours?|hrs?|hr|h|minutes?|mins?|min)\b/g,
     low,
   )[0];
   if (dur) {
@@ -329,6 +416,31 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   problems.push(...dateResult.problems);
   confidence -= dateResult.penalty;
   const when = dateResult.when;
+
+  // ── Money said without "$": "got paid 450", "venmo'd jake 15" ───────────
+  if (amount === null && type0 === "expense") {
+    const bare = spans.free(/\b(\d+(?:\.\d{1,2})?)\b(?![:\d]|\s*(?:x|%|lbs?|pounds|miles?|mi|min|mins|minutes?|hours?|hrs?|calories|cals?|st|nd|rd|th)\b)/g, low)[0];
+    if (bare) {
+      amount = Number(bare[1]);
+      spans.claim(bare.index, bare.index + bare[0].length);
+    }
+  }
+
+  // ── Food: "700 calories", "30g protein" ─────────────────────────────────
+  let calories: number | null = null;
+  let proteinG: number | null = null;
+  if (type0 === "food") {
+    const cal = spans.free(/\b(?:about\s+|around\s+|~\s*)?(\d{1,4})\s*(?:calories|cals?|kcal)\b/g, low)[0];
+    if (cal) {
+      calories = Number(cal[1]);
+      spans.claim(cal.index, cal.index + cal[0].length);
+    }
+    const pro = spans.free(/\b(\d{1,3})\s*(?:g|grams?)\s*(?:of\s+)?protein\b|\bprotein\s*(\d{1,3})\s*(?:g|grams?)?\b/g, low)[0];
+    if (pro) {
+      proteinG = Number(pro[1] ?? pro[2]);
+      spans.claim(pro.index, pro.index + pro[0].length);
+    }
+  }
 
   // ── Class ────────────────────────────────────────────────────────────────
   let cls: ClassRef | null = null;
@@ -353,7 +465,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   // ── Habit name ───────────────────────────────────────────────────────────
   let habitName: string | null = null;
   if (type === "habit") {
-    habitName = (ctx.habits ?? []).find((h) => new RegExp(`\\b${escapeRe(h.toLowerCase())}\\b`).test(low)) ?? null;
+    habitName = findHabit(low, ctx.habits ?? []);
   }
 
   // ── Quantity: "2 eggs", "two slices" (food, mainly) ─────────────────────
@@ -391,10 +503,17 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   }
 
   // ── Title & category ─────────────────────────────────────────────────────
-  let title = cleanTitle(spans.leftover(original), type);
+  let title = restoreCase(cleanTitle(spans.leftover(original), type), rawText);
+  if (type === "workout") {
+    // "ran 2 miles in 18 min" → "Run" (the miles and minutes are kept separately).
+    const cardio: Record<string, string> = { ran: "Run", run: "Run", jogged: "Jog", jog: "Jog", biked: "Bike ride", bike: "Bike ride", swam: "Swim", swim: "Swim", hiked: "Hike", hike: "Hike", rowed: "Row" };
+    title = title.replace(/^(ran|run|jogged|jog|biked|bike|swam|swim|hiked|hike|rowed)\b(?:\s+(?:in|for))?\s*$/i, (w: string, v: string) => cardio[v.toLowerCase()] ?? w);
+  }
   let category: string | null = null;
   if (type === "expense") category = title ? title.toLowerCase() : null;
-  if (!title) title = cls && type === "homework" ? DEFAULT_TITLES.homework : DEFAULT_TITLES[type];
+  if (!title) title = cls && type === "homework" ? DEFAULT_TITLES.homework : incoming ? "Paycheck" : DEFAULT_TITLES[type];
+  title = title.replace(/\bi\b/g, "I");
+  if (notes) notes = restoreCase(notes, rawText).replace(/\bi\b/g, "I");
 
   // ── What's missing? ──────────────────────────────────────────────────────
   if (type === "homework" && !when) {
@@ -405,7 +524,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     problems.push(classProblem ?? "No class matched");
     confidence -= 0.2;
   }
-  if (type === "food") {
+  if (type === "food" && calories === null) {
     problems.push("Calories needed");
     confidence -= 0.3;
   }
@@ -432,6 +551,10 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     distanceMiles,
     category,
     habitName,
+    calories,
+    proteinG,
+    mood: null,
+    repeat,
     incoming,
     notes,
     area,
@@ -443,7 +566,27 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
 function emptyDraft(type: CaptureType, rawText: string): CaptureDraft {
   return {
     type, title: "", rawText, when: null, classId: null, className: null, amount: null, quantity: null,
-    minutes: null, sets: null, distanceMiles: null, category: null, habitName: null, incoming: false,
+    minutes: null, sets: null, distanceMiles: null, category: null, habitName: null, calories: null, proteinG: null,
+    mood: null, repeat: null, incoming: false,
     notes: null, area: "personal", confidence: 1, problems: [],
   };
+}
+
+/** Mood from words in a journal line ("today was great" → 5). The lowest mood word wins; null if none. */
+export function moodOf(low: string): number | null {
+  if (/\b(not|wasn'?t|isn'?t|didn'?t feel)\s+(?:very\s+|that\s+|so\s+)?(good|great|happy|productive)\b/.test(low)) return 2;
+  const scores = MOOD_WORDS.filter(([re]) => re.test(low)).map(([, score]) => score);
+  return scores.length ? Math.min(...scores) : null;
+}
+
+/**
+ * Speech tidying lowercases everything. Put back capitals that were actually
+ * said (names like "Johnson" or "Smith"), except the first word.
+ */
+function restoreCase(title: string, rawText: string): string {
+  const caps = new Map<string, string>();
+  const words = rawText.match(/[A-Za-z][A-Za-z']*/g) ?? [];
+  for (const w of words.slice(1)) if (/^[A-Z]/.test(w) && w !== "I") caps.set(w.toLowerCase(), w);
+  if (!caps.size) return title;
+  return title.replace(/[A-Za-z][A-Za-z']*/g, (w: string, offset: number) => (offset === 0 ? w : (caps.get(w.toLowerCase()) ?? w)));
 }
