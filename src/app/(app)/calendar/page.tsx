@@ -2,11 +2,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
 import { monthGrid, monthTitle, safeDate, shiftMonth, weekDays } from "@/lib/calendar";
-import { formatLocalDate, WEEKDAY_SHORT } from "@/lib/format";
+import { formatLocalDate, formatTimeOfDay, WEEKDAY_SHORT } from "@/lib/format";
 import { addDays, compareLocalDates, fromLocal, toLocalDate, weekdayOf } from "@/lib/time";
-import { toTaskView, type TaskRecord } from "@/lib/tasks/view";
+import { toTaskView, type TaskRecord, type TaskView } from "@/lib/tasks/view";
 import { cx, PageHeader } from "@/components/ui";
 import { AddButton } from "@/components/add-button";
+import { TaskItem } from "@/components/task-item";
 import { CalendarWeek, type WeekDay } from "@/components/calendar-week";
 import { loadSchedule } from "../schedule-data";
 
@@ -102,7 +103,14 @@ export default async function CalendarPage({ searchParams }: PageProps<"/calenda
           )}
         />
       ) : (
-        <MonthGrid focus={focus} today={today} byDay={byDay} classById={classById} hasClasses={(d) => classesOn(d).length > 0} href={href} />
+        <>
+          <MonthGrid focus={focus} today={today} byDay={byDay} classById={classById} classesOn={classesOn} href={href} />
+          <DayAgenda
+            title={focus === today ? "Today" : formatLocalDate(focus)}
+            classes={classesOn(focus)}
+            tasks={(byDay.get(focus) ?? []).map(view_)}
+          />
+        </>
       )}
 
       <p className="hidden text-xs text-faint lg:block">Tip: drag a task onto another day to move it.</p>
@@ -115,19 +123,19 @@ function MonthGrid({
   today,
   byDay,
   classById,
-  hasClasses,
+  classesOn,
   href,
 }: {
   focus: string;
   today: string;
   byDay: Map<string, TaskRecord[]>;
   classById: Map<string, { color: string }>;
-  hasClasses: (d: string) => boolean;
+  classesOn: (d: string) => { id: string; color: string }[];
   href: (v: string, d: string) => string;
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-surface/80 p-2 shadow-card">
-      <div className="grid grid-cols-7 gap-1 pb-1 text-center text-[10px] font-semibold tracking-[0.14em] text-muted uppercase">
+    <div className="rounded-3xl border border-line bg-surface/80 p-1.5 shadow-card sm:p-2">
+      <div className="grid grid-cols-7 gap-1 pb-1 text-center text-[10px] font-semibold tracking-[0.12em] text-muted uppercase">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <span key={d}>{d}</span>
         ))}
@@ -136,34 +144,95 @@ function MonthGrid({
         {monthGrid(focus).map(({ date, inMonth }) => {
           const tasks = byDay.get(date) ?? [];
           const open = tasks.filter((t) => t.status !== "done");
+          const classes = classesOn(date);
           const isToday = date === today;
+          const selected = date === focus;
+          const past = date < today;
           return (
             <Link
               key={date}
-              href={href("week", date)}
+              href={href("month", date)}
+              scroll={false}
               className={cx(
-                "flex aspect-square flex-col rounded-xl border p-1.5 transition hover:border-accent/60 sm:aspect-[4/3]",
-                isToday ? "border-accent/60 bg-accent/10 shadow-glow" : "border-transparent bg-raised/50",
+                "flex min-h-[4.75rem] min-w-0 flex-col gap-0.5 overflow-hidden rounded-xl border p-1 transition hover:border-accent/60 sm:min-h-24 sm:p-1.5",
+                selected ? "border-accent bg-accent/10 shadow-glow" : isToday ? "border-accent/50 bg-raised/60" : "border-transparent bg-raised/40",
                 !inMonth && "opacity-30",
+                inMonth && past && !selected && "opacity-60",
               )}
             >
-              <span className={cx("text-xs font-semibold", isToday ? "text-accent" : hasClasses(date) ? "text-ink" : "text-faint")}>
-                {Number(date.slice(8))}
+              <span className="flex items-center justify-between gap-0.5">
+                <span
+                  className={cx(
+                    "flex h-5 min-w-5 items-center justify-center rounded-full text-[11px] font-bold",
+                    isToday ? "bg-accent text-accent-ink" : "text-ink",
+                  )}
+                >
+                  {Number(date.slice(8))}
+                </span>
+                {classes.length > 0 && (
+                  <span className="flex gap-px" title="Class day">
+                    {classes.slice(0, 2).map((c) => (
+                      <span key={c.id} className="h-1 w-1 rounded-full" style={{ backgroundColor: c.color }} />
+                    ))}
+                  </span>
+                )}
               </span>
-              <span className="mt-auto flex flex-wrap gap-0.5">
-                {open.slice(0, 4).map((t) => (
+              {open.slice(0, 2).map((t) => {
+                const color = (t.class_id && classById.get(t.class_id)?.color) || "var(--color-accent)";
+                return (
                   <span
                     key={t.id}
-                    className="h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: (t.class_id && classById.get(t.class_id)?.color) || "var(--color-accent)" }}
-                  />
-                ))}
-                {open.length > 4 && <span className="text-[9px] leading-none text-muted">+{open.length - 4}</span>}
-              </span>
+                    className="truncate rounded-[5px] border-l-2 px-1 py-px text-[9px] leading-tight font-medium text-ink sm:text-[11px]"
+                    style={{ borderLeftColor: color, backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)` }}
+                  >
+                    {t.title}
+                  </span>
+                );
+              })}
+              {open.length > 2 && <span className="px-1 text-[9px] leading-none font-semibold text-muted">+{open.length - 2} more</span>}
             </Link>
           );
         })}
       </div>
     </div>
+  );
+}
+
+/** The tapped day, in full: its classes with times, then everything due. */
+function DayAgenda({
+  title,
+  classes,
+  tasks,
+}: {
+  title: string;
+  classes: { id: string; name: string; color: string; starts_at: string; ends_at: string }[];
+  tasks: TaskView[];
+}) {
+  return (
+    <section className="fade-in flex flex-col gap-3 rounded-3xl border border-line bg-surface/80 p-4 shadow-card">
+      <h2 className="font-display text-lg font-semibold">{title}</h2>
+      {classes.length > 0 && (
+        <ul className="flex flex-col gap-1.5">
+          {classes.map((c) => (
+            <li key={c.id} className="flex items-center gap-2.5 rounded-xl bg-raised/60 px-3 py-2 text-sm">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
+              <span className="min-w-0 flex-1 truncate">{c.name}</span>
+              <span className="shrink-0 text-xs text-muted">
+                {formatTimeOfDay(c.starts_at)} – {formatTimeOfDay(c.ends_at)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {tasks.length > 0 ? (
+        <ul className="rows flex flex-col gap-2">
+          {tasks.map((t) => (
+            <TaskItem key={t.id} task={t} />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">{classes.length ? "Nothing due this day." : "Free day. Nothing due."}</p>
+      )}
+    </section>
   );
 }
