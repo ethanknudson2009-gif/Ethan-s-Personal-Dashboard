@@ -47,6 +47,13 @@
 - [x] Work section for PRMI (also "work", "primary", "the office"; Mike = LO)
 - [x] Bottom bar with every area: Today · School · Work · + · Money · Life · Calendar
 
+## Added Nov 19, 2026
+- [x] Calendar month view: taller cells with real titles, tap a day to see its classes and tasks below
+- [x] Bottom bar: icon-only tabs, the active one lifts and shows its name (no more squished labels)
+- [x] Swipe left/right with your thumb to move between sections
+- [x] Today: Work / Money / Gym / Journal tiles, the whole week in Coming up, plus Later
+- [ ] **Idea (later, not now):** connect Ethan's work Outlook (PRMI) so Claude can read and prioritize emails into Work tasks. Needs a check first: work accounts usually need the company's IT to approve any app that reads mail, so ask PRMI IT before building. Free options to look at: Microsoft Graph with a free app registration, or forwarding chosen emails into the Inbox.
+
 ## Phase 3: Body
 - [x] Gym (inside Life, `/gym`): live workout with exercise picker (27 starter exercises + your own), sets pre-filled from last time, ✓ starts a 90 s rest timer with a chime, finish shows volume and new PRs (estimated 1-rep max), checks in a "Gym"/"Workout" habit, history and best lifts.
 - [ ] Gym later: plans and A/B/C rotations, backup exercises, progress charts, recovery map (free-exercise-db data)
