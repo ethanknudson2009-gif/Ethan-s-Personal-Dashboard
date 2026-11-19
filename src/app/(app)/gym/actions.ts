@@ -5,7 +5,8 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
 import { toLocalDate } from "@/lib/time";
-import { lastTime, matchExercise, newRecords, volume, type GymSet } from "@/lib/gym";
+import { lastTime, matchExercise, newRecords, nextAfter, volume, type GymSet } from "@/lib/gym";
+import { DEFAULT_SPLIT, dayForMuscles, muscleOf, readWorkout, workoutNote } from "@/lib/gym-speech";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -125,7 +126,14 @@ export async function finishWorkoutAction(workoutId: string): Promise<Result<{ v
   const names = new Map((exercises ?? []).map((e) => [e.id, e.name]));
   const records = newRecords(today, past).map((r) => ({ name: names.get(r.exerciseId) ?? "Exercise", e1rm: r.e1rm, previous: r.previous }));
 
-  await supabase.from("workouts").update({ ended_at: new Date().toISOString() }).eq("id", workoutId);
+  // Which muscles and split day this was, from the exercises done.
+  const { data: exInfo } = await supabase.from("exercises").select("id, name, muscle").in("id", [...new Set(today.map((t) => t.exerciseId))]);
+  const muscles = [...new Set((exInfo ?? []).map((e) => muscleOf(e)).filter((m) => m !== "other" && m !== "core"))];
+  const { data: me } = await supabase.from("profiles").select("gym_split").maybeSingle();
+  const { data: thisWorkout } = await supabase.from("workouts").select("split_day").eq("id", workoutId).maybeSingle();
+  const day = thisWorkout?.split_day ?? dayForMuscles(muscles, me?.gym_split?.length ? me.gym_split : DEFAULT_SPLIT);
+  await supabase.from("workouts").update({ ended_at: new Date().toISOString(), muscles, split_day: day }).eq("id", workoutId);
+  await advanceAfter(supabase, day);
 
   // Count it for a gym habit, if there is one.
   const { data: habits } = await supabase.from("habits").select("id, name").is("deleted_at", null).eq("archived", false);
@@ -244,4 +252,139 @@ export async function logCardioAction(input: { name: string; miles: number | nul
   if (error) return { ok: false, error: error.message };
   refresh();
   return { ok: true, label };
+}
+
+// ── Split rotation and whole-workout logging ───────────────────────────────
+
+async function loadSplit(supabase: Awaited<ReturnType<typeof createClient>>) {
+  const { data } = await supabase.from("profiles").select("id, gym_split, gym_next").maybeSingle();
+  const split = data?.gym_split?.length ? data.gym_split : DEFAULT_SPLIT;
+  return { userId: data?.id ?? null, split, next: (data?.gym_next ?? 0) % split.length };
+}
+
+/** After training `day`, the next day up is the one after it. */
+async function advanceAfter(supabase: Awaited<ReturnType<typeof createClient>>, day: string | null) {
+  const { userId, split, next } = await loadSplit(supabase);
+  if (!userId || !day) return;
+  await supabase.from("profiles").update({ gym_next: nextAfter(split, day, next) }).eq("id", userId);
+}
+
+/** Skip today's split day: it's kept in history as skipped, and the next day comes up. */
+export async function skipDayAction(): Promise<Result<{ skipped: string; next: string }>> {
+  const supabase = await createClient();
+  const { userId, split, next } = await loadSplit(supabase);
+  if (!userId) return { ok: false, error: "Not signed in" };
+  const day = split[next];
+  const now = new Date().toISOString();
+  await supabase.from("workouts").insert({ started_at: now, ended_at: now, split_day: day, skipped: true, name: `Skipped ${day}` });
+  const after = (next + 1) % split.length;
+  await supabase.from("profiles").update({ gym_next: after }).eq("id", userId);
+  refresh();
+  return { ok: true, skipped: day, next: split[after] };
+}
+
+/** Pick which split day is up next. */
+export async function setNextDayAction(index: number): Promise<Result> {
+  const supabase = await createClient();
+  const { userId, split } = await loadSplit(supabase);
+  if (!userId) return { ok: false, error: "Not signed in" };
+  if (!Number.isInteger(index) || index < 0 || index >= split.length) return { ok: false, error: "Pick a day" };
+  await supabase.from("profiles").update({ gym_next: index }).eq("id", userId);
+  refresh();
+  return { ok: true };
+}
+
+/** Change the split itself, e.g. ["Push", "Pull", "Legs"]. */
+export async function saveSplitAction(days: string[]): Promise<Result> {
+  const clean = days.map((d) => d.trim()).filter(Boolean).slice(0, 10);
+  if (clean.length < 1 || clean.some((d) => d.length > 40)) return { ok: false, error: "Give each day a short name" };
+  const supabase = await createClient();
+  const { userId } = await loadSplit(supabase);
+  if (!userId) return { ok: false, error: "Not signed in" };
+  await supabase.from("profiles").update({ gym_split: clean, gym_next: 0 }).eq("id", userId);
+  refresh();
+  return { ok: true };
+}
+
+/**
+ * The mic: a whole workout in one sentence → every exercise and set, saved
+ * into today's workout with its split day and muscles. It's read again here
+ * with the same reader the preview used, so what you saw is what's saved.
+ */
+export async function logSpokenWorkoutAction(text: string): Promise<Result<{ note: string; day: string | null; skipped?: string }>> {
+  const said = text.trim().slice(0, 2000);
+  if (!said) return { ok: false, error: "Say your workout" };
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { split, next } = await loadSplit(supabase);
+  const { data: exercises } = await supabase.from("exercises").select("id, name, muscle, bodyweight");
+  const w = readWorkout(said, exercises ?? [], split);
+
+  if (w.skip && !w.entries.length) {
+    const r = await skipDayAction();
+    return r.ok ? { ok: true, note: `Skipped ${r.skipped}. Next up: ${r.next}`, day: null, skipped: r.skipped } : r;
+  }
+  // Nothing named and no muscles: count it as the planned day.
+  const day = w.day ?? (w.entries.length ? null : split[next]);
+  const { timeZone } = await loadSettings(supabase);
+  const today = toLocalDate(new Date(), timeZone);
+
+  // New exercises you named get added to your list.
+  const idFor = new Map<string, string>();
+  for (const e of w.entries) {
+    if (e.exerciseId) continue;
+    const { data } = await supabase.from("exercises").insert({ user_id: user.id, name: e.name.slice(0, 60), muscle: "other" }).select("id").single();
+    if (data) idFor.set(e.name, data.id);
+  }
+
+  // Join the open workout, or one from today, or start one.
+  const { data: recent } = await supabase
+    .from("workouts")
+    .select("id, started_at, ended_at, muscles, split_day")
+    .is("deleted_at", null)
+    .eq("skipped", false)
+    .order("started_at", { ascending: false })
+    .limit(5);
+  const open = (recent ?? []).find((r) => r.ended_at === null);
+  const todays = (recent ?? []).find((r) => r.ended_at !== null && toLocalDate(new Date(r.started_at), timeZone) === today);
+  const existing = open ?? todays;
+  const now = new Date().toISOString();
+  const muscles = [...new Set([...(existing?.muscles ?? []), ...w.muscles])];
+  const finalDay = existing?.split_day ?? day;
+  let workoutId = existing?.id;
+  if (!workoutId) {
+    const { data, error } = await supabase.from("workouts").insert({ started_at: now, ended_at: now, split_day: finalDay, muscles }).select("id").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Couldn't save" };
+    workoutId = data.id;
+  } else {
+    await supabase
+      .from("workouts")
+      .update({ split_day: finalDay, muscles, ...(open ? {} : { ended_at: now }) })
+      .eq("id", workoutId);
+  }
+
+  const { count } = await supabase.from("workout_sets").select("id", { count: "exact", head: true }).eq("workout_id", workoutId);
+  let position = count ?? 0;
+  const rows = w.entries.flatMap((e) => {
+    const exerciseId = e.exerciseId ?? idFor.get(e.name);
+    if (!exerciseId) return [];
+    const sets = e.sets.length ? e.sets : [{ weightLb: null, reps: null }];
+    return sets.map((s) => ({ workout_id: workoutId, exercise_id: exerciseId, position: position++, weight_lb: s.weightLb, reps: s.reps, done: true }));
+  });
+  if (rows.length) {
+    const { error } = await supabase.from("workout_sets").insert(rows);
+    if (error) return { ok: false, error: error.message };
+  }
+  await advanceAfter(supabase, finalDay);
+
+  // Count it for a gym habit, if there is one.
+  const { data: habits } = await supabase.from("habits").select("id, name").is("deleted_at", null).eq("archived", false);
+  const gymHabit = (habits ?? []).find((h) => /\b(gym|workout|work out|lift|lifting|exercise|train)/i.test(h.name));
+  if (gymHabit) await supabase.from("habit_checkins").upsert({ habit_id: gymHabit.id, on_date: today }, { onConflict: "habit_id,on_date", ignoreDuplicates: true });
+
+  refresh();
+  return { ok: true, note: workoutNote({ day: finalDay, entries: w.entries }), day: finalDay };
 }

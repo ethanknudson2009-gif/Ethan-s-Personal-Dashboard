@@ -676,11 +676,15 @@ export type Database = {
           coins: number
           created_at: string
           display_name: string | null
+          gym_next: number
+          gym_split: string[]
           id: string
+          liked_layouts: string[]
           notify_evening: string
           notify_morning: string
           study_end_time: string
           study_minutes: number[]
+          theme: string
           timezone: string
           updated_at: string
           xp_total: number
@@ -691,11 +695,15 @@ export type Database = {
           coins?: number
           created_at?: string
           display_name?: string | null
+          gym_next?: number
+          gym_split?: string[]
           id: string
+          liked_layouts?: string[]
           notify_evening?: string
           notify_morning?: string
           study_end_time?: string
           study_minutes?: number[]
+          theme?: string
           timezone?: string
           updated_at?: string
           xp_total?: number
@@ -706,11 +714,15 @@ export type Database = {
           coins?: number
           created_at?: string
           display_name?: string | null
+          gym_next?: number
+          gym_split?: string[]
           id?: string
+          liked_layouts?: string[]
           notify_evening?: string
           notify_morning?: string
           study_end_time?: string
           study_minutes?: number[]
+          theme?: string
           timezone?: string
           updated_at?: string
           xp_total?: number
@@ -1045,8 +1057,11 @@ export type Database = {
           deleted_at: string | null
           ended_at: string | null
           id: string
+          muscles: string[]
           name: string | null
           notes: string | null
+          skipped: boolean
+          split_day: string | null
           started_at: string
           user_id: string
         }
@@ -1054,8 +1069,11 @@ export type Database = {
           deleted_at?: string | null
           ended_at?: string | null
           id?: string
+          muscles?: string[]
           name?: string | null
           notes?: string | null
+          skipped?: boolean
+          split_day?: string | null
           started_at?: string
           user_id?: string
         }
@@ -1063,8 +1081,11 @@ export type Database = {
           deleted_at?: string | null
           ended_at?: string | null
           id?: string
+          muscles?: string[]
           name?: string | null
           notes?: string | null
+          skipped?: boolean
+          split_day?: string | null
           started_at?: string
           user_id?: string
         }
