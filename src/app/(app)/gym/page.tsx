@@ -28,7 +28,7 @@ export default async function GymPage() {
       .maybeSingle(),
     supabase
       .from("workouts")
-      .select("id, started_at, ended_at, workout_sets(id, exercise_id, position, weight_lb, reps, done)")
+      .select("id, started_at, ended_at, name, workout_sets(id, exercise_id, position, weight_lb, reps, done)")
       .not("ended_at", "is", null)
       .is("deleted_at", null)
       .order("started_at", { ascending: false })
@@ -132,7 +132,9 @@ export default async function GymPage() {
                     </p>
                   </div>
                   <p className="mt-0.5 line-clamp-2 text-sm text-muted">
-                    {exIds.map((id) => `${names.get(id) ?? "Exercise"} ×${sets.filter((s) => s.exerciseId === id).length}`).join(" · ")}
+                    {exIds.length
+                      ? exIds.map((id) => `${names.get(id) ?? "Exercise"} ×${sets.filter((s) => s.exerciseId === id).length}`).join(" · ")
+                      : (w.name ?? "Workout")}
                   </p>
                 </li>
               );

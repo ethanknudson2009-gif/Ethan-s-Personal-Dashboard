@@ -53,12 +53,24 @@
 - [x] Swipe left/right with your thumb to move between sections
 - [x] Today: Work / Money / Gym / Journal tiles, the whole week in Coming up, plus Later
 - [x] Quick add / voice logs lifts: "bench 3x10 at 135" → 3 sets of Bench press in today's workout (nicknames like RDL, OHP, pull ups understood)
+- [x] Mic understands every kind of thing (tested phrase by phrase in `src/lib/parser/categories.test.ts`):
+  - school: subjects like "math" find the class; "it covers…" and "I need to…" become notes
+  - work: mortgage words (disclosures, appraisal, escrow, underwriting…) and "end of day/EOD" = 5 PM today
+  - money: "got paid 450", "paycheck 612.40", "venmo'd Jake 15"; "pay phone bill on the 1st" stays a task
+  - gym: lifts ("bench 3x10 at 135") and cardio ("ran 2 miles in 18 minutes")
+  - food: calories and protein ("chicken burrito 700 calories")
+  - habits by any form of the word ("meditated" → Meditate, "drank water" → Water)
+  - journal lines with mood ("I feel great today" → 😄)
+  - repeats ("every Monday", "every other week", "monthly"); names keep their capitals
+  - The + sheet shows where each item will go (→ Money, Gym, Food, Habits, Journal) with "Save as a task instead" if it guessed wrong
+  - Shortcut and Claude captures of these kinds wait in the Inbox, and one tap logs them in the right place
 - [ ] **Idea (later, not now):** connect Ethan's work Outlook (PRMI) so Claude can read and prioritize emails into Work tasks. Needs a check first: work accounts usually need the company's IT to approve any app that reads mail, so ask PRMI IT before building. Free options to look at: Microsoft Graph with a free app registration, or forwarding chosen emails into the Inbox.
 
 ## Phase 3: Body
 - [x] Gym (inside Life, `/gym`): live workout with exercise picker (27 starter exercises + your own), sets pre-filled from last time, ✓ starts a 90 s rest timer with a chime, finish shows volume and new PRs (estimated 1-rep max), checks in a "Gym"/"Workout" habit, history and best lifts.
 - [ ] Gym later: plans and A/B/C rotations, backup exercises, progress charts, recovery map (free-exercise-db data)
-- [ ] Calories: quick add, barcode lookup (Open Food Facts), photo logging through Claude, Meal What-If, adaptive goals
+- [x] Food log (Nov 19, migration 0014): say what you ate with calories/protein; a Food card in Life with a daily goal bar, 7-day average, delete + undo; a Food tile on Today
+- [ ] Calories later: barcode lookup (Open Food Facts), photo logging through Claude, Meal What-If, adaptive goals
 
 ## Phase 4: Life
 - [x] Habits with a strength score and streaks (Life tab), XP and levels

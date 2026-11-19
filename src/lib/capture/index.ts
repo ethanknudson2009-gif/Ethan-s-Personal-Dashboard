@@ -119,7 +119,7 @@ export function decide(
     problems.push("No due date found");
     confidence -= 0.2;
   }
-  if (!SAVEABLE_TYPES.includes(type)) problems.push(`${type[0].toUpperCase()}${type.slice(1)} tracking isn't built yet, so this waits here`);
+  // Food, workouts, habits and journal lines always wait in the Inbox for one tap (never auto-saved).
 
   const draft: InboxDraft = {
     type,

@@ -6,6 +6,9 @@ import { loadSettings } from "@/lib/profile";
 import { moneyRowFromDraft, readDraft, SAVEABLE_TYPES, taskRowFromDraft } from "@/lib/capture";
 import { toLocalDate } from "@/lib/time";
 import type { ActionResult } from "@/app/(app)/tasks/actions";
+import { parse } from "@/lib/parser";
+import { addToJournalAction, checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
+import { logCardioAction, logQuickSetsAction } from "@/app/(app)/gym/actions";
 
 /*
  * Inbox actions: approve (turn the draft into a real task), dismiss, and
@@ -15,7 +18,7 @@ import type { ActionResult } from "@/app/(app)/tasks/actions";
 async function approveOne(supabase: Awaited<ReturnType<typeof createClient>>, id: string, timeZone: string): Promise<ActionResult> {
   const { data: item, error } = await supabase
     .from("inbox_items")
-    .select("id, draft, source, status")
+    .select("id, draft, source, status, raw_text")
     .eq("id", id)
     .single();
   if (error || !item) return { ok: false, error: "Couldn't find that Inbox item" };
@@ -23,7 +26,14 @@ async function approveOne(supabase: Awaited<ReturnType<typeof createClient>>, id
 
   const draft = readDraft(item.draft);
   if (!draft) return { ok: false, error: "This item can't be read. Dismiss it and add it again." };
-  if (!SAVEABLE_TYPES.includes(draft.type)) return { ok: false, error: `${draft.type} tracking isn't built yet` };
+  if (!SAVEABLE_TYPES.includes(draft.type)) {
+    // Food, workouts, habits and journal lines: read the words again and log them where they belong.
+    const logged = await logOther(supabase, item.raw_text || draft.title, timeZone);
+    if (!logged.ok) return logged;
+    const { error: e3 } = await supabase.from("inbox_items").update({ status: "approved", result_table: logged.table, result_id: null }).eq("id", id);
+    if (e3) return { ok: false, error: e3.message };
+    return { ok: true };
+  }
 
   let saved: { id: string } | null = null;
   let table: "tasks" | "money_transactions" = "tasks";
@@ -45,6 +55,31 @@ async function approveOne(supabase: Awaited<ReturnType<typeof createClient>>, id
     .eq("id", id);
   if (e2) return { ok: false, error: e2.message };
   return { ok: true };
+}
+
+/** Logs a food / workout / habit / journal line from the Inbox, the same way the + sheet does. */
+async function logOther(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  text: string,
+  timeZone: string,
+): Promise<{ ok: true; table: string } | { ok: false; error: string }> {
+  const { data: habits } = await supabase.from("habits").select("name").is("deleted_at", null).eq("archived", false);
+  const d = parse(text, { now: new Date(), timeZone, habits: (habits ?? []).map((h) => h.name), spoken: true });
+  const done = (r: { ok: boolean; error?: string }, table: string) => (r.ok ? { ok: true as const, table } : { ok: false as const, error: r.error ?? "Couldn't save" });
+  switch (d.type) {
+    case "food":
+      return done(await logFoodAction({ name: d.title, calories: d.calories, proteinG: d.proteinG }), "food_entries");
+    case "workout":
+      if (d.sets) return done(await logQuickSetsAction({ said: d.title, ...d.sets }), "workout_sets");
+      return done(await logCardioAction({ name: d.title, miles: d.distanceMiles, minutes: d.minutes }), "workouts");
+    case "habit":
+      if (!d.habitName) return { ok: false, error: "Which habit? Add it in Life first, or dismiss this." };
+      return done(await checkInHabitByNameAction(d.habitName), "habit_checkins");
+    case "note":
+      return done(await addToJournalAction(d.title, d.mood), "journal_entries");
+    default:
+      return { ok: false, error: "Tap Edit to save this as a task." };
+  }
 }
 
 export async function approveInboxAction(id: string): Promise<ActionResult> {

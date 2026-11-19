@@ -14,7 +14,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { deleteTaskAction, saveTaskAction } from "@/app/(app)/tasks/actions";
 import { addMoneyAction } from "@/app/(app)/money/actions";
-import { logQuickSetsAction } from "@/app/(app)/gym/actions";
+import { logCardioAction, logQuickSetsAction } from "@/app/(app)/gym/actions";
+import { addToJournalAction, checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
 import { dollars } from "@/lib/money/summary";
 import { parse } from "@/lib/parser";
 import { addDays, toLocalDate, weekdayOf } from "@/lib/time";
@@ -47,6 +48,21 @@ const AREAS: { value: Area; label: string }[] = [
 ];
 
 type RepeatChoice = "none" | "daily" | "weekly" | "biweekly" | "monthly";
+
+/** One of these shows while the mic listens: every kind of thing you can say. */
+const VOICE_EXAMPLES = [
+  "speech outline due thursday",
+  "math homework due tomorrow",
+  "call Mike about the Smith file by end of day",
+  "spent 12 dollars on gas",
+  "got paid 450",
+  "bench 3x10 at 135",
+  "ran 2 miles in 18 minutes",
+  "ate a chicken burrito 700 calories",
+  "did my reading",
+  "today was great, I felt productive",
+  "every monday take out the trash",
+];
 
 const REPEAT_CHOICES: { value: RepeatChoice; label: string }[] = [
   { value: "none", label: "Once" },
@@ -106,10 +122,13 @@ export function useTaskSheet(): SheetApi {
 
 export function TaskSheetProvider({
   classes,
+  habits = [],
   timeZone,
   children,
 }: {
   classes: SheetClass[];
+  /** Your habit names, so "did my reading" checks in "Reading". */
+  habits?: string[];
   timeZone: string;
   children: ReactNode;
 }) {
@@ -136,6 +155,7 @@ export function TaskSheetProvider({
           key={state.mode === "edit" ? state.task.id : "new"}
           state={state}
           classes={classes}
+          habits={habits}
           timeZone={timeZone}
           onClose={() => setState({ mode: "closed" })}
           onDone={(msg) => {
@@ -176,12 +196,14 @@ export function TaskSheetProvider({
 function Sheet({
   state,
   classes,
+  habits,
   timeZone,
   onClose,
   onDone,
 }: {
   state: Exclude<SheetState, { mode: "closed" }>;
   classes: SheetClass[];
+  habits: string[];
   timeZone: string;
   onClose: () => void;
   onDone: (message: string) => void;
@@ -192,7 +214,11 @@ function Sheet({
   // `undefined` = follow what the parser found; anything else = you picked it.
   const [classPick, setClassPick] = useState<string | null | undefined>(editing ? editing.classId : prefill?.classId);
   const [datePick, setDatePick] = useState<string | null | undefined>(editing ? editing.dueDate : prefill?.dueDate);
-  const [repeat, setRepeat] = useState<RepeatChoice>(editing?.repeat ?? "none");
+  const [repeatPick, setRepeat] = useState<RepeatChoice | undefined>(editing?.repeat);
+  // A different example each time the sheet opens, so you learn everything it understands.
+  const [example] = useState(() => VOICE_EXAMPLES[Math.floor(Math.random() * VOICE_EXAMPLES.length)]);
+  // "Save as a task instead", for when the words were read as something else.
+  const [asTask, setAsTask] = useState(false);
   // `undefined` = follow what the parser found in your words; a string = you edited it.
   const [notesEdit, setNotesEdit] = useState<string | undefined>(editing ? (editing.notes ?? "") : prefill?.notes != null ? prefill.notes : undefined);
   const [areaPick, setAreaPick] = useState<Area | undefined>(editing?.area ?? prefill?.area);
@@ -204,8 +230,8 @@ function Sheet({
   // that best matches your classes and dates.
   const [spokenInput, setSpokenInput] = useState(false);
   const parseCtx = useMemo(
-    () => ({ now: new Date(), timeZone, classes: classes.map((c) => ({ id: c.id, name: c.name, shortNames: c.shortNames })) }),
-    [timeZone, classes],
+    () => ({ now: new Date(), timeZone, habits, classes: classes.map((c) => ({ id: c.id, name: c.name, shortNames: c.shortNames })) }),
+    [timeZone, classes, habits],
   );
   const speech = useSpeech((heard) => {
     setSpokenInput(true);
@@ -263,21 +289,75 @@ function Sheet({
       : prefill && datePick === prefill.dueDate
         ? prefill.dueTime
         : parsedTime;
+  const repeat: RepeatChoice = repeatPick ?? parsed?.repeat ?? "none";
   const cls = classes.find((c) => c.id === classId) ?? null;
   const notes = notesEdit !== undefined ? notesEdit : (parsed?.notes ?? "");
   // Money said out loud: "spent $12 on gas" (out) or "got paid $400" / "paycheck $600" (in).
+  const routed = !editing && !asTask ? parsed : null;
   const money =
-    !editing && parsed && parsed.amount && parsed.type === "expense"
+    routed && routed.amount && routed.type === "expense"
       ? {
-          cents: Math.round(parsed.amount * 100) * (parsed.incoming ? 1 : -1),
-          label: parsed.title || (parsed.incoming ? "Paycheck" : "Expense"),
+          cents: Math.round(routed.amount * 100) * (routed.incoming ? 1 : -1),
+          label: routed.title || (routed.incoming ? "Paycheck" : "Expense"),
         }
       : null;
   // Sets said out loud: "bench 3x10 at 135" → Gym, not a task.
-  const lift =
-    !editing && !money && parsed && parsed.type === "workout" && parsed.sets && parsed.title
-      ? { said: parsed.title, ...parsed.sets }
-      : null;
+  const lift = routed && routed.type === "workout" && routed.sets && routed.title ? { said: routed.title, ...routed.sets } : null;
+  // Anything else heard, and where it goes instead of becoming a task.
+  const other: { emoji: string; label: string; detail: string; to: string; color: string; save: () => Promise<{ ok: boolean; error?: string; msg: string }> } | null =
+    !routed || money || lift
+      ? null
+      : routed.type === "workout"
+        ? {
+            emoji: "🏃",
+            label: routed.title || "Workout",
+            detail: [routed.distanceMiles !== null ? `${routed.distanceMiles} mi` : "", routed.minutes !== null ? `${routed.minutes} min` : ""].filter(Boolean).join(" · "),
+            to: "Gym",
+            color: "#ff6b4a",
+            save: async () => {
+              const r = await logCardioAction({ name: routed.title || "Workout", miles: routed.distanceMiles, minutes: routed.minutes });
+              return r.ok ? { ok: true, msg: `🏃 ${r.label} → Gym ✓` } : { ok: false, error: r.error, msg: "" };
+            },
+          }
+        : routed.type === "habit" && routed.habitName
+          ? {
+              emoji: "✅",
+              label: routed.habitName,
+              detail: "check in today",
+              to: "Habits",
+              color: "#2ee6c9",
+              save: async () => {
+                const r = await checkInHabitByNameAction(routed.habitName!);
+                return r.ok ? { ok: true, msg: `${r.habit} ${r.already ? "already done today" : "checked in"} ✓` } : { ok: false, error: r.error, msg: "" };
+              },
+            }
+          : routed.type === "note"
+            ? {
+                emoji: routed.mood ? ["", "😞", "😕", "😐", "🙂", "😄"][routed.mood] : "📓",
+                label: routed.title,
+                detail: "",
+                to: "Journal",
+                color: "#5b8cff",
+                save: async () => {
+                  const r = await addToJournalAction(routed.title, routed.mood);
+                  return r.ok ? { ok: true, msg: "Added to today's journal ✓" } : { ok: false, error: r.error, msg: "" };
+                },
+              }
+            : routed.type === "food"
+              ? {
+                  emoji: "🍽️",
+                  label: routed.title,
+                  detail: [routed.calories !== null ? `${routed.calories} cal` : "", routed.proteinG !== null ? `${routed.proteinG}g protein` : ""].filter(Boolean).join(" · "),
+                  to: "Food",
+                  color: "#ffb547",
+                  save: async () => {
+                    const r = await logFoodAction({ name: routed.title, calories: routed.calories, proteinG: routed.proteinG });
+                    return r.ok
+                      ? { ok: true, msg: `🍽️ ${routed.title}${routed.calories !== null ? ` · ${routed.calories} cal` : ""} → Food ✓` }
+                      : { ok: false, error: r.error, msg: "" };
+                  },
+                }
+              : null;
   // A class always means school; otherwise what you picked, or what the parser heard ("at work", "PRMI").
   const area: Area = cls ? "school" : (areaPick ?? parsed?.area ?? "personal");
 
@@ -305,6 +385,14 @@ function Sheet({
         const result = await addMoneyAction({ amountCents: money.cents, description: money.label });
         if (!result.ok) return setError(result.error);
         onDone(`${money.cents < 0 ? "Spent" : "Got"} ${dollars(money.cents)} · ${money.label} ✓`);
+      });
+      return;
+    }
+    if (other) {
+      startTransition(async () => {
+        const result = await other.save();
+        if (!result.ok) return setError(result.error ?? "Couldn't save");
+        onDone(result.msg);
       });
       return;
     }
@@ -402,7 +490,7 @@ function Sheet({
                 <i />
                 <i />
               </span>
-              Listening… say it like “speech outline due thursday”
+              Listening… try “{example}”
             </div>
           )}
           {!speech.listening && (speech.error || voiceTip) && (
@@ -434,8 +522,35 @@ function Sheet({
             </div>
           )}
 
+          {/* Habit / journal / food / cardio preview */}
+          {other && (
+            <div
+              className="flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm"
+              style={{ borderColor: `${other.color}66`, backgroundColor: `${other.color}14`, boxShadow: `0 0 22px -10px ${other.color}` }}
+            >
+              <span className="text-lg">{other.emoji}</span>
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-2 block font-medium">{other.label}</span>
+                {other.detail && <span className="block text-xs text-muted">{other.detail}</span>}
+              </span>
+              <span className="shrink-0 text-[10px] font-bold tracking-wider uppercase" style={{ color: other.color }}>
+                → {other.to}
+              </span>
+            </div>
+          )}
+          {(money || lift || other) && (
+            <button type="button" onClick={() => setAsTask(true)} className="-mt-1 self-end text-xs text-faint hover:text-ink">
+              Not right? Save as a task instead
+            </button>
+          )}
+          {asTask && (
+            <button type="button" onClick={() => setAsTask(false)} className="-mt-1 self-end text-xs text-faint hover:text-ink">
+              ↩ Undo: let it decide again
+            </button>
+          )}
+
           {/* Live preview of what will be saved */}
-          {!editing && title && !money && !lift && (
+          {!editing && title && !money && !lift && !other && (
             <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-3 py-2 text-sm">
               {cls && <ColorDot color={cls.color} />}
               <span className="min-w-0 flex-1">

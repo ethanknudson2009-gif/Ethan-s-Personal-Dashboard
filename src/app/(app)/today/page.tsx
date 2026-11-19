@@ -40,11 +40,15 @@ export default async function TodayPage() {
     supabase.from("habit_checkins").select("id", { count: "exact", head: true }),
     supabase.from("tasks").select("minutes_done").gt("minutes_done", 0).is("deleted_at", null),
   ]);
-  const [{ data: money }, { data: workouts }, { data: journal }] = await Promise.all([
+  const [{ data: money }, { data: workouts }, { data: journal }, { data: food }, { data: profile }] = await Promise.all([
     supabase.from("money_transactions").select("occurred_on, amount_cents, category").gte("occurred_on", `${today.slice(0, 7)}-01`).is("deleted_at", null),
     supabase.from("workouts").select("started_at").not("ended_at", "is", null).is("deleted_at", null).order("started_at", { ascending: false }).limit(10),
     supabase.from("journal_entries").select("mood, body").eq("on_date", today).maybeSingle(),
+    supabase.from("food_entries").select("calories").eq("on_date", today),
+    supabase.from("profiles").select("calorie_goal").maybeSingle(),
   ]);
+  const caloriesToday = (food ?? []).reduce((n, f) => n + (f.calories ?? 0), 0);
+  const calorieGoal = profile?.calorie_goal ?? null;
   const monthMoney = monthTotals(
     (money ?? []).map((m) => ({ occurredOn: m.occurred_on, amountCents: m.amount_cents, category: m.category })),
     monthKey(today),
@@ -179,6 +183,20 @@ export default async function TodayPage() {
           label="📓 Journal"
           big={mood ? `${mood.emoji} ${mood.label}` : "Not yet"}
           small={journal?.body ? journal.body.slice(0, 60) : "How was today?"}
+        />
+        <GlanceTile
+          href="/life"
+          color="#ffb547"
+          label="🍽️ Food"
+          big={`${caloriesToday.toLocaleString()} cal`}
+          small={calorieGoal ? `${Math.max(0, calorieGoal - caloriesToday).toLocaleString()} left of ${calorieGoal.toLocaleString()}` : (food ?? []).length ? `${(food ?? []).length} logged today` : "Say “ate … 500 calories”"}
+        />
+        <GlanceTile
+          href="/life"
+          color="#2ee6c9"
+          label="✅ Habits"
+          big={habits && habits.length ? `${doneHabitIds.size}/${habits.length}` : "None yet"}
+          small={habits && habits.length ? (doneHabitIds.size >= habits.length ? "All done today 🔥" : "checked in today") : "Add one in Life"}
         />
       </section>
 

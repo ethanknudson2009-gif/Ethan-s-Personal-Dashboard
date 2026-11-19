@@ -230,3 +230,18 @@ export async function logQuickSetsAction(input: z.input<typeof quickSets>): Prom
   refresh();
   return { ok: true, exercise: exercise.name, created };
 }
+
+/** Voice/quick add: "ran 2 miles in 18 minutes" → a finished workout named "Run · 2 mi · 18 min". */
+export async function logCardioAction(input: { name: string; miles: number | null; minutes: number | null }): Promise<Result<{ label: string }>> {
+  const name = input.name.trim().slice(0, 40) || "Workout";
+  const miles = input.miles !== null && input.miles > 0 && input.miles < 500 ? input.miles : null;
+  const minutes = input.minutes !== null && input.minutes > 0 && input.minutes < 1440 ? Math.round(input.minutes) : null;
+  const label = [name, miles !== null ? `${miles} mi` : null, minutes !== null ? `${minutes} min` : null].filter(Boolean).join(" · ");
+  const supabase = await createClient();
+  const end = new Date();
+  const start = new Date(end.getTime() - (minutes ?? 0) * 60000);
+  const { error } = await supabase.from("workouts").insert({ started_at: start.toISOString(), ended_at: end.toISOString(), name: label });
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true, label };
+}

@@ -55,11 +55,11 @@ describe("decide: Claude's JSON", () => {
     expect(h.problems.join(" ")).toMatch(/Which class/);
   });
 
-  it("types without a module yet wait in the Inbox", () => {
-    const d = decide(input({ raw_text: "ate 2 eggs", type: "food", confidence: 0.99 }), { ...ctx, autoSaveTypes: ["food"] });
-    expect(d.draft).toMatchObject({ type: "food" });
+  it("food, workouts, habits and notes wait in the Inbox for one tap", () => {
+    const d = decide(input({ raw_text: "ate 2 eggs 140 calories", type: "food", confidence: 0.99 }), { ...ctx, autoSaveTypes: ["food"] });
+    expect(d.draft).toMatchObject({ type: "food", title: "ate 2 eggs 140 calories" });
     expect(d.autoSave).toBe(false);
-    expect(d.problems.join(" ")).toMatch(/isn't built yet/);
+    expect(d.problems.join(" ")).not.toMatch(/built yet/);
   });
 
   it("expenses can be saved now (to Money)", () => {

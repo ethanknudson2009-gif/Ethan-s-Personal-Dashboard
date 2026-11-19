@@ -476,7 +476,7 @@ export function buildMcpServer(userId: string) {
           draft: { type: "note", title: `${class_name} syllabus notes`, classId: null, className: class_name, dueDate: null, dueTime: null, amount: null, category: null, notes },
           type: "note",
           confidence: 1,
-          problems: ["Notes aren't built yet, so this waits here"],
+          problems: ["Syllabus notes to read (approving adds them to today's journal)"],
           source: "syllabus",
           batch_id: batchId,
         });
@@ -557,17 +557,17 @@ export function buildMcpServer(userId: string) {
     },
   );
 
-  // ── Not built yet: these wait in the Inbox ──────────────────────────────
+  // ── Food, workouts and journal notes: kept in the Inbox, one tap logs them ──
   for (const [name, type, label] of [
-    ["log_food", "food", "Log food (calories tracking comes in Phase 3)"],
-    ["log_workout", "workout", "Log a workout (gym tracking comes in Phase 3)"],
-    ["add_note", "note", "Save a note or journal entry (notes come in Phase 4)"],
+    ["log_food", "food", "Log food Ethan ate (include calories and protein if known)"],
+    ["log_workout", "workout", "Log a workout, e.g. 'bench 3x10 at 135' or 'ran 2 miles in 18 minutes'"],
+    ["add_note", "note", "Add a line to today's journal (mood words like 'great' or 'rough' set the mood)"],
   ] as const) {
     server.registerTool(
       name,
       {
         title: label,
-        description: `${label}. That part of the dashboard isn't built yet, so this is kept safely in the Inbox until it is.`,
+        description: `${label}. It waits in Ethan's Inbox, where one tap logs it in the right place.`,
         inputSchema: {
           text: z.string().min(1).max(2000).describe("What to log, in plain words, e.g. '2 eggs and toast, ~350 calories'"),
           amount: z.number().optional().describe("Dollars (expenses) if known"),
@@ -580,10 +580,10 @@ export function buildMcpServer(userId: string) {
           draft: { type, title: what, classId: null, className: null, dueDate: null, dueTime: null, amount: amount ?? null, category: null, notes: null },
           type,
           confidence: 0.9,
-          problems: [`${type} tracking isn't built yet, so this waits here`],
+          problems: [],
           source: "mcp",
         });
-        return text(`Kept in Ethan's Inbox (the ${type} section isn't built yet): "${what}"`);
+        return text(`Added to Ethan's Inbox. One tap logs it: "${what}"`);
       },
     );
   }
