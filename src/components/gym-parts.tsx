@@ -9,6 +9,8 @@ import {
   deleteSetAction,
   discardWorkoutAction,
   finishWorkoutAction,
+  setNextDayAction,
+  skipDayAction,
   startWorkoutAction,
   updateSetAction,
 } from "@/app/(app)/gym/actions";
@@ -327,5 +329,169 @@ export function ActiveWorkout({ workoutId, startedAt, blocks, exercises }: { wor
 
       {restUntil && <RestTimer until={restUntil} onDone={() => setRestUntil(null)} onAdd={(s) => setRestUntil((u) => (u ?? Date.now()) + s * 1000)} />}
     </div>
+  );
+}
+
+/**
+ * Your split: which day is up, the whole rotation (tap a day to do that one
+ * instead), Skip, and a mic button to say the whole workout at once.
+ */
+export function SplitCard({ split, next, lastDone }: { split: string[]; next: number; lastDone: Record<string, string> }) {
+  const sheet = useTaskSheet();
+  const [pending, startTransition] = useTransition();
+  const day = split[next];
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium tracking-[0.16em] uppercase" style={{ color: FIRE }}>
+            Up next
+          </p>
+          <p className="font-display text-3xl leading-tight font-semibold">{day}</p>
+          <p className="text-xs text-muted">{lastDone[day] ? `Last time: ${lastDone[day]}` : "Not trained yet"}</p>
+        </div>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const r = await skipDayAction();
+              sheet.toast(r.ok ? `⏭️ Skipped ${r.skipped}. Next up: ${r.next}` : r.error);
+            })
+          }
+          className="shrink-0 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-muted transition hover:text-ink active:scale-95"
+        >
+          Skip ⏭️
+        </button>
+      </div>
+
+      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+        {split.map((d, i) => (
+          <button
+            key={d}
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              i !== next &&
+              startTransition(async () => {
+                const r = await setNextDayAction(i);
+                if (!r.ok) sheet.toast(r.error);
+              })
+            }
+            className={cx(
+              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition",
+              i === next ? "text-white" : "border-line text-muted hover:text-ink",
+            )}
+            style={i === next ? { backgroundColor: FIRE, borderColor: FIRE } : undefined}
+          >
+            {i === next ? "● " : ""}
+            {d}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => sheet.openVoice()}
+          className="rounded-2xl border px-3 py-3 text-sm font-semibold transition active:scale-[0.98]"
+          style={{ borderColor: `${FIRE}88`, color: FIRE }}
+        >
+          🎤 Say your workout
+        </button>
+        <StartWorkout label="Log live" />
+      </div>
+      <p className="text-[11px] leading-snug text-faint">
+        Say it all at once, any order: “{day.toLowerCase()} day, bench 3x10 at 135, incline 3 sets of 8 at 50, flys 3x12 at 30”. Or “skip {day.toLowerCase()} day”.
+      </p>
+    </div>
+  );
+}
+
+/** One past workout as a clean note; tap to open, copy or delete it. */
+export function WorkoutNoteCard({
+  id,
+  date,
+  day,
+  skipped,
+  lines,
+  meta,
+  note,
+}: {
+  id: string;
+  date: string;
+  day: string | null;
+  skipped: boolean;
+  lines: { name: string; sets: string }[];
+  meta: string;
+  note: string;
+}) {
+  const sheet = useTaskSheet();
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+  if (skipped) {
+    return (
+      <li className="flex items-center justify-between rounded-2xl border border-dashed border-line px-4 py-2.5 text-sm text-faint">
+        <span>
+          {date} · ⏭️ Skipped {day ?? "day"}
+        </span>
+      </li>
+    );
+  }
+  return (
+    <li className="overflow-hidden rounded-2xl border border-line bg-surface/80">
+      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full px-4 py-3 text-left">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="min-w-0 truncate font-semibold">
+            {day ? (
+              <span className="mr-2 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white" style={{ backgroundColor: FIRE }}>
+                {day}
+              </span>
+            ) : null}
+            {date}
+          </p>
+          <p className="shrink-0 text-xs text-faint tabular-nums">{meta}</p>
+        </div>
+        <ul className={cx("mt-1.5 flex flex-col gap-0.5 text-sm", !open && "max-h-[4.5rem] overflow-hidden")}>
+          {lines.map((l) => (
+            <li key={l.name} className="flex items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate text-muted">{l.name}</span>
+              <span className="shrink-0 font-display text-xs font-semibold tabular-nums">{l.sets}</span>
+            </li>
+          ))}
+        </ul>
+        {!open && lines.length > 3 && <p className="mt-1 text-[11px] text-faint">+{lines.length - 3} more · tap to open</p>}
+      </button>
+      {open && (
+        <div className="fade-in flex gap-2 border-t border-line px-4 py-2.5">
+          <button
+            type="button"
+            onClick={() =>
+              navigator.clipboard
+                ?.writeText(note)
+                .then(() => sheet.toast("Note copied ✓"))
+                .catch(() => sheet.toast("Couldn't copy"))
+            }
+            className="rounded-lg bg-raised px-3 py-1.5 text-xs font-semibold"
+          >
+            Copy note
+          </button>
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              window.confirm("Delete this workout?") &&
+              startTransition(async () => {
+                const r = await discardWorkoutAction(id);
+                sheet.toast(r.ok ? "Workout deleted" : r.error);
+              })
+            }
+            className="ml-auto rounded-lg px-3 py-1.5 text-xs text-faint hover:text-danger"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </li>
   );
 }

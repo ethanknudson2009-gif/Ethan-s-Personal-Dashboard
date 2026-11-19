@@ -14,7 +14,8 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { deleteTaskAction, saveTaskAction } from "@/app/(app)/tasks/actions";
 import { addMoneyAction } from "@/app/(app)/money/actions";
-import { logCardioAction, logQuickSetsAction } from "@/app/(app)/gym/actions";
+import { logCardioAction, logSpokenWorkoutAction } from "@/app/(app)/gym/actions";
+import { DEFAULT_SPLIT, readWorkout, setsSummary, type GymExercise } from "@/lib/gym-speech";
 import { addToJournalAction, checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
 import { dollars } from "@/lib/money/summary";
 import { parse } from "@/lib/parser";
@@ -123,12 +124,17 @@ export function useTaskSheet(): SheetApi {
 export function TaskSheetProvider({
   classes,
   habits = [],
+  exercises = [],
+  split = DEFAULT_SPLIT,
   timeZone,
   children,
 }: {
   classes: SheetClass[];
   /** Your habit names, so "did my reading" checks in "Reading". */
   habits?: string[];
+  /** Your exercise list and gym split, so a spoken workout previews exactly as it will save. */
+  exercises?: GymExercise[];
+  split?: string[];
   timeZone: string;
   children: ReactNode;
 }) {
@@ -156,6 +162,8 @@ export function TaskSheetProvider({
           state={state}
           classes={classes}
           habits={habits}
+          exercises={exercises}
+          split={split}
           timeZone={timeZone}
           onClose={() => setState({ mode: "closed" })}
           onDone={(msg) => {
@@ -197,6 +205,8 @@ function Sheet({
   state,
   classes,
   habits,
+  exercises,
+  split,
   timeZone,
   onClose,
   onDone,
@@ -204,6 +214,8 @@ function Sheet({
   state: Exclude<SheetState, { mode: "closed" }>;
   classes: SheetClass[];
   habits: string[];
+  exercises: GymExercise[];
+  split: string[];
   timeZone: string;
   onClose: () => void;
   onDone: (message: string) => void;
@@ -301,8 +313,15 @@ function Sheet({
           label: routed.title || (routed.incoming ? "Paycheck" : "Expense"),
         }
       : null;
-  // Sets said out loud: "bench 3x10 at 135" → Gym, not a task.
-  const lift = routed && routed.type === "workout" && routed.sets && routed.title ? { said: routed.title, ...routed.sets } : null;
+  // A whole workout said out loud ("chest day, bench 3x10 at 135, incline 3x8 at 50"),
+  // the muscles you hit ("hit legs today"), or "skip chest day" → Gym, not a task.
+  const gymTalk =
+    /\b(chest|back|legs?|shoulders?|biceps|triceps|arms?|push|pull)\s+day\b|\bhit\s+(chest|back|legs|shoulders|arms|biceps|triceps)\b|\b(skip|skipping|skipped)\b.*\b(gym|day|lift|workout|chest|back|legs|shoulders)\b|\b(rest|off)\s+day\b/.test(
+      text.toLowerCase(),
+    );
+  const cardioOnly = routed?.type === "workout" && !routed.sets && (routed.distanceMiles !== null || routed.minutes !== null);
+  const spokenWorkout = routed && !money && !cardioOnly && (routed.type === "workout" || gymTalk) ? readWorkout(text, exercises, split) : null;
+  const lift = spokenWorkout && (spokenWorkout.entries.length > 0 || spokenWorkout.day || spokenWorkout.skip) ? spokenWorkout : null;
   // Anything else heard, and where it goes instead of becoming a task.
   const other: { emoji: string; label: string; detail: string; to: string; color: string; save: () => Promise<{ ok: boolean; error?: string; msg: string }> } | null =
     !routed || money || lift
@@ -398,9 +417,11 @@ function Sheet({
     }
     if (lift) {
       startTransition(async () => {
-        const result = await logQuickSetsAction({ said: lift.said, sets: lift.sets, reps: lift.reps, weightLb: lift.weightLb });
+        const result = await logSpokenWorkoutAction(text);
         if (!result.ok) return setError(result.error);
-        onDone(`🏋️ ${result.exercise} ${lift.sets}×${lift.reps}${lift.weightLb ? ` @ ${lift.weightLb} lb` : ""} → Gym ✓`);
+        if (result.skipped) return onDone(`⏭️ ${result.note}`);
+        const n = lift.entries.length;
+        onDone(`🏋️ ${result.day ? `${result.day} day` : "Workout"}${n ? ` · ${n} exercise${n === 1 ? "" : "s"}` : ""} saved → Gym ✓`);
       });
       return;
     }
@@ -511,14 +532,28 @@ function Sheet({
 
           {/* Gym preview: these sets go to today's workout */}
           {lift && (
-            <div className="glow-gym flex items-center gap-3 rounded-xl border border-[#ff6b4a]/50 bg-[#ff6b4a]/10 px-3 py-2.5 text-sm">
-              <span className="text-lg">🏋️</span>
-              <span className="min-w-0 flex-1 truncate font-medium">{lift.said}</span>
-              <span className="shrink-0 font-display font-semibold">
-                {lift.sets}×{lift.reps}
-                {lift.weightLb ? ` @ ${lift.weightLb}` : ""}
-              </span>
-              <span className="shrink-0 text-[10px] font-bold tracking-wider text-[#ff6b4a] uppercase">→ Gym</span>
+            <div className="glow-gym flex flex-col gap-1.5 rounded-xl border border-[#ff6b4a]/50 bg-[#ff6b4a]/10 px-3 py-2.5 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{lift.skip && !lift.entries.length ? "⏭️" : "🏋️"}</span>
+                <span className="min-w-0 flex-1 font-semibold">
+                  {lift.skip && !lift.entries.length ? "Skip today's gym day" : lift.day ? `${lift.day} day` : "Workout"}
+                </span>
+                <span className="shrink-0 text-[10px] font-bold tracking-wider text-[#ff6b4a] uppercase">→ Gym</span>
+              </div>
+              {lift.entries.length > 0 && (
+                <ul className="flex flex-col gap-0.5 pl-7">
+                  {lift.entries.map((e) => (
+                    <li key={e.name} className="flex items-baseline justify-between gap-2">
+                      <span className="min-w-0 truncate">
+                        {e.name}
+                        {!e.exerciseId && <span className="ml-1 text-[10px] text-[#ff6b4a]">new</span>}
+                      </span>
+                      <span className="shrink-0 font-display text-xs font-semibold tabular-nums">{setsSummary(e.sets)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {lift.muscles.length > 0 && <p className="pl-7 text-[11px] text-muted">Muscles: {lift.muscles.join(", ")}</p>}
             </div>
           )}
 

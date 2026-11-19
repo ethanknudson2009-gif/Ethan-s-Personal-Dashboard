@@ -68,7 +68,10 @@
 
 ## Phase 3: Body
 - [x] Gym (inside Life, `/gym`): live workout with exercise picker (27 starter exercises + your own), sets pre-filled from last time, ✓ starts a 90 s rest timer with a chime, finish shows volume and new PRs (estimated 1-rep max), checks in a "Gym"/"Workout" habit, history and best lifts.
-- [ ] Gym later: plans and A/B/C rotations, backup exercises, progress charts, recovery map (free-exercise-db data)
+- [x] Gym split (Nov 19, migration 0016): Chest → Back & Biceps → Legs → Shoulders & Triceps. "Up next" card, tap a day to switch, **Skip** (kept in history as skipped). Finishing a day moves the rotation to the day after it.
+- [x] Say a whole workout in one breath, any order (`src/lib/gym-speech.ts`, 70+ phrasing tests): "chest day, bench 3x10 at 135, incline 3 sets of 8 at 50, flys 3x12 at 30 and pushups 2x20" → a clean note per exercise. Understands gym numbers ("one thirty five"), per-set weights ("135 for 10, 155 for 8"), rep lists ("8 7 6"), kilos, nicknames (RDL, OHP, DB), new exercises, the muscles hit and "skip chest day". The + sheet previews the exact note before saving.
+- [x] Gym history as standard notes: split-day badge, one line per exercise, tap to open, copy or delete
+- [ ] Gym later: progress charts, backup exercises, recovery map (free-exercise-db data)
 - [x] Food log (Nov 19, migration 0014): say what you ate with calories/protein; a Food card in Life with a daily goal bar, 7-day average, delete + undo; a Food tile on Today
 - [ ] Calories later: barcode lookup (Open Food Facts), photo logging through Claude, Meal What-If, adaptive goals
 

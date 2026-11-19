@@ -18,12 +18,14 @@ async function AuthedShell({ children }: { children: React.ReactNode }) {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [settings, classRes, dueRes, inboxRes, habitRes] = await Promise.all([
+  const [settings, classRes, dueRes, inboxRes, habitRes, exerciseRes, profileRes] = await Promise.all([
     loadSettings(supabase),
     supabase.from("classes").select("id, name, color, short_names").is("deleted_at", null).eq("archived", false),
     supabase.from("tasks").select("due_at").eq("status", "open").is("deleted_at", null).not("due_at", "is", null),
     supabase.from("inbox_items").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
     supabase.from("habits").select("name").is("deleted_at", null).eq("archived", false),
+    supabase.from("exercises").select("id, name, muscle, bodyweight"),
+    supabase.from("profiles").select("gym_split").maybeSingle(),
   ]);
 
   const now = new Date();
@@ -31,7 +33,11 @@ async function AuthedShell({ children }: { children: React.ReactNode }) {
   const classes = (classRes.data ?? []).map((c) => ({ id: c.id, name: c.name, color: c.color, shortNames: c.short_names }));
 
   return (
-    <TaskSheetProvider classes={classes} habits={(habitRes.data ?? []).map((h) => h.name)} timeZone={settings.timeZone}>
+    <TaskSheetProvider classes={classes} habits={(habitRes.data ?? []).map((h) => h.name)}
+      exercises={exerciseRes.data ?? []}
+      split={profileRes.data?.gym_split?.length ? profileRes.data.gym_split : undefined}
+      timeZone={settings.timeZone}
+    >
       <AppShell badges={{ "/tasks": needsAttention, "/inbox": inboxRes.count ?? 0 }}>{children}</AppShell>
     </TaskSheetProvider>
   );
