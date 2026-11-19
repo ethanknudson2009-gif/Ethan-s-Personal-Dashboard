@@ -52,6 +52,7 @@
 - [x] Bottom bar: icon-only tabs, the active one lifts and shows its name (no more squished labels)
 - [x] Swipe left/right with your thumb to move between sections
 - [x] Today: Work / Money / Gym / Journal tiles, the whole week in Coming up, plus Later
+- [x] Quick add / voice logs lifts: "bench 3x10 at 135" → 3 sets of Bench press in today's workout (nicknames like RDL, OHP, pull ups understood)
 - [ ] **Idea (later, not now):** connect Ethan's work Outlook (PRMI) so Claude can read and prioritize emails into Work tasks. Needs a check first: work accounts usually need the company's IT to approve any app that reads mail, so ask PRMI IT before building. Free options to look at: Microsoft Graph with a free app registration, or forwarding chosen emails into the Inbox.
 
 ## Phase 3: Body

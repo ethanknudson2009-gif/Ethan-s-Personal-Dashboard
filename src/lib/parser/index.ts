@@ -119,7 +119,7 @@ const FILLER = new Set([
 const LEAD_VERBS: Partial<Record<CaptureType, RegExp>> = {
   food: /^(ate|eat|eating|drank|drink|had)\b/,
   expense: /^(spent|spend|paid|pay|bought|buy)\b/,
-  workout: /^(did|went|worked out)\b/,
+  workout: /^(i did|i went|i worked out|did|went|worked out)\b/,
   habit: /^(did my|did)\b/,
 };
 
@@ -293,6 +293,14 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
       weightLb: setsMatch[3] ?? setsMatch[6] ? Number(setsMatch[3] ?? setsMatch[6]) : null,
     };
     spans.claim(setsMatch.index, setsMatch.index + setsMatch[0].length);
+    // Weight said somewhere else: "3 sets of 8 squats at 185 pounds", "@135".
+    if (sets.weightLb === null) {
+      const w = spans.free(/(?:@|\bat)\s*(\d+(?:\.\d+)?)\s*(?:lbs?|pounds)?\b(?!\s*(?:am|pm|:))|\b(\d+(?:\.\d+)?)\s*(?:lbs?|pounds)\b/g, low)[0];
+      if (w && (w[0].startsWith("@") || /lb|pound/.test(w[0]) || type0 === "workout")) {
+        sets.weightLb = Number(w[1] ?? w[2]);
+        spans.claim(w.index, w.index + w[0].length);
+      }
+    }
   }
 
   // ── Distance: "2.5 miles", "5k" ─────────────────────────────────────────

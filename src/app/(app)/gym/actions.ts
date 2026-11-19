@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
 import { toLocalDate } from "@/lib/time";
-import { lastTime, newRecords, volume, type GymSet } from "@/lib/gym";
+import { lastTime, matchExercise, newRecords, volume, type GymSet } from "@/lib/gym";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -159,4 +159,74 @@ export async function createExerciseAction(name: string, muscle: string): Promis
   if (error || !data) return { ok: false, error: error?.message ?? "Couldn't add" };
   refresh();
   return { ok: true, id: data.id };
+}
+
+const quickSets = z.object({
+  said: z.string().trim().min(1).max(60),
+  sets: z.number().int().min(1).max(20),
+  reps: z.number().int().min(1).max(1000),
+  weightLb: z.number().min(0).max(2000).nullable(),
+});
+
+/**
+ * Quick add / voice: "bench 3x10 at 135" → 3 finished sets of Bench press.
+ * They join the workout you have going, or today's, or a new one for today.
+ * An exercise we don't know yet is added to your list under that name.
+ */
+export async function logQuickSetsAction(input: z.input<typeof quickSets>): Promise<Result<{ exercise: string; created: boolean }>> {
+  const p = quickSets.safeParse(input);
+  if (!p.success) return { ok: false, error: "Say it like “bench 3x10 at 135”" };
+  const { said, sets, reps, weightLb } = p.data;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+  const { timeZone } = await loadSettings(supabase);
+  const today = toLocalDate(new Date(), timeZone);
+
+  // Which exercise?
+  const { data: exercises } = await supabase.from("exercises").select("id, name");
+  let exercise = matchExercise(said, exercises ?? []);
+  let created = false;
+  if (!exercise) {
+    const name = said.charAt(0).toUpperCase() + said.slice(1);
+    const { data, error } = await supabase.from("exercises").insert({ user_id: user.id, name, muscle: "other" }).select("id, name").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Couldn't add the exercise" };
+    exercise = data;
+    created = true;
+  }
+
+  // Which workout? The open one, else one from today, else a new one.
+  const { data: recent } = await supabase
+    .from("workouts")
+    .select("id, started_at, ended_at")
+    .is("deleted_at", null)
+    .order("started_at", { ascending: false })
+    .limit(5);
+  const open = (recent ?? []).find((w) => w.ended_at === null);
+  const todays = (recent ?? []).find((w) => w.ended_at !== null && toLocalDate(new Date(w.started_at), timeZone) === today);
+  let workoutId = open?.id ?? todays?.id;
+  const now = new Date().toISOString();
+  if (!workoutId) {
+    const { data, error } = await supabase.from("workouts").insert({ started_at: now, ended_at: now }).select("id").single();
+    if (error || !data) return { ok: false, error: error?.message ?? "Couldn't start a workout" };
+    workoutId = data.id;
+  } else if (!open) {
+    await supabase.from("workouts").update({ ended_at: now }).eq("id", workoutId);
+  }
+
+  const { count } = await supabase.from("workout_sets").select("id", { count: "exact", head: true }).eq("workout_id", workoutId);
+  const rows = Array.from({ length: sets }, (_, i) => ({
+    workout_id: workoutId,
+    exercise_id: exercise.id,
+    position: (count ?? 0) + i,
+    weight_lb: weightLb,
+    reps,
+    done: true,
+  }));
+  const { error } = await supabase.from("workout_sets").insert(rows);
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true, exercise: exercise.name, created };
 }

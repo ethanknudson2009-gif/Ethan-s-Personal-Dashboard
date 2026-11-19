@@ -55,3 +55,76 @@ export function lastTime(exerciseId: string, historyByWorkout: GymSet[][]): GymS
 export function setLabel(s: { weightLb: number | null; reps: number | null }): string {
   return `${s.weightLb ? s.weightLb : "BW"} × ${s.reps ?? "?"}`;
 }
+
+/** Everyday names for the built-in exercises ("bench" → "Bench press"). */
+const ALIASES: Record<string, string> = {
+  bench: "bench press",
+  "bench pres": "bench press",
+  "incline bench": "incline dumbbell press",
+  "incline pres": "incline dumbbell press",
+  pushup: "push-up",
+  "push up": "push-up",
+  fly: "chest fly",
+  flie: "chest fly",
+  rdl: "romanian deadlift",
+  lunge: "lunge",
+  "hamstring curl": "leg curl",
+  calve: "calf raise",
+  calf: "calf raise",
+  dead: "deadlift",
+  "dead lift": "deadlift",
+  pullup: "pull-up",
+  "pull up": "pull-up",
+  chinup: "pull-up",
+  "chin up": "pull-up",
+  pulldown: "lat pulldown",
+  "lat pull": "lat pulldown",
+  row: "barbell row",
+  "cable row": "seated cable row",
+  ohp: "overhead press",
+  "shoulder pres": "overhead press",
+  "military pres": "overhead press",
+  "side raise": "lateral raise",
+  "lat raise": "lateral raise",
+  curl: "bicep curl",
+  "bicep curl": "bicep curl",
+  "hammer curl": "hammer curl",
+  pushdown: "tricep pushdown",
+  "tricep extension": "tricep pushdown",
+  "skull crusher": "skull crusher",
+  dip: "dip",
+  plank: "plank (second)",
+  crunch: "crunch",
+  situp: "crunch",
+  "sit up": "crunch",
+  "leg raise": "hanging leg raise",
+};
+
+/** Lowercase, words only, simple singular ("squats" → "squat", "presses" → "pres"). */
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => (w.length >= 3 && w.endsWith("s") ? w.slice(0, -1) : w))
+    .join(" ");
+}
+
+/**
+ * Which exercise a spoken name means: exact name, then a nickname, then the
+ * closest name that contains every word you said. Null if unsure.
+ */
+export function matchExercise<T extends { id: string; name: string }>(said: string, exercises: T[]): T | null {
+  const q = norm(said);
+  if (!q) return null;
+  const byNorm = new Map(exercises.map((e) => [norm(e.name), e]));
+  const exact = byNorm.get(q) ?? byNorm.get(norm(ALIASES[q] ?? ""));
+  if (exact) return exact;
+  const words = q.split(" ");
+  const candidates = exercises
+    .map((e) => ({ e, n: norm(e.name).split(" ") }))
+    .filter(({ n }) => words.every((w) => n.includes(w)))
+    .sort((a, b) => a.n.length - b.n.length);
+  return candidates[0]?.e ?? null;
+}

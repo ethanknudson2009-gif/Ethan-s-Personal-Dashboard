@@ -14,6 +14,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { deleteTaskAction, saveTaskAction } from "@/app/(app)/tasks/actions";
 import { addMoneyAction } from "@/app/(app)/money/actions";
+import { logQuickSetsAction } from "@/app/(app)/gym/actions";
 import { dollars } from "@/lib/money/summary";
 import { parse } from "@/lib/parser";
 import { addDays, toLocalDate, weekdayOf } from "@/lib/time";
@@ -272,6 +273,11 @@ function Sheet({
           label: parsed.title || (parsed.incoming ? "Paycheck" : "Expense"),
         }
       : null;
+  // Sets said out loud: "bench 3x10 at 135" → Gym, not a task.
+  const lift =
+    !editing && !money && parsed && parsed.type === "workout" && parsed.sets && parsed.title
+      ? { said: parsed.title, ...parsed.sets }
+      : null;
   // A class always means school; otherwise what you picked, or what the parser heard ("at work", "PRMI").
   const area: Area = cls ? "school" : (areaPick ?? parsed?.area ?? "personal");
 
@@ -299,6 +305,14 @@ function Sheet({
         const result = await addMoneyAction({ amountCents: money.cents, description: money.label });
         if (!result.ok) return setError(result.error);
         onDone(`${money.cents < 0 ? "Spent" : "Got"} ${dollars(money.cents)} · ${money.label} ✓`);
+      });
+      return;
+    }
+    if (lift) {
+      startTransition(async () => {
+        const result = await logQuickSetsAction({ said: lift.said, sets: lift.sets, reps: lift.reps, weightLb: lift.weightLb });
+        if (!result.ok) return setError(result.error);
+        onDone(`🏋️ ${result.exercise} ${lift.sets}×${lift.reps}${lift.weightLb ? ` @ ${lift.weightLb} lb` : ""} → Gym ✓`);
       });
       return;
     }
@@ -407,8 +421,21 @@ function Sheet({
             </div>
           )}
 
+          {/* Gym preview: these sets go to today's workout */}
+          {lift && (
+            <div className="glow-gym flex items-center gap-3 rounded-xl border border-[#ff6b4a]/50 bg-[#ff6b4a]/10 px-3 py-2.5 text-sm">
+              <span className="text-lg">🏋️</span>
+              <span className="min-w-0 flex-1 truncate font-medium">{lift.said}</span>
+              <span className="shrink-0 font-display font-semibold">
+                {lift.sets}×{lift.reps}
+                {lift.weightLb ? ` @ ${lift.weightLb}` : ""}
+              </span>
+              <span className="shrink-0 text-[10px] font-bold tracking-wider text-[#ff6b4a] uppercase">→ Gym</span>
+            </div>
+          )}
+
           {/* Live preview of what will be saved */}
-          {!editing && title && !money && (
+          {!editing && title && !money && !lift && (
             <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-3 py-2 text-sm">
               {cls && <ColorDot color={cls.color} />}
               <span className="min-w-0 flex-1">

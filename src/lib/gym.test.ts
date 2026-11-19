@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestByExercise, lastTime, newRecords, oneRepMax, setLabel, volume } from "./gym";
+import { bestByExercise, lastTime, matchExercise, newRecords, oneRepMax, setLabel, volume } from "./gym";
 
 describe("gym math", () => {
   it("estimated one-rep max", () => {
@@ -44,5 +44,33 @@ describe("gym math", () => {
     expect(lastTime("deadlift", workouts)).toEqual([]);
     expect(setLabel({ weightLb: 135, reps: 10 })).toBe("135 × 10");
     expect(setLabel({ weightLb: null, reps: 20 })).toBe("BW × 20");
+  });
+});
+
+describe("matching what you said to an exercise", () => {
+  const list = [
+    "Bench press", "Incline dumbbell press", "Push-ups", "Squat", "Leg press", "Romanian deadlift", "Deadlift",
+    "Pull-ups", "Lat pulldown", "Barbell row", "Overhead press", "Bicep curl", "Hammer curl", "Plank (seconds)",
+  ].map((name, i) => ({ id: String(i), name }));
+  const m = (s: string) => matchExercise(s, list)?.name ?? null;
+
+  it("exact names, plurals and nicknames", () => {
+    expect(m("Squats")).toBe("Squat");
+    expect(m("bench")).toBe("Bench press");
+    expect(m("Pull ups")).toBe("Pull-ups");
+    expect(m("pullups")).toBe("Pull-ups");
+    expect(m("curls")).toBe("Bicep curl");
+    expect(m("hammer curls")).toBe("Hammer curl");
+    expect(m("RDL")).toBe("Romanian deadlift");
+    expect(m("deadlifts")).toBe("Deadlift");
+    expect(m("lat pulldown")).toBe("Lat pulldown");
+    expect(m("OHP")).toBe("Overhead press");
+    expect(m("plank")).toBe("Plank (seconds)");
+  });
+
+  it("partial names, and nothing when unsure", () => {
+    expect(m("incline")).toBe("Incline dumbbell press");
+    expect(m("rows")).toBe("Barbell row");
+    expect(m("zumba")).toBeNull();
   });
 });
