@@ -86,7 +86,9 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
   const tabIndex = TABS.findIndex(
     (t) => isActive(t.href) || (t.href === "/tasks" && (isActive("/classes") || isActive("/grades"))),
   );
-  const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  // A page change needs a deliberate swipe: your thumb has to start moving sideways
+  // (not up/down while scrolling), go about a third of the screen, and not dawdle.
+  const swipeStart = useRef<{ x: number; y: number; t: number; axis: "x" | "y" | null } | null>(null);
   const [slide, setSlide] = useState<{ dir: "left" | "right"; path: string } | null>(null);
   const swipeHandlers = {
     onTouchStart: (e: React.TouchEvent) => {
@@ -97,7 +99,17 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
         swipeStart.current = null;
         return;
       }
-      swipeStart.current = { x: touch.clientX, y: touch.clientY, t: Date.now() };
+      swipeStart.current = { x: touch.clientX, y: touch.clientY, t: Date.now(), axis: null };
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      const start = swipeStart.current;
+      if (!start || start.axis) return;
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - start.x);
+      const dy = Math.abs(touch.clientY - start.y);
+      // The first clear direction wins: a scroll that drifts sideways never turns the page.
+      if (dy > 10 && dy >= dx) start.axis = "y";
+      else if (dx > 16 && dx > dy * 1.5) start.axis = "x";
     },
     onTouchEnd: (e: React.TouchEvent) => {
       const start = swipeStart.current;
@@ -106,7 +118,8 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
       const touch = e.changedTouches[0];
       const dx = touch.clientX - start.x;
       const dy = touch.clientY - start.y;
-      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 2 || Date.now() - start.t > 700) return;
+      const far = Math.max(120, window.innerWidth * 0.33);
+      if (start.axis !== "x" || Math.abs(dx) < far || Math.abs(dx) < Math.abs(dy) * 3 || Date.now() - start.t > 600) return;
       const next = tabIndex + (dx < 0 ? 1 : -1);
       if (next < 0 || next >= TABS.length) return;
       navigator.vibrate?.(8);
