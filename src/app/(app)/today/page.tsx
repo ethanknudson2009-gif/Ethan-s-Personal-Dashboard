@@ -71,6 +71,7 @@ export default async function TodayPage() {
   const doNow = [...overdue, ...(buckets.find((b) => b.key === "today")?.tasks ?? [])];
   const comingUp = [...(buckets.find((b) => b.key === "tomorrow")?.tasks ?? []), ...(buckets.find((b) => b.key === "week")?.tasks ?? [])];
   const later = buckets.find((b) => b.key === "later")?.tasks ?? [];
+  const someday = buckets.find((b) => b.key === "none")?.tasks ?? [];
   const doneToday = data.recentlyDone.filter((t) => t.completed_at && toLocalDate(new Date(t.completed_at), timeZone) === today).length;
 
   const toMinutes = (t: string) => {
@@ -238,6 +239,13 @@ export default async function TodayPage() {
           big={habits && habits.length ? `${doneHabitIds.size}/${habits.length}` : "None yet"}
           small={habits && habits.length ? (doneHabitIds.size >= habits.length ? "All done today 🔥" : "checked in today") : "Add one in Life"}
         />
+        <GlanceTile
+          href="/stats"
+          color="#5b8cff"
+          label="📊 Stats"
+          big={`${tasksDone ?? 0} done`}
+          small="Charts, streaks & best lifts"
+        />
       </section>
 
       <RemindersNudge />
@@ -301,21 +309,45 @@ export default async function TodayPage() {
       )}
 
       {later.length > 0 && (
-        <Card
-          title="Later"
-          action={
-            <Link href="/tasks" className="text-xs text-muted hover:text-ink">
-              See all →
-            </Link>
-          }
-        >
+        <Card title={`Later · ${later.length}`}>
           <ul className="rows flex flex-col gap-2">
-            {later.slice(0, 8).map((t) => (
+            {later.map((t) => (
               <TaskItem key={t.id} task={data.view(t)} />
             ))}
           </ul>
         </Card>
       )}
+
+      {someday.length > 0 && (
+        <Card title={`No date · ${someday.length}`}>
+          <ul className="rows flex flex-col gap-2">
+            {someday.map((t) => (
+              <TaskItem key={t.id} task={data.view(t)} />
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {data.recentlyDone.length > 0 && (
+        <details className="group rounded-3xl border border-line bg-surface/60 p-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between text-xs font-semibold tracking-[0.16em] text-muted uppercase">
+            Done this week · {data.recentlyDone.length}
+            <span className="text-faint transition group-open:rotate-180">▾</span>
+          </summary>
+          <ul className="rows mt-3 flex flex-col gap-2">
+            {data.recentlyDone.map((t) => (
+              <TaskItem key={t.id} task={data.view(t)} />
+            ))}
+          </ul>
+        </details>
+      )}
+
+      <p className="text-center text-xs text-muted">
+        {data.open.length} open task{data.open.length === 1 ? "" : "s"} in all ·{" "}
+        <Link href="/stats" className="text-accent">
+          See your stats →
+        </Link>
+      </p>
 
       <p className="pb-2 text-center text-xs text-faint">Swipe left or right to move between sections.</p>
     </div>
