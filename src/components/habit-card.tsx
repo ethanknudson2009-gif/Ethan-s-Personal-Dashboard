@@ -4,6 +4,7 @@
  * One habit: a big glowing check for today, the streak flame, a strength
  * ring, and this week's dots (tap any past day to fix it).
  */
+import { playSound } from "@/lib/sound";
 import { useOptimistic, useState, useTransition } from "react";
 import { deleteHabitAction, toggleCheckinAction } from "@/app/(app)/life/actions";
 import { cx } from "@/components/ui";
@@ -32,6 +33,7 @@ export function HabitCard({ habit }: { habit: HabitCardData }) {
 
   function toggle(date: string) {
     const willCheck = !checked.has(date);
+    playSound(willCheck ? "done" : "undo");
     if (willCheck && date === habit.today) setBurst((b) => b + 1);
     startTransition(async () => {
       const next = new Set(checked);

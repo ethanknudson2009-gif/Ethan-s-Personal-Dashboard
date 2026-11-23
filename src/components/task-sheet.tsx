@@ -14,6 +14,7 @@
  * Kept deliberately simple (Ethan: "I don't want to be scared of my
  * dashboard"): no due time, estimate or priority fields.
  */
+import { playToastSound } from "@/lib/sound";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { deleteTaskAction, saveTaskAction, saveTasksAction, snoozeTaskAction, type SaveTaskInput } from "@/app/(app)/tasks/actions";
 import { snoozedText, type NagLevel } from "@/lib/tasks/view";
@@ -169,7 +170,10 @@ export function TaskSheetProvider({
       openNew: (prefill) => setState({ mode: "new", prefill, voice: (!prefill || !prefill.title) && autoMicOn() }),
       openVoice: (prefill) => setState({ mode: "new", prefill, voice: true }),
       openEdit: (task) => setState({ mode: "edit", task }),
-      toast: (text, action) => setToastMsg({ text, key: Date.now(), action }),
+      toast: (text, action) => {
+        playToastSound(text);
+        setToastMsg({ text, key: Date.now(), action });
+      },
       timeZone,
     }),
     [timeZone],

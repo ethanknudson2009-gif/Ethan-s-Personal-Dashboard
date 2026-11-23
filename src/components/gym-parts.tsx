@@ -8,6 +8,7 @@
  * when tapped, "+ Set" copies the last set, and nothing is wider than the
  * phone.
  */
+import { playSound } from "@/lib/sound";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -162,6 +163,7 @@ function SetRow({ set, index, onDone }: { set: SetRowData; index: number; onDone
         aria-label={done ? "Not done" : "Done"}
         onClick={() => {
           const next = !done;
+          playSound(next ? "done" : "undo");
           setDone(next);
           save({ done: next, weightLb: num(weight), reps: num(reps) === null ? null : Math.round(num(reps)!) });
           if (next) onDone();

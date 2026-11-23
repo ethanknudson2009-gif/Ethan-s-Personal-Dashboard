@@ -12,6 +12,7 @@
  * Highlights (docs/09): overdue = red glow + wash, due today = teal glow
  * that gently pulses, tomorrow = amber edge.
  */
+import { playSound } from "@/lib/sound";
 import { useRef, useState, useTransition } from "react";
 import { completeTaskAction, reopenTaskAction, saveTaskAction } from "@/app/(app)/tasks/actions";
 import type { TaskView } from "@/lib/tasks/view";
@@ -49,6 +50,7 @@ export function TaskItem({ task }: { task: TaskView }) {
 
   function check() {
     if (phase !== "idle") return;
+    playSound(task.done ? "undo" : "done");
     setPhase("checking");
     startTransition(async () => {
       // Let the animation play before the list refreshes underneath it.

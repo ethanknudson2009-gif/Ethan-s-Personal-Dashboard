@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
 import { daysUntil } from "@/lib/format";
 import { AppShell } from "@/components/shell";
+import { SoundLayer } from "@/components/sound-layer";
 import { TaskSheetProvider } from "@/components/task-sheet";
 import { themeById, themeCss } from "@/lib/themes";
 
@@ -41,6 +42,7 @@ async function AuthedShell({ children }: { children: React.ReactNode }) {
     >
       {/* Your color theme from the design gallery (no flash: it's in the page itself). */}
       {profileRes.data?.theme && profileRes.data.theme !== "neon-teal" && <style>{themeCss(themeById(profileRes.data.theme))}</style>}
+      <SoundLayer />
       <AppShell badges={{ "/tasks": needsAttention, "/inbox": inboxRes.count ?? 0 }}>{children}</AppShell>
     </TaskSheetProvider>
   );

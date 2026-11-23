@@ -3,7 +3,7 @@ import { formatLocalDate } from "@/lib/format";
 import { toLocalDate } from "@/lib/time";
 import { loadSettings } from "@/lib/profile";
 import { Button, Card, EmptyState, PageHeader } from "@/components/ui";
-import { AutoSaveSwitches, CreateToken, RevokeToken } from "@/components/settings-controls";
+import { AutoSaveSwitches, SoundSwitch, CreateToken, RevokeToken } from "@/components/settings-controls";
 import { NotificationsCard } from "@/components/notifications-card";
 import { signOut } from "@/app/login/actions";
 
@@ -61,6 +61,10 @@ export default async function SettingsPage() {
             <CreateToken scope="mcp" defaultName="Claude connector" />
           </div>
         </div>
+      </Card>
+
+      <Card title="Sounds">
+        <SoundSwitch />
       </Card>
 
       <Card title="Skip the Inbox">

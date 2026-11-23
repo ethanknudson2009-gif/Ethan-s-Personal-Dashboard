@@ -4,6 +4,7 @@
  * The app frame: a bottom bar with a glowing center "+" on phones, and a
  * sidebar on laptops (docs/09-design-direction.md). The "+" opens quick add.
  */
+import { playSound } from "@/lib/sound";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -123,6 +124,7 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
       const next = tabIndex + (dx < 0 ? 1 : -1);
       if (next < 0 || next >= TABS.length) return;
       navigator.vibrate?.(8);
+      playSound("swipe");
       setSlide({ dir: dx < 0 ? "left" : "right", path: TABS[next].href });
       router.push(TABS[next].href);
     },

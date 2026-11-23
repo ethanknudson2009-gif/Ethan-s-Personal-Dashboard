@@ -35,6 +35,23 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Everything you can press: no double-tap-to-zoom wait on iPhone (taps land
+   instantly) and a quick press-in. In the base layer, so a component's own
+   active:/transition classes still win. Sounds: src/components/sound-layer.tsx. */
+@layer base {
+  :where(button, a[href], [role="button"], [role="tab"], [role="switch"], label, summary) {
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  :where(button, [role="button"], [role="tab"], [role="switch"]) {
+    transition: scale 90ms ease-out, opacity 120ms;
+  }
+  :where(button, [role="button"], [role="tab"], [role="switch"]):where(:active:not(:disabled)) {
+    scale: 0.97;
+  }
+}
+
 body {
   background:
     radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb, var(--color-accent) 8%, transparent), transparent 60%),

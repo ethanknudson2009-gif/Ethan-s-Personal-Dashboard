@@ -11,6 +11,7 @@
  * pause or a minute; we quietly start again and stitch the pieces together
  * (see speech-join.ts). Long silence (about 8 seconds) ends it.
  */
+import { playSound, quietForMic } from "@/lib/sound";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { joinHeard } from "@/lib/speech-join";
 
@@ -66,7 +67,10 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
   const again = useRef<() => boolean>(() => false);
 
   const finish = useCallback(() => {
+    const wasListening = wanted.current;
     wanted.current = false;
+    quietForMic(false);
+    if (wasListening) playSound("micOff");
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
     try {
@@ -80,6 +84,7 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
   useEffect(
     () => () => {
       wanted.current = false;
+      quietForMic(false);
       if (timer.current) clearInterval(timer.current);
       rec.current?.abort();
     },
@@ -157,12 +162,14 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
     setError(null);
     // Tapping the mic again after stopping adds to what's already there.
     kept.current = "";
+    quietForMic(true);
     wanted.current = true;
     startedAt.current = Date.now();
     lastHeard.current = Date.now();
     setSeconds(0);
     if (!listenOnce()) {
       wanted.current = false;
+      quietForMic(false);
       setSupported(false);
       return false;
     }

@@ -1,7 +1,8 @@
 "use client";
 
 /** Interactive parts of Settings: create/revoke tokens, auto-save switches. */
-import { useState, useTransition } from "react";
+import { playSound, setSoundsOn, soundsOn } from "@/lib/sound";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { createTokenAction, revokeTokenAction, setAutoSaveAction } from "@/app/(app)/settings/actions";
 import { Button, cx, inputClass } from "@/components/ui";
 import { useTaskSheet } from "@/components/task-sheet";
@@ -123,4 +124,37 @@ export function AutoSaveSwitches({ enabled }: { enabled: string[] }) {
       ))}
     </ul>
   );
+}
+
+/** Tap sounds on or off (remembered on this device). */
+export function SoundSwitch() {
+  const on = useSyncExternalStore(subscribeSounds, soundsOn, () => true);
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      data-silent
+      onClick={() => {
+        setSoundsOn(!on);
+        soundListeners.forEach((l) => l());
+        if (!on) playSound("saved");
+      }}
+      className="flex w-full items-center gap-3 rounded-2xl border border-line bg-raised/70 px-3 py-3 text-left"
+    >
+      <span className="flex-1">
+        <span className="block font-medium">Tap sounds</span>
+        <span className="text-xs text-faint">Soft clicks, dings and chimes. Your phone&apos;s silent switch mutes them too.</span>
+      </span>
+      <span className={cx("relative h-6 w-11 rounded-full transition", on ? "bg-accent shadow-glow" : "bg-line")}>
+        <span className={cx("absolute top-0.5 h-5 w-5 rounded-full bg-ink transition-all", on ? "left-[22px]" : "left-0.5")} />
+      </span>
+    </button>
+  );
+}
+
+const soundListeners = new Set<() => void>();
+function subscribeSounds(l: () => void) {
+  soundListeners.add(l);
+  return () => soundListeners.delete(l);
 }

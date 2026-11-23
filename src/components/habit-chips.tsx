@@ -1,6 +1,7 @@
 "use client";
 
 /** Today's habits as tappable chips on the Today page: one tap to check in. */
+import { playSound } from "@/lib/sound";
 import Link from "next/link";
 import { useOptimistic, useTransition } from "react";
 import { toggleCheckinAction } from "@/app/(app)/life/actions";
@@ -33,6 +34,7 @@ export function HabitChips({ habits, today }: { habits: HabitChip[]; today: stri
               type="button"
               onClick={() =>
                 startTransition(async () => {
+                  playSound(on ? "undo" : "done");
                   const next = new Set(done);
                   if (on) next.delete(h.id);
                   else next.add(h.id);
