@@ -2,7 +2,8 @@
 
 /**
  * Interactive pieces of the Gym page: start a split day (pre-filled), the
- * live workout (tap ✓ per set), the exercise picker and the rest timer.
+ * live workout (tap ✓ per set) and the rest timer. The exercise picker is in
+ * gym-picker.tsx and past workouts are in gym-history.tsx.
  *
  * Built for one thumb at the gym: big fields that select themselves when
  * tapped, −5/+5 nudge buttons under the box you're in (no keyboard needed),
@@ -10,20 +11,10 @@
  * the last set, and nothing is wider than the phone.
  */
 import { playSound } from "@/lib/sound";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  useTransition,
-} from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  addExerciseAction,
   addSetAction,
-  createExerciseAction,
   deleteSetAction,
   discardWorkoutAction,
   finishWorkoutAction,
@@ -35,16 +26,7 @@ import {
 } from "@/app/(app)/gym/actions";
 import { cx } from "@/components/ui";
 import { useTaskSheet } from "@/components/task-sheet";
-import {
-  DETAIL_LABELS,
-  MUSCLE_LABELS,
-  MUSCLE_TREE,
-  detailOf,
-  groupOf,
-  searchScore,
-  type Detail,
-  type Muscle,
-} from "@/lib/exercise-library";
+import { ExercisePicker, partLabel } from "@/components/gym-picker";
 
 const FIRE = "#ff6b4a";
 
@@ -77,33 +59,6 @@ export type Block = {
 /** Set rows: number · weight · reps · ✓ · remove. minmax(0,…) lets the boxes shrink on a phone. */
 const ROW =
   "grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_3rem_1.75rem] items-center gap-2";
-
-const muscleLabel = (m: string) =>
-  MUSCLE_LABELS[m as Muscle] ?? m.charAt(0).toUpperCase() + m.slice(1);
-
-/** The exact muscle (Hamstrings, Side delts…), or null for your own "other" exercises. */
-const partOf = (e: { name: string; muscle: string }): Detail | null =>
-  e.muscle in MUSCLE_LABELS
-    ? detailOf(e.name, e.muscle)
-    : e.muscle === "arms"
-      ? "biceps"
-      : null;
-const partLabel = (e: { name: string; muscle: string }) => {
-  const p = partOf(e);
-  return p ? DETAIL_LABELS[p] : muscleLabel(e.muscle);
-};
-/** Which top group (Chest, Arms, Legs…) an exercise is filed under in the picker. */
-const groupKeyOf = (e: { name: string; muscle: string }) => {
-  const p = partOf(e);
-  return p ? groupOf(p).key : "other";
-};
-/** The muscle saved for a new exercise made while a group (and maybe a part) is picked. */
-function muscleFor(group: string, part: Detail | null): string {
-  if (part === "biceps" || part === "triceps" || part === "forearms")
-    return part;
-  if (part) return groupOf(part).key;
-  return group === "arms" ? "biceps" : group;
-}
 
 export function StartWorkout({
   label = "Start workout",
@@ -201,21 +156,21 @@ function RestTimer({
       <button
         type="button"
         onClick={() => onAdd(-15)}
-        className="rounded-full bg-raised px-2.5 py-1 text-xs font-semibold"
+        className="rounded-full bg-raised px-3.5 py-2 text-xs font-semibold"
       >
         −15
       </button>
       <button
         type="button"
         onClick={() => onAdd(30)}
-        className="rounded-full bg-raised px-2.5 py-1 text-xs font-semibold"
+        className="rounded-full bg-raised px-3.5 py-2 text-xs font-semibold"
       >
         +30
       </button>
       <button
         type="button"
         onClick={onDone}
-        className="rounded-full px-2 py-1 text-xs text-muted"
+        className="rounded-full px-3 py-2 text-xs text-muted"
       >
         Skip
       </button>
@@ -428,276 +383,6 @@ function SetRow({
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * Pick exercises: search by name or nickname ("rdl", "pec deck"), or browse
- * by muscle. Tap to add; it stays open so you can add several, then Done.
- */
-function ExercisePicker({
-  workoutId,
-  exercises,
-  inWorkout,
-  dayMuscles,
-  dayName,
-  onClose,
-}: {
-  workoutId: string;
-  exercises: ExerciseOption[];
-  inWorkout: Set<string>;
-  dayMuscles: string[];
-  dayName: string | null;
-  onClose: () => void;
-}) {
-  const sheet = useTaskSheet();
-  const [q, setQ] = useState("");
-  const hasDay = dayMuscles.some((m) => exercises.some((e) => e.muscle === m));
-  const [tab, setTab] = useState<string>(
-    hasDay ? "day" : exercises.some((e) => e.recent) ? "recent" : "chest",
-  );
-  const [added, setAdded] = useState<Set<string>>(() => new Set());
-  const [pending, startTransition] = useTransition();
-  // Muscles as a tree: tap a group (Legs), then a part (Hamstrings) if you want.
-  const [part, setPart] = useState<Detail | null>(null);
-  const groups = useMemo(() => {
-    const tree = MUSCLE_TREE.filter((g) =>
-      exercises.some((e) => groupKeyOf(e) === g.key),
-    ).map((g) => ({
-      key: g.key,
-      label: g.label,
-      parts: g.parts.filter((p) => exercises.some((e) => partOf(e) === p)),
-    }));
-    return exercises.some((e) => groupKeyOf(e) === "other")
-      ? [...tree, { key: "other", label: "Other", parts: [] as Detail[] }]
-      : tree;
-  }, [exercises]);
-  const current = groups.find((g) => g.key === tab);
-
-  const list = useMemo(() => {
-    if (q.trim()) {
-      return exercises
-        .map((e) => ({
-          e,
-          s: searchScore(q, e.name, e.aliases) + (e.recent ? 3 : 0),
-        }))
-        .filter((x) => x.s > 3 || (x.s > 0 && !x.e.recent))
-        .sort((a, b) => b.s - a.s)
-        .slice(0, 40)
-        .map((x) => x.e);
-    }
-    const pick =
-      tab === "day"
-        ? exercises.filter((e) => dayMuscles.includes(e.muscle))
-        : tab === "recent"
-          ? exercises.filter((e) => e.recent)
-          : exercises.filter(
-              (e) => groupKeyOf(e) === tab && (!part || partOf(e) === part),
-            );
-    // Ones you've done before first, then the most common ones.
-    return [...pick].sort(
-      (a, b) =>
-        Number(b.recent) - Number(a.recent) ||
-        a.rank - b.rank ||
-        a.name.localeCompare(b.name),
-    );
-  }, [q, tab, part, exercises, dayMuscles]);
-
-  const add = (id: string) => {
-    setAdded((s) => new Set(s).add(id));
-    startTransition(async () => {
-      const r = await addExerciseAction(workoutId, id);
-      if (!r.ok) {
-        setAdded((s) => {
-          const n = new Set(s);
-          n.delete(id);
-          return n;
-        });
-        sheet.toast(r.error);
-      }
-    });
-  };
-
-  // Lock the page behind the picker while it's open.
-  useEffect(() => {
-    const before = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = before;
-    };
-  }, []);
-
-  const tabs = [
-    ...(hasDay ? [{ key: "day", label: `🔥 ${dayName ?? "Today"}` }] : []),
-    ...(exercises.some((e) => e.recent)
-      ? [{ key: "recent", label: "⭐ Done before" }]
-      : []),
-    ...groups.map((g) => ({ key: g.key, label: g.label })),
-  ];
-
-  // Drawn on top of the whole app (not inside the page, whose slide animation
-  // would trap a full-screen layer and let the bottom bar cover it).
-  const onClient = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false,
-  );
-  if (!onClient) return null;
-  return createPortal(
-    <div
-      className="fade-in fixed inset-0 z-50 flex flex-col bg-bg/95 backdrop-blur"
-      role="dialog"
-      aria-label="Add exercises"
-    >
-      <div className="mx-auto flex w-full max-w-xl min-h-0 flex-1 flex-col gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-2">
-          <input
-            autoFocus
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${exercises.length} exercises (try “rdl”)`}
-            className="w-full min-w-0 flex-1 rounded-2xl border border-line bg-raised px-4 py-3 text-base text-ink placeholder:text-faint focus:border-[#ff6b4a] focus:outline-none"
-            enterKeyHint="search"
-          />
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 rounded-2xl px-4 py-3 text-base font-semibold text-white"
-            style={{ backgroundColor: FIRE }}
-          >
-            Done{added.size ? ` (${added.size})` : ""}
-          </button>
-        </div>
-
-        {!q && (
-          <div className="-mx-4 flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => {
-                  setTab(t.key);
-                  setPart(null);
-                }}
-                className={cx(
-                  "shrink-0 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition",
-                  tab === t.key
-                    ? "border-transparent font-semibold text-white"
-                    : "border-line bg-raised text-muted",
-                )}
-                style={tab === t.key ? { backgroundColor: FIRE } : undefined}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* The second level of the tree: only the parts of the group you tapped. */}
-        {!q && current && current.parts.length > 1 && (
-          <div
-            key={tab}
-            className="sheet-down -mx-4 -mt-1 flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]"
-          >
-            {[null, ...current.parts].map((p) => (
-              <button
-                key={p ?? "all"}
-                type="button"
-                onClick={() => setPart(p)}
-                className={cx(
-                  "shrink-0 rounded-full border px-3 py-1 text-xs whitespace-nowrap transition",
-                  part === p
-                    ? "font-semibold"
-                    : "border-line bg-surface text-muted",
-                )}
-                style={
-                  part === p
-                    ? {
-                        borderColor: FIRE,
-                        color: FIRE,
-                        backgroundColor: "rgb(255 107 74 / 0.1)",
-                      }
-                    : undefined
-                }
-              >
-                {p ? DETAIL_LABELS[p] : `All ${current.label.toLowerCase()}`}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <ul className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
-          {list.length === 0 && (
-            <li className="py-6 text-center text-sm text-muted">
-              {q ? "Not in the list. Add it below." : "Nothing here yet."}
-            </li>
-          )}
-          {list.map((e) => {
-            const isIn = inWorkout.has(e.id) || added.has(e.id);
-            return (
-              <li key={e.id}>
-                <button
-                  type="button"
-                  disabled={isIn}
-                  onClick={() => add(e.id)}
-                  className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-raised active:scale-[0.99] disabled:opacity-100"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">
-                      {e.name}
-                      {e.recent && <span className="ml-1.5 text-xs">⭐</span>}
-                    </span>
-                    <span className="block truncate text-xs text-faint">
-                      {partLabel(e)}
-                      {e.equipment ? ` · ${e.equipment}` : ""}
-                    </span>
-                  </span>
-                  <span
-                    className={cx(
-                      "flex size-8 shrink-0 items-center justify-center rounded-full border text-base font-bold",
-                      isIn
-                        ? "border-transparent text-white"
-                        : "border-line text-muted",
-                    )}
-                    style={isIn ? { backgroundColor: FIRE } : undefined}
-                  >
-                    {isIn ? "✓" : "+"}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {q.trim() &&
-          !exercises.some(
-            (e) => e.name.toLowerCase() === q.trim().toLowerCase(),
-          ) && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() =>
-                startTransition(async () => {
-                  const muscle =
-                    tab === "day" || tab === "recent"
-                      ? (dayMuscles[0] ?? "other")
-                      : muscleFor(tab, part);
-                  const r = await createExerciseAction(q, muscle);
-                  if (!r.ok) return sheet.toast(r.error);
-                  const r2 = await addExerciseAction(workoutId, r.id);
-                  if (!r2.ok) return sheet.toast(r2.error);
-                  setAdded((s) => new Set(s).add(r.id));
-                  setQ("");
-                })
-              }
-              className="shrink-0 rounded-2xl border border-dashed border-line px-4 py-3 text-sm font-semibold text-muted"
-            >
-              + Add “{q.trim()}” as a new exercise
-            </button>
-          )}
-      </div>
-    </div>,
-    document.body,
   );
 }
 
@@ -999,7 +684,7 @@ export function SplitCard({
               })
             }
             className={cx(
-              "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition",
+              "shrink-0 rounded-full border px-3 py-2 text-xs font-semibold whitespace-nowrap transition",
               i === next
                 ? "text-white"
                 : "border-line text-muted hover:text-ink",
@@ -1053,279 +738,5 @@ function EmptyStart() {
     >
       {pending ? "Starting…" : "Empty workout"}
     </button>
-  );
-}
-
-/** One past workout as a clean note; tap to open, copy or delete it. */
-export function WorkoutNoteCard({
-  id,
-  date,
-  day,
-  skipped,
-  lines,
-  exercises,
-  meta,
-  note,
-}: {
-  id: string;
-  date: string;
-  day: string | null;
-  skipped: boolean;
-  lines: { name: string; sets: string }[];
-  exercises: PastExercise[];
-  meta: string;
-  note: string;
-}) {
-  const sheet = useTaskSheet();
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [pending, startTransition] = useTransition();
-  if (skipped) {
-    return (
-      <li className="flex items-center justify-between rounded-2xl border border-dashed border-line px-4 py-2.5 text-sm text-faint">
-        <span>
-          {date} · ⏭️ Skipped {day ?? "day"}
-        </span>
-      </li>
-    );
-  }
-  return (
-    <li className="overflow-hidden rounded-2xl border border-line bg-surface/80">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-3 text-left"
-      >
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="min-w-0 truncate font-semibold">
-            {day ? (
-              <span
-                className="mr-2 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white"
-                style={{ backgroundColor: FIRE }}
-              >
-                {day}
-              </span>
-            ) : null}
-            {date}
-          </p>
-          <p className="shrink-0 text-xs text-faint tabular-nums">{meta}</p>
-        </div>
-        <ul
-          className={cx(
-            "mt-1.5 flex flex-col gap-0.5 text-sm",
-            !open && "max-h-[4.5rem] overflow-hidden",
-          )}
-        >
-          {lines.map((l) => (
-            <li
-              key={l.name}
-              className="flex items-baseline justify-between gap-3"
-            >
-              <span className="min-w-0 truncate text-muted">{l.name}</span>
-              <span className="shrink-0 font-display text-xs font-semibold tabular-nums">
-                {l.sets}
-              </span>
-            </li>
-          ))}
-        </ul>
-        {!open && lines.length > 3 && (
-          <p className="mt-1 text-[11px] text-faint">
-            +{lines.length - 3} more · tap to open
-          </p>
-        )}
-      </button>
-      {open && editing && (
-        <EditPastWorkout
-          workoutId={id}
-          exercises={exercises}
-          onDone={() => setEditing(false)}
-        />
-      )}
-      {open && !editing && (
-        <div className="fade-in flex gap-2 border-t border-line px-4 py-2.5">
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
-            style={{ backgroundColor: FIRE }}
-          >
-            ✏️ Edit
-          </button>
-          <button
-            type="button"
-            onClick={() =>
-              navigator.clipboard
-                ?.writeText(note)
-                .then(() => sheet.toast("Note copied ✓"))
-                .catch(() => sheet.toast("Couldn't copy"))
-            }
-            className="rounded-lg bg-raised px-3 py-1.5 text-xs font-semibold"
-          >
-            Copy note
-          </button>
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              window.confirm("Delete this workout?") &&
-              startTransition(async () => {
-                const r = await discardWorkoutAction(id);
-                sheet.toast(r.ok ? "Workout deleted" : r.error);
-              })
-            }
-            className="ml-auto rounded-lg px-3 py-1.5 text-xs text-faint hover:text-danger"
-          >
-            Delete
-          </button>
-        </div>
-      )}
-    </li>
-  );
-}
-
-export type PastExercise = {
-  exerciseId: string;
-  name: string;
-  bodyweight: boolean;
-  sets: { id: string; weightLb: number | null; reps: number | null }[];
-};
-
-/**
- * Fix a workout after the fact ("I actually did 12 reps, not 10"): every set
- * is a weight box and a reps box that save when you leave them, plus
- * "+ Set" and ✕ per set.
- */
-function EditPastWorkout({
-  workoutId,
-  exercises,
-  onDone,
-}: {
-  workoutId: string;
-  exercises: PastExercise[];
-  onDone: () => void;
-}) {
-  const sheet = useTaskSheet();
-  const [pending, startTransition] = useTransition();
-  const run = (
-    job: () => Promise<{ ok: true } | { ok: false; error: string }>,
-    ok?: string,
-  ) =>
-    startTransition(async () => {
-      const r = await job();
-      if (!r.ok) sheet.toast(r.error);
-      else if (ok) sheet.toast(ok);
-    });
-  const save = (
-    setId: string,
-    field: "weightLb" | "reps",
-    raw: string,
-    was: number | null,
-  ) => {
-    const v = raw.trim() === "" ? null : Number(raw);
-    if (v !== null && (!Number.isFinite(v) || v < 0))
-      return sheet.toast("Check the number");
-    if (v === was) return;
-    run(
-      () =>
-        updateSetAction(
-          setId,
-          field === "reps"
-            ? { reps: v === null ? null : Math.round(v) }
-            : { weightLb: v },
-        ),
-      "Fixed ✓",
-    );
-  };
-  const box =
-    "w-full min-w-0 rounded-xl border border-line bg-raised px-2 py-2 text-center font-display text-base font-semibold tabular-nums focus:border-[#ff6b4a] focus:outline-none";
-  return (
-    <div className="fade-in flex flex-col gap-3 border-t border-line px-4 py-3">
-      {exercises.map((e) => (
-        <div key={e.exerciseId || e.name}>
-          <p className="mb-1.5 text-sm font-semibold">{e.name}</p>
-          <div className="mb-1 grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_2rem] gap-2 text-[11px] text-faint">
-            <span />
-            <span className="text-center">lb</span>
-            <span className="text-center">reps</span>
-            <span />
-          </div>
-          <ul className="flex flex-col gap-1.5">
-            {e.sets.map((s, i) => (
-              <li
-                key={s.id}
-                className="grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_2rem] items-center gap-2"
-              >
-                <span className="text-center text-xs text-faint tabular-nums">
-                  {i + 1}
-                </span>
-                <input
-                  defaultValue={s.weightLb ?? ""}
-                  placeholder={e.bodyweight ? "BW" : "lb"}
-                  inputMode="decimal"
-                  aria-label={`${e.name} set ${i + 1} weight`}
-                  onFocus={(ev) => ev.currentTarget.select()}
-                  onBlur={(ev) =>
-                    save(s.id, "weightLb", ev.currentTarget.value, s.weightLb)
-                  }
-                  className={box}
-                />
-                <input
-                  defaultValue={s.reps ?? ""}
-                  inputMode="numeric"
-                  aria-label={`${e.name} set ${i + 1} reps`}
-                  onFocus={(ev) => ev.currentTarget.select()}
-                  onBlur={(ev) =>
-                    save(s.id, "reps", ev.currentTarget.value, s.reps)
-                  }
-                  className={box}
-                />
-                <button
-                  type="button"
-                  aria-label={`Remove set ${i + 1}`}
-                  disabled={pending}
-                  onClick={() =>
-                    run(() => deleteSetAction(s.id), "Set removed")
-                  }
-                  className="flex size-8 items-center justify-center rounded-full text-faint hover:text-danger"
-                >
-                  ✕
-                </button>
-              </li>
-            ))}
-          </ul>
-          {e.exerciseId && (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                const last = e.sets[e.sets.length - 1];
-                run(
-                  () =>
-                    addSetAction(
-                      workoutId,
-                      e.exerciseId,
-                      last?.weightLb ?? null,
-                      last?.reps ?? null,
-                      true,
-                    ),
-                  "Set added",
-                );
-              }}
-              className="mt-1.5 rounded-lg border border-dashed border-line px-3 py-1 text-xs font-semibold text-muted"
-            >
-              + Set
-            </button>
-          )}
-        </div>
-      ))}
-      <button
-        type="button"
-        onClick={onDone}
-        className="self-end rounded-xl px-4 py-2 text-sm font-semibold text-white"
-        style={{ backgroundColor: FIRE }}
-      >
-        Done
-      </button>
-    </div>
   );
 }

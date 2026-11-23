@@ -211,7 +211,7 @@ export function GymCharts({
     <section className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between">
         <h2 className="text-xs font-semibold tracking-[0.16em] text-muted uppercase">📈 Progress</h2>
-        <button type="button" onClick={() => setTable((v) => !v)} className="text-xs text-faint hover:text-ink">
+        <button type="button" onClick={() => setTable((v) => !v)} className="-my-2 -mr-2 px-2 py-2 text-xs text-faint hover:text-ink">
           {table ? "Show charts" : "Show numbers"}
         </button>
       </div>
@@ -226,7 +226,7 @@ export function GymCharts({
                 type="button"
                 onClick={() => setPick(l.id)}
                 className={cx(
-                  "shrink-0 rounded-full border px-3 py-1 text-xs transition",
+                  "shrink-0 rounded-full border px-3 py-2 text-xs transition",
                   pick === l.id ? "border-accent bg-accent/15 font-semibold text-ink" : "border-line text-muted hover:text-ink",
                 )}
               >
