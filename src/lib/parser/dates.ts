@@ -57,7 +57,8 @@ const RE = {
   theNth: /\b(?:on\s+)?the\s+(\d{1,2})(?:st|nd|rd|th)\b(?!\s+(?:\d|two|three|four|five|six|seven|eight|nine|ten|couple|half|halves|part|parts|page|pages|chapter|chapters|time|times|thing|things|step|steps|draft|drafts|paragraph|paragraphs|section|sections|question|questions|problem|problems|one|ones|few|day of|week of|unit|units|lesson|lessons|period|class|quarter|semester|round|set|sets|slide|slides|act|scene|verse|line|lines|of the))/g,
   endOfWeek: /\bend\s+of\s+(?:the\s+)?week\b/g,
   weekend: /\b(?:this\s+)?weekend\b/g,
-  weekday: new RegExp(`\\b(?:on\\s+)?(?:(this|next)\\s+)?(${wd})\\b(?:\\s+(?:morning|afternoon|evening|night))?`, "g"),
+  // "the SAT" / "SAT prep" is the test, not Saturday.
+  weekday: new RegExp(`\\b(?:on\\s+)?(?:(this|next)\\s+)?(?<!\\b(?:the|my|for|psat)\\s)(${wd})\\b(?!\\s+(?:prep|test|exam|score|scores|practice|book|class|tutoring|words?|vocab))(?:\\s+(?:morning|afternoon|evening|night))?`, "g"),
 };
 
 const TIME_RE = {

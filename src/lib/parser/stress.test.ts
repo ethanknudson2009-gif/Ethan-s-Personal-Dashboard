@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { parseMany } from "./multi";
 import type { ParseContext } from "./index";
 import { readWorkout } from "../gym-speech";
-import { planFix, readFix } from "../gym-fix";
+import { changeLabel, planFix, readFix } from "../gym-fix";
 import { EXERCISE_LIBRARY } from "../exercise-library";
 
 const EX = EXERCISE_LIBRARY.map((e) => ({ id: e.name, name: e.name, muscle: e.muscle, bodyweight: e.bodyweight }));
@@ -69,16 +69,50 @@ describe("how gym talk really sounds", () => {
     expect(d.when?.time ?? null).toBeNull();
   });
 
+  it("cardio is time and distance, not a lift", () => {
+    expect(one("ran a mile in 8 minutes")).toMatchObject({ type: "workout", title: "Run", distanceMiles: 1, minutes: 8, sets: null });
+    expect(one("did 30 minutes on the stairmaster")).toMatchObject({ type: "workout", minutes: 30, sets: null });
+  });
+
   it("drank water checks off the habit", () => {
     expect(one("drank water")).toMatchObject({ type: "habit" });
   });
 });
 
 describe("fixing a past workout", () => {
-  it("'4 sets not 3' isn't guessed as a rep or weight change", () => {
+  const three = [
+    { id: "a", weightLb: 185, reps: 8 },
+    { id: "b", weightLb: 185, reps: 8 },
+    { id: "c", weightLb: 185, reps: 6 },
+  ];
+
+  it("'4 sets not 3' adds a copy of the last set (never touches reps)", () => {
     const f = readFix("on my last chest day I actually did 4 sets not 3 on bench", EX);
-    expect(f).toMatchObject({ exercise: "Bench press", field: "sets" });
-    expect(planFix(f!, [{ id: "a", weightLb: 185, reps: 3 }])).toEqual([]);
+    expect(f).toMatchObject({ exercise: "Bench press", field: "sets", to: 4 });
+    const plan = planFix(f!, three);
+    expect(plan).toEqual([{ setId: "c", n: 4, field: "add", before: null, after: 0, copy: { reps: 6, weightLb: 185 } }]);
+    expect(changeLabel(plan[0])).toBe("Set 4: add (6 reps @ 185 lb)");
+  });
+
+  it("'2 sets not 3' removes the last set", () => {
+    const f = readFix("yesterday I only did 2 sets not 3 of bench", EX);
+    expect(f).toMatchObject({ field: "sets", to: 2 });
+    const plan = planFix(f!, three);
+    expect(plan.map((c) => [c.setId, c.field])).toEqual([["c", "remove"]]);
+    expect(changeLabel(plan[0])).toBe("Set 3: remove (6 reps @ 185 lb)");
+  });
+
+  it.each([
+    ["on my last chest day I only did 2 sets of bench not 3", "Bench press", 2],
+    ["last leg day I did 5 sets of squats not 4", "Squat", 5],
+    ["yesterday bench was 2 sets not 3", "Bench press", 2],
+  ])("%s → a set-count fix", (said, exercise, to) => {
+    expect(readFix(said, EX)).toMatchObject({ exercise, field: "sets", to });
+  });
+
+  it("already the right number of sets → nothing to change", () => {
+    const f = readFix("on my last chest day I did 3 sets not 4 on bench", EX)!;
+    expect(planFix(f, three)).toEqual([]);
   });
 });
 
@@ -104,6 +138,34 @@ describe("school and work phrasing", () => {
   it("teachers' names get capitals", () => {
     expect(one("email mrs johnson about the late essay").title).toBe("Email Mrs Johnson about the late essay");
     expect(one("ask mr. smith about the retake").title).toMatch(/Mr Smith/);
+  });
+
+  it("the due time counts even when the day came first", () => {
+    expect(one("okay so tomorrow I have a history essay due at 11:59 and I need to start it tonight")).toMatchObject({
+      type: "homework",
+      className: "World History",
+      when: { date: "2026-11-24", time: { hour: 23, minute: 59 } },
+    });
+  });
+
+  it("the SAT is a test, not Saturday", () => {
+    const d = one("study for the SAT every saturday morning");
+    expect(d.title).toBe("Study for the SAT");
+    expect(d.when?.date).toBe("2026-11-28");
+    expect(one("practice sat 9").when).toMatchObject({ date: "2026-11-28", time: { hour: 9 } });
+  });
+
+  it("Mike said the file needs something", () => {
+    expect(one("mike said the Johnson file needs a VOE by end of day")).toMatchObject({
+      title: "Get a VOE for the Johnson file",
+      area: "work",
+      when: { date: "2026-11-23", time: { hour: 17 } },
+    });
+  });
+
+  it("a goal isn't a set you did", () => {
+    expect(one("I want to hit 200 on bench by summer").type).not.toBe("workout");
+    expect(one("hit 200 on bench today").type).toBe("workout");
   });
 
   it("'before 3 sets' still isn't a time", () => {

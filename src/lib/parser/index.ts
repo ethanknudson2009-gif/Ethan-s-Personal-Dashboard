@@ -374,6 +374,8 @@ function cleanTitle(leftover: string, type: CaptureType): string {
     .join(" ")
     .replace(/ ,/g, ",")
     .replace(PROPER_NAMES, (w) => PROPER[w.toLowerCase()] ?? w)
+    // Tests: "the sat" → "the SAT".
+    .replace(/\b(?:the|my|for) (sat|act|psat)\b|\b(psat|ap)\b(?= (?:test|exam|prep|class|bio|chem|lang|lit|gov|history|calc|stats|psych))/gi, (m) => m.replace(/\b(sat|act|psat|ap)\b/i, (w) => w.toUpperCase()))
     // Teachers: "mrs johnson" → "Mrs Johnson".
     .replace(/\b(mr|mrs|ms|miss|dr|coach)\.? ([a-z])/gi, (_m, t: string, c: string) => `${t.charAt(0).toUpperCase()}${t.slice(1).toLowerCase()} ${c.toUpperCase()}`);
   return title.charAt(0).toUpperCase() + title.slice(1);
@@ -520,6 +522,8 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
       (_m, what: string, verb: string) =>
         `${({ "sent out": "send out", sent: "send", done: "finish", finished: "finish", submitted: "submit", ordered: "order", uploaded: "upload", signed: "get signed", pulled: "pull", ran: "run", run: "run" } as Record<string, string>)[verb.toLowerCase()]} ${what}`,
     )
+    // "Mike said the Johnson file needs a VOE by end of day" → "get a VOE for the Johnson file…".
+    .replace(/^(?:mike|my lo|he|she|they) said (the [a-z0-9' ]+?) (?:needs|is missing|still needs) (an?|the|its|their) ([a-z0-9' ]+?)(?=\s+(?:by|before|today|tonight|tomorrow|on|asap|eod)\b|\s*$)/i, "get $2 $3 for $1")
     // "my algebra homework is pages 45 through 50" → the pages are the homework.
     .replace(/\bhomework (?:is|are) (?=(?:pages?|problems?|questions?|chapters?|sections?|exercises?|numbers?|the worksheet|a worksheet|worksheet)\b)/i, "homework ")
     .replace(/\bi(?:'m| am) (?:going|gonna go|heading) to (?=the |my |work\b|school\b|class\b|practice\b|[a-z]+'s\b|costco|target|walmart)/i, "go to ")
@@ -530,6 +534,9 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
     .replace(/\blater\s+(?=(?:around|at|by)\s+\d)/i, "");
   const saidWork = WORK_HINTS.test(original.toLowerCase().slice(0, 40));
   const saidWorkFirst = /^(?:\W*(?:okay|ok|so|then|and|alright|um|uh)\b[\s,]*)*(?:at|for) (?:work|the office|prmi|primary)\b/i.test(original);
+  // "I want to hit 200 on bench by summer": a goal, not a set you did
+  // (checked before "I want to" is trimmed off).
+  const goalTalk = /\b(?:i want to|i wanna|i'?m trying to|trying to|my goal is to|goal is to|goal to|hoping to) (?:hit|get|bench|squat|deadlift|reach|max|pr)\b/i.test(rawText);
   original = stripLeadIn(original);
   // "add milk to my list" → "milk" (the list is the app itself).
   original = original.replace(/^(?:add\s+)?(.+?)\s+(?:to|on|onto) (?:my|the) (?:list|to-?do list|todo list|to-?dos|tasks|reminders)\b/i, "$1");
@@ -544,7 +551,8 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
   // ("pick up mom at 5, grab lunch on the way" is a task, not food).
   const notesStart = findNotesStart(low);
   const head = notesStart > 0 ? low.slice(0, notesStart) : low;
-  const type0 = detectType(head, ctx);
+  const detected = detectType(head, ctx);
+  const type0 = goalTalk && detected === "workout" ? null : detected;
 
 
   // ── Repeat: "every monday", "daily", "every other week" ─────────────────
@@ -594,9 +602,10 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
 
   // ── Distance: "2.5 miles", "5k" ─────────────────────────────────────────
   let distanceMiles: number | null = null;
-  const dist = spans.free(/\b(\d+(?:\.\d+)?)\s*(miles?|mi|km|k)\b/g, low)[0];
-  if (dist && (type0 === "workout" || type0 === null)) {
-    const n = Number(dist[1]);
+  // "2.5 miles", "5k", and "a mile" / "half a mile".
+  const dist = spans.free(/\b(\d+(?:\.\d+)?|a|one|half a)\s*(miles?|mi|km|k)\b/g, low)[0];
+  if (dist && (type0 === "workout" || type0 === null) && (/\d/.test(dist[1]) || type0 === "workout")) {
+    const n = dist[1] === "half a" ? 0.5 : /^(?:a|one)$/.test(dist[1]) ? 1 : Number(dist[1]);
     distanceMiles = dist[2] === "km" || dist[2] === "k" ? Math.round(n * 0.621371 * 100) / 100 : n;
     spans.claim(dist.index, dist.index + dist[0].length);
   }
@@ -620,6 +629,17 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
   if (!dateResult.when && head.length < low.length) {
     dateResult = parseWhen(maskPastDays(low), spans, ctx.now, ctx.timeZone);
     whenFromNotes = Boolean(dateResult.when);
+  } else if (dateResult.when && !dateResult.when.time && head.length < low.length) {
+    // "tomorrow I have a history essay due at 11:59": the day came first, the
+    // due time later. Only a time right after "due" counts ("start it at 7" doesn't).
+    const due = /\bdue (?:at |by |before )?(\d{1,2}:\d{2}(?:\s*[ap]m)?|\d{1,2}\s*[ap]m|midnight|noon)\b/.exec(low.slice(head.length));
+    if (due) {
+      const t = parseWhen(due[1], new SpanTracker(), ctx.now, ctx.timeZone);
+      if (t.when?.time) {
+        dateResult = { ...dateResult, when: { ...dateResult.when, time: t.when.time } };
+        spans.claim(head.length + due.index, head.length + due.index + due[0].length);
+      }
+    }
   }
   problems.push(...dateResult.problems);
   confidence -= dateResult.penalty;
