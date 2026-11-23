@@ -372,3 +372,11 @@ textarea {
 @media (prefers-reduced-motion: reduce) {
   .slide-from-right, .slide-from-left, .sheet-up { animation: none; }
 }
+@keyframes sheet-down {
+  from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.sheet-down { animation: sheet-down 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); transform-origin: top right; }
+@media (prefers-reduced-motion: reduce) {
+  .sheet-down { animation: none; }
+}

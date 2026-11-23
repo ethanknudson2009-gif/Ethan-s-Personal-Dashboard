@@ -4,15 +4,20 @@
  */
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+import { MenuButton } from "@/components/menu";
 
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(" ");
 
 export function PageHeader({ title, subtitle, children }: { title: string; subtitle?: string; children?: ReactNode }) {
   return (
     <header className="mb-1 flex flex-wrap items-end justify-between gap-3">
-      <div className="min-w-0">
-        {subtitle && <p className="text-xs font-medium tracking-[0.18em] text-accent uppercase">{subtitle}</p>}
-        <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight break-words sm:text-3xl">{title}</h1>
+      <div className="flex w-full min-w-0 items-start justify-between gap-3 md:w-auto">
+        <div className="min-w-0">
+          {subtitle && <p className="text-xs font-medium tracking-[0.18em] text-accent uppercase">{subtitle}</p>}
+          <h1 className="font-display text-[28px] leading-tight font-semibold tracking-tight break-words sm:text-3xl">{title}</h1>
+        </div>
+        {/* Phones: everything not in the bottom bar is behind this button. */}
+        <MenuButton />
       </div>
       {children}
     </header>

@@ -165,3 +165,9 @@ export const IconMore = (p: IconProps) => (
     <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8" />
   </Svg>
 );
+
+export const IconHome = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z" />
+  </Svg>
+);
