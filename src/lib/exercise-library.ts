@@ -613,62 +613,62 @@ export function searchScore(query: string, name: string, aliases: readonly strin
 }
 
 /**
- * Muscles as a tree, so the picker stays clean: tap a group (Legs), then
- * its parts (Quads, Hamstrings, Glutes, Calves, Inner & outer thigh).
- * Biceps, triceps and forearms sit under Arms, and Shoulders is its own group.
+ * Muscles as a tree, so the picker stays clean: tap a group, then its parts.
+ * Ethan's layout (Nov 23):
+ *   Arms → Biceps, Triceps, Forearms
+ *   Shoulders → Front, Lateral and Rear delts
+ *   Legs → Quads, Hamstrings, Calves (glute and hip moves count with hamstrings)
+ *   Chest → one group
+ *   Core → Upper abs, Lower abs, Obliques
+ * plus Back, Full body and Cardio & sports so every exercise has a home.
  */
 export type Detail =
-  | "upper chest" | "mid chest" | "lower chest"
-  | "lats" | "upper back" | "traps" | "lower back" | "neck"
-  | "front delts" | "side delts" | "rear delts" | "rotator cuff"
   | "biceps" | "triceps" | "forearms"
-  | "quads" | "hamstrings" | "glutes" | "calves" | "inner & outer thigh"
-  | "abs" | "obliques"
+  | "front delts" | "lateral delts" | "rear delts"
+  | "quads" | "hamstrings" | "calves"
+  | "chest"
+  | "upper abs" | "lower abs" | "obliques"
+  | "lats" | "upper back" | "traps" | "lower back"
   | "full body" | "cardio";
 
-export type MuscleGroup = { key: string; label: string; emoji: string; parts: Detail[] };
+export type MuscleGroup = { key: string; label: string; parts: Detail[] };
 
 export const MUSCLE_TREE: readonly MuscleGroup[] = [
-  { key: "chest", label: "Chest", emoji: "🫁", parts: ["upper chest", "mid chest", "lower chest"] },
-  { key: "back", label: "Back", emoji: "🦅", parts: ["lats", "upper back", "traps", "lower back", "neck"] },
-  { key: "shoulders", label: "Shoulders", emoji: "🎯", parts: ["front delts", "side delts", "rear delts", "rotator cuff"] },
-  { key: "arms", label: "Arms", emoji: "💪", parts: ["biceps", "triceps", "forearms"] },
-  { key: "legs", label: "Legs", emoji: "🦵", parts: ["quads", "hamstrings", "glutes", "calves", "inner & outer thigh"] },
-  { key: "core", label: "Core", emoji: "🧱", parts: ["abs", "obliques"] },
-  { key: "full body", label: "Full body", emoji: "🔥", parts: ["full body"] },
-  { key: "cardio", label: "Cardio & sports", emoji: "🏃", parts: ["cardio"] },
+  { key: "arms", label: "Arms", parts: ["biceps", "triceps", "forearms"] },
+  { key: "shoulders", label: "Shoulders", parts: ["front delts", "lateral delts", "rear delts"] },
+  { key: "legs", label: "Legs", parts: ["quads", "hamstrings", "calves"] },
+  { key: "chest", label: "Chest", parts: ["chest"] },
+  { key: "core", label: "Core", parts: ["upper abs", "lower abs", "obliques"] },
+  { key: "back", label: "Back", parts: ["lats", "upper back", "traps", "lower back"] },
+  { key: "full body", label: "Full body", parts: ["full body"] },
+  { key: "cardio", label: "Cardio & sports", parts: ["cardio"] },
 ];
 
 export const DETAIL_LABELS: Record<Detail, string> = {
-  "upper chest": "Upper chest",
-  "mid chest": "Mid chest",
-  "lower chest": "Lower chest",
+  biceps: "Biceps",
+  triceps: "Triceps",
+  forearms: "Forearms",
+  "front delts": "Front delts",
+  "lateral delts": "Lateral delts",
+  "rear delts": "Rear delts",
+  quads: "Quads",
+  hamstrings: "Hamstrings",
+  calves: "Calves",
+  chest: "Chest",
+  "upper abs": "Upper abs",
+  "lower abs": "Lower abs",
+  obliques: "Obliques",
   lats: "Lats",
   "upper back": "Upper back",
   traps: "Traps",
   "lower back": "Lower back",
-  neck: "Neck",
-  "front delts": "Front delts",
-  "side delts": "Side delts",
-  "rear delts": "Rear delts",
-  "rotator cuff": "Rotator cuff",
-  biceps: "Biceps",
-  triceps: "Triceps",
-  forearms: "Forearms",
-  quads: "Quads",
-  hamstrings: "Hamstrings",
-  glutes: "Glutes",
-  calves: "Calves",
-  "inner & outer thigh": "Inner & outer thigh",
-  abs: "Abs",
-  obliques: "Obliques",
   "full body": "Full body",
   cardio: "Cardio & sports",
 };
 
 /**
  * The exact muscle an exercise trains most, from its group and name:
- * "Seated leg curl" → hamstrings, "Incline dumbbell press" → upper chest.
+ * "Seated leg curl" → hamstrings, "Lateral raise" → lateral delts.
  * Exercises you made yourself only know their group, so they get its main part.
  */
 export function detailOf(name: string, muscle: string): Detail {
@@ -676,19 +676,15 @@ export function detailOf(name: string, muscle: string): Detail {
   const has = (re: RegExp) => re.test(n);
   switch (muscle) {
     case "chest":
-      if (has(/\b(incline|low to high)\b/)) return "upper chest";
-      if (has(/\b(decline|dips?|high to low)\b/)) return "lower chest";
-      return "mid chest";
+      return "chest";
     case "back":
-      if (has(/\bneck\b/)) return "neck";
-      if (has(/\bshrugs?\b/)) return "traps";
+      if (has(/\b(shrugs?|neck)\b/)) return "traps";
       if (has(/\b(deadlift|good morning|back extension|hyperextension|hyper|superman|jefferson|rack pull)\b/)) return "lower back";
       if (has(/\b(pulldown|pull ?ups?|chin ?ups?|chins|pullover|lat|muscle ups|dead hang|straight arm)\b/)) return "lats";
       return "upper back";
     case "shoulders":
-      if (has(/\b(external|internal) rotation\b|\bcuban\b/)) return "rotator cuff";
-      if (has(/\b(rear|reverse pec deck|reverse cable|face pull)\b/)) return "rear delts";
-      if (has(/\b(lateral|upright|y raise|lu raise|six way|halo)\b/)) return "side delts";
+      if (has(/\b(rear|reverse pec deck|reverse cable|face pull|external rotation|internal rotation|cuban)\b/)) return "rear delts";
+      if (has(/\b(lateral|upright|y raise|lu raise|six way|halo)\b/)) return "lateral delts";
       return "front delts";
     case "biceps":
       return "biceps";
@@ -697,28 +693,26 @@ export function detailOf(name: string, muscle: string): Detail {
     case "forearms":
       return "forearms";
     case "glutes":
-      if (has(/\b(abduction|adduction|clamshells?|lateral walk|fire hydrants?)\b/)) return "inner & outer thigh";
-      return "glutes";
+      // Inner thigh (adduction) works with the quads; hip thrusts, bridges,
+      // kickbacks and abduction are back-of-the-leg work.
+      return n.includes("adduction") ? "quads" : "hamstrings";
     case "legs":
       if (has(/\b(calf|tibialis)\b/)) return "calves";
-      if (has(/\b(leg curl|nordic|romanian|rdl|stiff leg|glute ham|pull through)\b/)) return "hamstrings";
-      if (has(/\b(curl)\b/) && !has(/\bextension\b/)) return "hamstrings";
-      if (has(/\bsumo deadlift\b/)) return "glutes";
-      if (has(/\b(copenhagen|cossack|lateral lunge|sumo)\b/)) return "inner & outer thigh";
+      if (has(/\b(leg curl|nordic|romanian|rdl|stiff leg|glute ham|pull through|sumo deadlift|good morning)\b/)) return "hamstrings";
+      if (has(/\bcurl\b/) && !has(/\bextension\b/)) return "hamstrings";
       return "quads";
     case "core":
-      if (has(/\b(oblique|side|twists?|woodchop(per)?|wood chop|windshield|rotation|pallof|hip dips)\b/)) return "obliques";
-      return "abs";
+      if (has(/\b(oblique|side|twists?|woodchop(per)?|wood chop|windshield|wipers|rotation|pallof|hip dips|stir the pot|bicycle|heel taps)\b/)) return "obliques";
+      if (has(/\b(leg raises?|knee raises?|reverse crunch(es)?|toes to bar|flutter|scissor|v ups|dragon flag|l sit|mountain climbers?|hollow|dead bug|captain s chair)\b/)) return "lower abs";
+      return "upper abs";
     case "cardio":
       return "cardio";
-    case "full body":
-      return "full body";
     default:
       return "full body";
   }
 }
 
-/** Which group (Chest, Arms, Legs…) a part belongs to. */
+/** Which group (Arms, Legs…) a part belongs to. */
 export function groupOf(detail: Detail): MuscleGroup {
   return MUSCLE_TREE.find((g) => g.parts.includes(detail)) ?? MUSCLE_TREE[MUSCLE_TREE.length - 2];
 }

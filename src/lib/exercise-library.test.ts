@@ -46,29 +46,30 @@ describe("exercise library", () => {
 
 describe("muscles as a tree (group → part)", () => {
   it.each([
-    ["Incline dumbbell press", "chest", "upper chest"],
-    ["Decline bench press", "chest", "lower chest"],
-    ["Bench press", "chest", "mid chest"],
+    ["Incline dumbbell press", "chest", "chest"],
     ["Lat pulldown", "back", "lats"],
     ["Barbell row", "back", "upper back"],
     ["Barbell shrug", "back", "traps"],
     ["Deadlift", "back", "lower back"],
-    ["Neck curl", "back", "neck"],
-    ["Lateral raise", "shoulders", "side delts"],
+    ["Lateral raise", "shoulders", "lateral delts"],
+    ["Barbell upright row", "shoulders", "lateral delts"],
     ["Reverse pec deck", "shoulders", "rear delts"],
+    ["Face pull", "back", "upper back"],
     ["Overhead press", "shoulders", "front delts"],
     ["Hammer curl", "biceps", "biceps"],
     ["Skull crushers", "triceps", "triceps"],
     ["Wrist curl", "forearms", "forearms"],
     ["Leg extension", "legs", "quads"],
+    ["Bulgarian split squat", "legs", "quads"],
     ["Seated leg curl", "legs", "hamstrings"],
     ["Romanian deadlift", "legs", "hamstrings"],
+    ["Hip thrust", "glutes", "hamstrings"],
     ["Seated calf raise", "legs", "calves"],
-    ["Hip thrust", "glutes", "glutes"],
-    ["Sumo deadlift", "legs", "glutes"],
-    ["Hip adduction", "glutes", "inner & outer thigh"],
+    ["Crunches", "core", "upper abs"],
+    ["Cable crunch", "core", "upper abs"],
+    ["Hanging leg raise", "core", "lower abs"],
+    ["Reverse crunches", "core", "lower abs"],
     ["Russian twists", "core", "obliques"],
-    ["Hanging leg raise", "core", "abs"],
   ])("%s → %s → %s", (name, muscle, part) => expect(detailOf(name, muscle)).toBe(part));
 
   it("every library exercise lands in exactly one group of the tree", () => {
@@ -78,12 +79,15 @@ describe("muscles as a tree (group → part)", () => {
     }
   });
 
-  it("biceps, triceps and forearms sit under Arms; shoulders is its own group", () => {
+  it("Ethan's tree: Arms, Shoulders, Legs, Chest, Core (+ Back, Full body, Cardio)", () => {
     expect(groupOf("biceps").label).toBe("Arms");
     expect(groupOf("triceps").label).toBe("Arms");
     expect(groupOf("forearms").label).toBe("Arms");
-    expect(groupOf("side delts").label).toBe("Shoulders");
+    expect(groupOf("lateral delts").label).toBe("Shoulders");
+    expect(groupOf("hamstrings").label).toBe("Legs");
     expect(groupOf("calves").label).toBe("Legs");
+    expect(MUSCLE_TREE.slice(0, 5).map((g) => g.label)).toEqual(["Arms", "Shoulders", "Legs", "Chest", "Core"]);
+    expect(MUSCLE_TREE.find((g) => g.key === "core")!.parts).toEqual(["upper abs", "lower abs", "obliques"]);
   });
 
   it("no name or nickname points at two different exercises", () => {

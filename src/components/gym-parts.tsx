@@ -56,7 +56,6 @@ const groupKeyOf = (e: { name: string; muscle: string }) => {
 /** The muscle saved for a new exercise made while a group (and maybe a part) is picked. */
 function muscleFor(group: string, part: Detail | null): string {
   if (part === "biceps" || part === "triceps" || part === "forearms") return part;
-  if (part === "glutes" || part === "inner & outer thigh") return "glutes";
   if (part) return groupOf(part).key;
   return group === "arms" ? "biceps" : group;
 }
