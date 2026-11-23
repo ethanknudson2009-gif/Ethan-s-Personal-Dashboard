@@ -190,7 +190,7 @@ export default async function StatsPage() {
         <div className="flex flex-col gap-6">
           <div>
             <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Pounds lifted per week</p>
-            <BarChart labels={weekLabels} series={[{ name: "Volume", color: FIRE, values: volumePerWeek }]} unit="lb" format={compact} emptyText="Finish a workout to start the chart" />
+            <BarChart labels={weekLabels} series={[{ name: "Volume", color: FIRE, values: volumePerWeek }]} unit="lb" format="compact" emptyText="Finish a workout to start the chart" />
           </div>
           <div>
             <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Workouts per week</p>
@@ -259,7 +259,7 @@ export default async function StatsPage() {
             <BarChart
               labels={weekLabels}
               series={[{ name: "Spent", color: AREA.work, values: spentPerWeek }]}
-              format={(n) => `$${compact(n)}`}
+              format="money"
               emptyText="No spending logged"
             />
           </div>

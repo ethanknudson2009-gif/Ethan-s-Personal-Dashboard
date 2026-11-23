@@ -11,6 +11,18 @@
  */
 import { useState } from "react";
 import { cx } from "@/components/ui";
+import { compact } from "@/lib/stats";
+
+/**
+ * How numbers are written. A name, not a function: the Stats page is a server
+ * component, and functions can't be sent from the server to the browser.
+ */
+export type NumberStyle = "plain" | "compact" | "money";
+const FORMATS: Record<NumberStyle, (n: number) => string> = {
+  plain: (n) => n.toLocaleString(),
+  compact,
+  money: (n) => `$${compact(n)}`,
+};
 
 export type Series = { name: string; color: string; values: number[] };
 
@@ -18,7 +30,7 @@ export function BarChart({
   labels,
   series,
   unit = "",
-  format = (n: number) => n.toLocaleString(),
+  format: style = "plain",
   goal,
   goalLabel,
   height = 140,
@@ -27,12 +39,13 @@ export function BarChart({
   labels: string[];
   series: Series[];
   unit?: string;
-  format?: (n: number) => string;
+  format?: NumberStyle;
   goal?: number | null;
   goalLabel?: string;
   height?: number;
   emptyText?: string;
 }) {
+  const format = FORMATS[style];
   const totals = labels.map((_, i) => series.reduce((n, s) => n + (s.values[i] ?? 0), 0));
   const top = Math.max(goal ?? 0, ...totals, 1);
   const [picked, setPicked] = useState(labels.length - 1);
