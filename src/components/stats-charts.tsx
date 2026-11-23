@@ -98,7 +98,7 @@ export function BarChart({
               aria-label={`${label}: ${format(totals[i])}${unit ? ` ${unit}` : ""}`}
               aria-pressed={i === sel}
               // The whole column is the target, not just the (maybe tiny) bar.
-              className="group flex h-full min-w-0 flex-1 flex-col-reverse items-stretch gap-[2px] rounded-md px-[10%] outline-none focus-visible:bg-raised"
+              className="group flex h-full min-w-0 flex-1 flex-col-reverse items-stretch gap-[2px] rounded-md px-[3px] sm:px-2 outline-none focus-visible:bg-raised"
             >
               {series.map((s, k) => {
                 const v = s.values[i] ?? 0;
