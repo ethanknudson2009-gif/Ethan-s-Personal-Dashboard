@@ -13,7 +13,7 @@ export type FixDay = { kind: "split"; word: string } | { kind: "daysAgo"; n: num
 export type GymFix = {
   exerciseId: string;
   exercise: string;
-  /** null: work it out from the old number. "sets": how many sets (not fixable by voice yet). */
+  /** null: work it out from the old number. "sets": how many sets you did ("4 sets not 3"). */
   field: "reps" | "weightLb" | "sets" | null;
   to: number;
   from: number | null;
@@ -47,7 +47,7 @@ export function readFix(said: string, exercises: GymExercise[]): GymFix | null {
   if (!correcting && !pastDay) return null;
   if (/\b\d+ ?x ?\d+\b|\bsets? of \d/.test(raw) && !correcting) return null;
   // "was actually 10" → "was 10" (words that don't change the numbers).
-  const low = raw.replace(/\b(?:actually|really|honestly|like|just|totally)\s+/g, "");
+  const low = raw.replace(/\b(?:actually|really|honestly|like|just|totally|only)\s+/g, "");
 
   // The numbers: "12 reps not 10", "145 instead of 135", "from 10 to 12", "to 8 reps".
   let to: number | null = null;
@@ -76,8 +76,10 @@ export function readFix(said: string, exercises: GymExercise[]): GymFix | null {
   }
   if (to === null) return null;
   // "4 sets not 3" changes how many sets there were, not a number in one set.
-  // Marked so the preview can say "edit it by hand" instead of guessing.
-  const setCount = /\b\d+ sets? (?:and |but )?(?:not|instead of|rather than)\b|\bnot \d+ sets?\b/.test(low);
+  // ("5 sets of squats not 4", "did 2 sets"): add or remove whole sets, never touch reps.
+  const setCount =
+    /\b\d+ sets? (?:of [a-z ]+? )?(?:and |but )?(?:not|instead of|rather than)\b|\bnot \d+ sets?\b/.test(low) ||
+    new RegExp(String.raw`\b${to} sets?\b`).test(low);
   // Plates: "3 plates" means the bar weight.
   if (/plates?/.test(low) && field === "weightLb" && to !== null && (to as number) < 10) to = 45 + 90 * (to as number);
 
@@ -115,11 +117,32 @@ export function readFix(said: string, exercises: GymExercise[]): GymFix | null {
 }
 
 export type FixSet = { id: string; weightLb: number | null; reps: number | null };
-export type FixChange = { setId: string; n: number; field: "reps" | "weightLb"; before: number | null; after: number };
+/**
+ * One change to a past workout. "add" copies set `setId` as a new set number `n`;
+ * "remove" deletes set `setId`.
+ */
+export type FixChange = {
+  setId: string;
+  n: number;
+  field: "reps" | "weightLb" | "add" | "remove";
+  before: number | null;
+  after: number;
+  /** For add/remove: what that set was, so the preview can say it. */
+  copy?: { reps: number | null; weightLb: number | null };
+};
 
 /** Which sets change, given the sets of that exercise in the chosen workout (in order). */
 export function planFix(fix: GymFix, sets: FixSet[]): FixChange[] {
-  if (!sets.length || fix.field === "sets") return [];
+  if (!sets.length) return [];
+  if (fix.field === "sets") {
+    // "4 sets not 3": copy the last set to add more, or drop sets from the end.
+    const want = Math.min(Math.max(Math.round(fix.to), 1), 20);
+    const last = sets[sets.length - 1];
+    const copy = (s: FixSet) => ({ reps: s.reps, weightLb: s.weightLb });
+    if (want > sets.length)
+      return Array.from({ length: want - sets.length }, (_, i) => ({ setId: last.id, n: sets.length + i + 1, field: "add" as const, before: null, after: 0, copy: copy(last) }));
+    return sets.slice(want).map((s, i) => ({ setId: s.id, n: want + i + 1, field: "remove" as const, before: null, after: 0, copy: copy(s) }));
+  }
   let field = fix.field;
   if (!field) {
     // Work out reps vs weight from the old number, else from the size of the new one.
@@ -141,8 +164,12 @@ export function planFix(fix: GymFix, sets: FixSet[]): FixChange[] {
   return pick.filter((x) => val(x.s) !== fix.to).map((x) => ({ setId: x.s.id, n: x.n + 1, field: f, before: val(x.s), after: fix.to }));
 }
 
-/** "Set 2: 10 → 12 reps" */
+/** "Set 2: 10 → 12 reps", "Set 4: add 10 reps @ 185 lb", "Set 4: remove" */
 export function changeLabel(c: FixChange): string {
+  if (c.field === "add" || c.field === "remove") {
+    const what = c.copy ? [c.copy.reps !== null ? `${c.copy.reps} reps` : null, c.copy.weightLb ? `@ ${c.copy.weightLb} lb` : null].filter(Boolean).join(" ") : "";
+    return `Set ${c.n}: ${c.field}${what ? ` (${what})` : ""}`;
+  }
   const unit = c.field === "reps" ? " reps" : " lb";
   return `Set ${c.n}: ${c.before ?? "–"} → ${c.after}${unit}`;
 }

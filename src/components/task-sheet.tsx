@@ -678,7 +678,7 @@ function Sheet({
                 <ul className="flex flex-col gap-0.5 pl-7">
                   {fix.preview.day && <li className="text-[11px] text-muted">{fix.preview.day} day</li>}
                   {fix.preview.changes.map((c) => (
-                    <li key={c.setId} className="font-display text-xs font-semibold tabular-nums">
+                    <li key={`${c.setId}-${c.n}-${c.field}`} className="font-display text-xs font-semibold tabular-nums">
                       {changeLabel(c)}
                     </li>
                   ))}

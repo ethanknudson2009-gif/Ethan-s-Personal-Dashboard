@@ -443,7 +443,6 @@ export type FixPreview = { workoutId: string; date: string; day: string | null; 
  * sets change. Saves nothing: the + sheet shows this so you can confirm.
  */
 export async function previewFixAction(fix: GymFix): Promise<Result<{ preview: FixPreview }>> {
-  if (fix.field === "sets") return { ok: false, error: "Changing how many sets you did needs the Edit button on that workout (Gym → past workouts)" };
   const supabase = await createClient();
   const { timeZone } = await loadSettings(supabase);
   const today = toLocalDate(new Date(), timeZone);
@@ -483,13 +482,45 @@ export async function previewFixAction(fix: GymFix): Promise<Result<{ preview: F
 /** Saves a fix you confirmed (only these sets, only these numbers). */
 export async function applyFixAction(changes: FixChange[]): Promise<Result<{ count: number }>> {
   const p = z
-    .array(z.object({ setId: z.string().uuid(), field: z.enum(["reps", "weightLb"]), after: z.number().min(0).max(2000) }))
+    .array(z.object({ setId: z.string().uuid(), n: z.number().int().min(1).max(40), field: z.enum(["reps", "weightLb", "add", "remove"]), after: z.number().min(0).max(2000) }))
     .min(1)
     .max(20)
     .safeParse(changes);
   if (!p.success) return { ok: false, error: "Nothing to fix" };
   const supabase = await createClient();
   for (const c of p.data) {
+    if (c.field === "remove") {
+      const { error } = await supabase.from("workout_sets").delete().eq("id", c.setId);
+      if (error) return { ok: false, error: error.message };
+      continue;
+    }
+    if (c.field === "add") {
+      // A copy of that set, as set number n of the same exercise.
+      const { data: from, error: readError } = await supabase
+        .from("workout_sets")
+        .select("workout_id, exercise_id, position, weight_lb, reps")
+        .eq("id", c.setId)
+        .single();
+      if (readError || !from) return { ok: false, error: readError?.message ?? "Set not found" };
+      // Goes after every set in that workout, so it lands last for this exercise.
+      const { data: top } = await supabase
+        .from("workout_sets")
+        .select("position")
+        .eq("workout_id", from.workout_id)
+        .order("position", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const { error } = await supabase.from("workout_sets").insert({
+        workout_id: from.workout_id,
+        exercise_id: from.exercise_id,
+        position: (top?.position ?? from.position) + 1,
+        weight_lb: from.weight_lb,
+        reps: from.reps,
+        done: true,
+      });
+      if (error) return { ok: false, error: error.message };
+      continue;
+    }
     const row = c.field === "reps" ? { reps: Math.round(c.after) } : { weight_lb: c.after };
     const { error } = await supabase.from("workout_sets").update(row).eq("id", c.setId);
     if (error) return { ok: false, error: error.message };
