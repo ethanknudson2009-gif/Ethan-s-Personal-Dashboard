@@ -4,10 +4,12 @@ import { refresh } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
-import { toLocalDate } from "@/lib/time";
+import { addDays, toLocalDate, weekdayOf } from "@/lib/time";
+import { formatLocalDate } from "@/lib/format";
 import { lastTime, matchExercise, newRecords, nextAfter, volume, type GymSet } from "@/lib/gym";
 import { DEFAULT_SPLIT, dayForMuscles, muscleOf, readWorkout, workoutNote } from "@/lib/gym-speech";
 import { planForDay } from "@/lib/gym-plan";
+import { planFix, type FixChange, type GymFix } from "@/lib/gym-fix";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -430,4 +432,67 @@ export async function logSpokenWorkoutAction(text: string): Promise<Result<{ not
 
   refresh();
   return { ok: true, note: workoutNote({ day: finalDay, entries: w.entries }), day: finalDay };
+}
+
+/** What a spoken fix would change: the workout it found and each set before → after. */
+export type FixPreview = { workoutId: string; date: string; day: string | null; exercise: string; changes: FixChange[] };
+
+/**
+ * Finds the workout a spoken fix points at ("my last back day", "yesterday",
+ * "Monday", or just the last time you did that exercise) and works out which
+ * sets change. Saves nothing: the + sheet shows this so you can confirm.
+ */
+export async function previewFixAction(fix: GymFix): Promise<Result<{ preview: FixPreview }>> {
+  const supabase = await createClient();
+  const { timeZone } = await loadSettings(supabase);
+  const today = toLocalDate(new Date(), timeZone);
+  const { data: rows, error } = await supabase
+    .from("workouts")
+    .select("id, started_at, split_day, skipped, workout_sets(id, exercise_id, position, weight_lb, reps)")
+    .not("ended_at", "is", null)
+    .is("deleted_at", null)
+    .order("started_at", { ascending: false })
+    .limit(120);
+  if (error) return { ok: false, error: error.message };
+  const wanted = (date: string, split: string | null) => {
+    const d = fix.day;
+    if (!d) return true;
+    if (d.kind === "daysAgo") return date === addDays(today, -d.n);
+    if (d.kind === "weekday") return weekdayOf(date) === d.day && date < today;
+    const word = d.word.toLowerCase();
+    const s = (split ?? "").toLowerCase();
+    return s.includes(word) || (word === "leg" && s.includes("leg")) || (word === "arm" && /bicep|tricep|arm/.test(s));
+  };
+  for (const w of rows ?? []) {
+    if (w.skipped) continue;
+    const date = toLocalDate(new Date(w.started_at), timeZone);
+    if (!wanted(date, w.split_day)) continue;
+    const sets = (w.workout_sets ?? [])
+      .filter((s) => s.exercise_id === fix.exerciseId)
+      .sort((a, b) => a.position - b.position)
+      .map((s) => ({ id: s.id, weightLb: s.weight_lb === null ? null : Number(s.weight_lb), reps: s.reps }));
+    if (!sets.length) continue;
+    const changes = planFix(fix, sets);
+    if (!changes.length) return { ok: false, error: `${fix.exercise} on ${formatLocalDate(date)} already says that` };
+    return { ok: true, preview: { workoutId: w.id, date: formatLocalDate(date), day: w.split_day, exercise: fix.exercise, changes } };
+  }
+  return { ok: false, error: `Couldn't find ${fix.exercise} in ${fix.day ? "that workout" : "your history"}` };
+}
+
+/** Saves a fix you confirmed (only these sets, only these numbers). */
+export async function applyFixAction(changes: FixChange[]): Promise<Result<{ count: number }>> {
+  const p = z
+    .array(z.object({ setId: z.string().uuid(), field: z.enum(["reps", "weightLb"]), after: z.number().min(0).max(2000) }))
+    .min(1)
+    .max(20)
+    .safeParse(changes);
+  if (!p.success) return { ok: false, error: "Nothing to fix" };
+  const supabase = await createClient();
+  for (const c of p.data) {
+    const row = c.field === "reps" ? { reps: Math.round(c.after) } : { weight_lb: c.after };
+    const { error } = await supabase.from("workout_sets").update(row).eq("id", c.setId);
+    if (error) return { ok: false, error: error.message };
+  }
+  refresh();
+  return { ok: true, count: p.data.length };
 }

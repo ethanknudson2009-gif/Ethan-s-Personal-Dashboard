@@ -19,7 +19,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, useTra
 import { deleteTaskAction, saveTaskAction, saveTasksAction, snoozeTaskAction, type SaveTaskInput } from "@/app/(app)/tasks/actions";
 import { snoozedText, type NagLevel } from "@/lib/tasks/view";
 import { addMoneyAction } from "@/app/(app)/money/actions";
-import { logCardioAction, logSpokenWorkoutAction } from "@/app/(app)/gym/actions";
+import { applyFixAction, logCardioAction, logSpokenWorkoutAction, previewFixAction, type FixPreview } from "@/app/(app)/gym/actions";
+import { changeLabel, readFix } from "@/lib/gym-fix";
 import { DEFAULT_SPLIT, readWorkout, setsSummary, type GymExercise } from "@/lib/gym-speech";
 import { checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
 import { dollars } from "@/lib/money/summary";
@@ -326,10 +327,10 @@ function Sheet({
 
   // A whole list said at once → one draft per item.
   const many = useMemo<ManyItem[]>(() => {
-    if (editing || asOne || !text.trim()) return [];
+    if (editing || asOne || !text.trim() || readFix(text, exercises)) return [];
     const items = parseMany(text, { ...parseCtx, spoken: spokenInput, caseSource: heardRaw || undefined });
     return items.length >= 2 ? items : [];
-  }, [editing, asOne, text, parseCtx, spokenInput, heardRaw]);
+  }, [editing, asOne, text, parseCtx, spokenInput, heardRaw, exercises]);
   const multi = many.length >= 2;
   const keptItems = many.filter((it) => !removed.has(it.text));
 
@@ -365,12 +366,30 @@ function Sheet({
     /\b(chest|back|legs?|shoulders?|biceps|triceps|arms?|push|pull)\s+day\b|\bhit\s+(chest|back|legs|shoulders|arms|biceps|triceps)\b|\b(skip|skipping|skipped)\b.*\b(gym|day|lift|workout|chest|back|legs|shoulders)\b|\b(rest|off)\s+day\b/.test(
       text.toLowerCase(),
     );
+  // "On my last back day I actually hit dumbbell row for 12 reps, not 10": fix a past workout.
+  const gymFix = useMemo(() => (editing || asTask || !text.trim() ? null : readFix(text, exercises)), [editing, asTask, text, exercises]);
+  const fixKey = gymFix ? JSON.stringify(gymFix) : null;
+  const [fixFound, setFixFound] = useState<{ key: string; preview?: FixPreview; error?: string } | null>(null);
+  useEffect(() => {
+    if (!gymFix || !fixKey) return;
+    let live = true;
+    const t = window.setTimeout(() => {
+      previewFixAction(gymFix).then((r) => {
+        if (live) setFixFound(r.ok ? { key: fixKey, preview: r.preview } : { key: fixKey, error: r.error });
+      });
+    }, 250);
+    return () => {
+      live = false;
+      window.clearTimeout(t);
+    };
+  }, [fixKey, gymFix]);
+  const fix = gymFix && fixFound?.key === fixKey ? fixFound : null;
   const cardioOnly = routed?.type === "workout" && !routed.sets && (routed.distanceMiles !== null || routed.minutes !== null);
-  const spokenWorkout = routed && !money && !cardioOnly && (routed.type === "workout" || gymTalk) ? readWorkout(text, exercises, split) : null;
+  const spokenWorkout = routed && !gymFix && !money && !cardioOnly && (routed.type === "workout" || gymTalk) ? readWorkout(text, exercises, split) : null;
   const lift = spokenWorkout && (spokenWorkout.entries.length > 0 || spokenWorkout.day || spokenWorkout.skip) ? spokenWorkout : null;
   // Anything else heard, and where it goes instead of becoming a task.
   const other: { emoji: string; label: string; detail: string; to: string; color: string; save: () => Promise<{ ok: boolean; error?: string; msg: string }> } | null =
-    !routed || money || lift
+    !routed || gymFix || money || lift
       ? null
       : routed.type === "workout"
         ? {
@@ -430,6 +449,17 @@ function Sheet({
     if (!title) {
       setError("Type what you need to do");
       inputRef.current?.focus();
+      return;
+    }
+    // A fix to a past workout: only after the preview found it, and only those sets.
+    if (gymFix) {
+      if (!fix?.preview) return setError(fix?.error ?? "Still looking for that workout…");
+      const p = fix.preview;
+      startTransition(async () => {
+        const result = await applyFixAction(p.changes);
+        if (!result.ok) return setError(result.error);
+        onDone(`✏️ Fixed ${p.exercise} · ${p.date} ✓`);
+      });
       return;
     }
     // "spent $12 gas" / "got paid $400" → Money, not a task.
@@ -631,6 +661,32 @@ function Sheet({
             </div>
           )}
 
+          {/* Fixing a past workout: exactly what changes, before anything is saved */}
+          {gymFix && (
+            <div className="glow-gym flex flex-col gap-1.5 rounded-xl border border-[#ff6b4a]/50 bg-[#ff6b4a]/10 px-3 py-2.5 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">✏️</span>
+                <span className="min-w-0 flex-1 font-semibold">
+                  Fix {gymFix.exercise}
+                  {fix?.preview ? ` · ${fix.preview.date}` : ""}
+                </span>
+                <span className="shrink-0 text-[10px] font-bold tracking-wider text-[#ff6b4a] uppercase">→ Gym</span>
+              </div>
+              {!fix && <p className="pl-7 text-xs text-muted">Finding that workout…</p>}
+              {fix?.error && <p className="pl-7 text-xs text-danger">{fix.error}</p>}
+              {fix?.preview && (
+                <ul className="flex flex-col gap-0.5 pl-7">
+                  {fix.preview.day && <li className="text-[11px] text-muted">{fix.preview.day} day</li>}
+                  {fix.preview.changes.map((c) => (
+                    <li key={c.setId} className="font-display text-xs font-semibold tabular-nums">
+                      {changeLabel(c)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
           {/* Gym preview: these sets go to today's workout */}
           {lift && (
             <div className="glow-gym flex flex-col gap-1.5 rounded-xl border border-[#ff6b4a]/50 bg-[#ff6b4a]/10 px-3 py-2.5 text-sm">
@@ -674,7 +730,7 @@ function Sheet({
               </span>
             </div>
           )}
-          {(money || lift || other) && (
+          {(money || lift || other || gymFix) && (
             <button type="button" onClick={() => setAsTask(true)} className="-mt-1 self-end text-xs text-faint hover:text-ink">
               Not right? Save as a task instead
             </button>
@@ -686,7 +742,7 @@ function Sheet({
           )}
 
           {/* Live preview of what will be saved */}
-          {!editing && !multi && title && !money && !lift && !other && (
+          {!editing && !multi && title && !money && !lift && !other && !gymFix && (
             <div className="flex items-center gap-2 rounded-xl border border-accent/30 bg-accent/5 px-3 py-2 text-sm">
               {cls && <ColorDot color={cls.color} />}
               <span className="min-w-0 flex-1">
@@ -701,7 +757,7 @@ function Sheet({
           )}
 
           {/* Task-only controls are hidden when it's going to Gym, Money, Food… */}
-          {!multi && !money && !lift && !other && (
+          {!multi && !money && !lift && !other && !gymFix && (
             <>
           {/* Area: school, work, personal */}
           {!cls && (
@@ -870,7 +926,9 @@ function Sheet({
                   ? "Save"
                   : multi
                     ? `Save all ${keptItems.length}`
-                    : lift
+                    : gymFix
+                      ? "Fix it ✏️"
+                      : lift
                       ? lift.skip && !lift.entries.length
                         ? "Skip it ⏭️"
                         : "Save workout 🏋️"
