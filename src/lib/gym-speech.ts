@@ -11,6 +11,8 @@
  * "bench 135 for 10, 155 for 8, 175 for 6", "one thirty five for ten".
  */
 
+import { libraryEntry } from "./exercise-library";
+
 export type GymExercise = { id: string; name: string; muscle?: string; bodyweight?: boolean };
 export type SpokenSet = { weightLb: number | null; reps: number | null };
 export type SpokenEntry = { exerciseId: string | null; name: string; sets: SpokenSet[] };
@@ -189,6 +191,10 @@ function phraseBook(exercises: GymExercise[]): Map<string, GymExercise> {
   const book = new Map<string, GymExercise>();
   const byNorm = new Map(exercises.map((e) => [normPhrase(e.name), e]));
   for (const e of exercises) book.set(normPhrase(e.name), e);
+  // Nicknames from the exercise library ("rdl", "pec deck", "skull crushers").
+  for (const e of exercises) {
+    for (const a of libraryEntry(e.name)?.aliases ?? []) if (!book.has(normPhrase(a))) book.set(normPhrase(a), e);
+  }
   for (const [nick, target] of Object.entries(NICKNAMES)) {
     const e = byNorm.get(normPhrase(target));
     if (e && !book.has(normPhrase(nick))) book.set(normPhrase(nick), e);
@@ -216,6 +222,8 @@ export function muscleOf(e: GymExercise): string {
   if (/deadlift/.test(n)) return "back";
   const m = (e.muscle ?? "").toLowerCase();
   if (m === "arms") return "arms";
+  if (m === "glutes") return "legs";
+  if (m === "forearms") return "arms";
   return m || "other";
 }
 
@@ -249,9 +257,9 @@ function tokenize(text: string, book: Map<string, GymExercise>): Tok[] {
   let i = 0;
   while (i < words.length) {
     const w = words[i];
-    // Exercise names: longest phrase first (up to 4 words).
+    // Exercise names: longest phrase first (up to 6 words).
     let matched = false;
-    for (let len = 4; len >= 1; len--) {
+    for (let len = 6; len >= 1; len--) {
       if (i + len > words.length) continue;
       const phrase = normPhrase(words.slice(i, i + len).join(" "));
       const e = book.get(phrase);

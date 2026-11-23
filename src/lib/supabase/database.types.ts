@@ -235,6 +235,7 @@ export type Database = {
         Row: {
           bodyweight: boolean
           created_at: string
+          equipment: string | null
           id: string
           muscle: string
           name: string
@@ -243,6 +244,7 @@ export type Database = {
         Insert: {
           bodyweight?: boolean
           created_at?: string
+          equipment?: string | null
           id?: string
           muscle?: string
           name: string
@@ -251,6 +253,7 @@ export type Database = {
         Update: {
           bodyweight?: boolean
           created_at?: string
+          equipment?: string | null
           id?: string
           muscle?: string
           name?: string

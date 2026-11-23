@@ -221,3 +221,31 @@ describe("round 2: messy real-world speech", () => {
     expect(b).toBe(a);
   });
 });
+
+describe("the exercise library's nicknames", () => {
+  // A few library exercises as the database would hand them over.
+  const lib = [
+    { id: "pd", name: "Pec deck", muscle: "chest" },
+    { id: "rdl", name: "Romanian deadlift", muscle: "legs" },
+    { id: "bss", name: "Bulgarian split squat", muscle: "legs" },
+    { id: "ht", name: "Hip thrust", muscle: "glutes" },
+    { id: "fp", name: "Face pull", muscle: "back" },
+    { id: "pr", name: "EZ-bar preacher curl", muscle: "biceps" },
+    { id: "sk", name: "Skull crushers", muscle: "triceps" },
+    { id: "cgb", name: "Close-grip bench press", muscle: "chest" },
+  ];
+  it.each([
+    ["pec dec 3x12 at 100", "pd"],
+    ["rdls 3 sets of 8 at 185", "rdl"],
+    ["bulgarians 3x10 at 40", "bss"],
+    ["hip thrusts 4x10 at 225", "ht"],
+    ["facepulls 3x15 at 40", "fp"],
+    ["preachers 3x10 at 60", "pr"],
+    ["skullcrushers 3x10 at 50", "sk"],
+    ["close grip bench 3x8 at 155", "cgb"],
+  ])("%s", (said, id) => {
+    const w = readWorkout(said, lib);
+    expect(w.entries.map((e) => e.exerciseId)).toEqual([id]);
+    expect(w.entries[0].sets.length).toBeGreaterThan(0);
+  });
+});
