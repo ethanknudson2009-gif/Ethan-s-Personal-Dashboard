@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card, ColorDot, cx, PageHeader } from "@/components/ui";
 import { TaskItem } from "@/components/task-item";
 import { AddButton } from "@/components/add-button";
-import { IconInbox, IconSettings } from "@/components/icons";
+import { IconInbox } from "@/components/icons";
 import { RemindersNudge } from "@/components/notifications-card";
 import { ProgressRing } from "@/components/progress-ring";
 import { QuickActions } from "@/components/quick-actions";
@@ -19,6 +19,10 @@ import { dollars, monthKey, monthTotals } from "@/lib/money/summary";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 import { ritualFor } from "@/lib/day-plan";
+import { GymUpNext, type UpNext } from "@/components/gym-up-next";
+import { DEFAULT_SPLIT } from "@/lib/gym-speech";
+import { musclesOfDay } from "@/lib/gym-plan";
+import { coachTips } from "@/lib/gym-coach";
 
 /**
  * Today: one glance answers "what needs doing?" A hero card with today's
@@ -44,9 +48,14 @@ export default async function TodayPage() {
   ]);
   const [{ data: money }, { data: workouts }, { data: food }, { data: profile }] = await Promise.all([
     supabase.from("money_transactions").select("occurred_on, amount_cents, category").gte("occurred_on", `${today.slice(0, 7)}-01`).is("deleted_at", null),
-    supabase.from("workouts").select("started_at").not("ended_at", "is", null).is("deleted_at", null).order("started_at", { ascending: false }).limit(10),
+    supabase
+      .from("workouts")
+      .select("started_at, ended_at, split_day, skipped, workout_sets(exercise_id, weight_lb, reps, done)")
+      .is("deleted_at", null)
+      .order("started_at", { ascending: false })
+      .limit(60),
     supabase.from("food_entries").select("calories").eq("on_date", today),
-    supabase.from("profiles").select("calorie_goal").maybeSingle(),
+    supabase.from("profiles").select("calorie_goal, gym_split, gym_next").maybeSingle(),
   ]);
   const { data: dayPlan } = await supabase.from("day_plans").select("focus_task_ids, intention, planned_at, shutdown_at").eq("on_date", today).maybeSingle();
   const caloriesToday = (food ?? []).reduce((n, f) => n + (f.calories ?? 0), 0);
@@ -55,8 +64,11 @@ export default async function TodayPage() {
     (money ?? []).map((m) => ({ occurredOn: m.occurred_on, amountCents: m.amount_cents, category: m.category })),
     monthKey(today),
   );
-  const gymThisWeek = (workouts ?? []).filter((w) => toLocalDate(new Date(w.started_at), timeZone) >= addDays(today, -6)).length;
-  const lastWorkout = workouts?.[0] ? toLocalDate(new Date(workouts[0].started_at), timeZone) : null;
+  // Gym: finished, not-skipped workouts count; an unfinished one is "in progress".
+  const trained = (workouts ?? []).filter((w) => w.ended_at && !w.skipped);
+  const gymThisWeek = trained.filter((w) => toLocalDate(new Date(w.started_at), timeZone) >= addDays(today, -6)).length;
+  const lastWorkout = trained[0] ? toLocalDate(new Date(trained[0].started_at), timeZone) : null;
+  const upNext = await gymUpNext(supabase, workouts ?? [], profile, today, timeZone);
   const workOpen = data.open.filter((t) => t.area === "work");
   const xp = totalXp({
     tasksDone: tasksDone ?? 0,
@@ -115,9 +127,6 @@ export default async function TodayPage() {
             </Link>
           ) : null}
           <AddButton />
-          <Link href="/settings" aria-label="Settings" className="rounded-xl border border-line bg-surface p-2 text-muted hover:text-ink md:hidden">
-            <IconSettings size={18} />
-          </Link>
         </div>
       </PageHeader>
 
@@ -195,6 +204,8 @@ export default async function TodayPage() {
           </>
         );
       })()}
+
+      <GymUpNext up={upNext} />
 
       <WeekStrip days={strip} />
 
@@ -370,4 +381,55 @@ function GlanceTile({ href, color, label, big, small }: { href: string; color: s
       <span className="truncate text-xs text-muted">{small}</span>
     </Link>
   );
+}
+
+type TodayWorkout = {
+  started_at: string;
+  ended_at: string | null;
+  split_day: string | null;
+  skipped: boolean;
+  workout_sets: { exercise_id: string; weight_lb: number | null; reps: number | null; done: boolean }[];
+};
+
+/** What Home's gym card shows: the split day up next, a workout in progress, or "trained today". */
+async function gymUpNext(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  workouts: TodayWorkout[],
+  profile: { gym_split: string[] | null; gym_next: number | null } | null,
+  today: string,
+  timeZone: string,
+): Promise<UpNext> {
+  const split = profile?.gym_split?.length ? profile.gym_split : DEFAULT_SPLIT;
+  const day = split[(profile?.gym_next ?? 0) % split.length];
+  const open = workouts.find((w) => !w.ended_at);
+  if (open) return { state: "open", day: open.split_day, sets: open.workout_sets.filter((s) => s.done).length };
+  const local = (w: TodayWorkout) => toLocalDate(new Date(w.started_at), timeZone);
+  const doneToday = workouts.find((w) => w.ended_at && !w.skipped && local(w) === today);
+  if (doneToday) return { state: "done", trained: doneToday.split_day, next: day };
+
+  const last = workouts.find((w) => w.ended_at && !w.skipped && w.split_day === day);
+  const ids = [...new Set((last?.workout_sets ?? []).map((s) => s.exercise_id))];
+  const { data: exercises } = await supabase.from("exercises").select("id, name, muscle, bodyweight");
+  const name = new Map((exercises ?? []).map((e) => [e.id, e.name]));
+  // The coach's top tip for an exercise on this day, if there is one.
+  const tips = coachTips(
+    workouts.map((w) => ({
+      date: local(w),
+      day: w.split_day,
+      skipped: w.skipped || !w.ended_at,
+      sets: w.workout_sets.map((s) => ({ exerciseId: s.exercise_id, weightLb: s.weight_lb === null ? null : Number(s.weight_lb), reps: s.reps, done: s.done })),
+    })),
+    (exercises ?? []).map((e) => ({ id: e.id, name: e.name, muscle: e.muscle, bodyweight: e.bodyweight })),
+    today,
+  );
+  const dayNames = ids.map((id) => name.get(id)).filter((n): n is string => !!n);
+  const tip = tips.find((t) => dayNames.some((n) => t.title.includes(n)));
+  return {
+    state: "ready",
+    day,
+    muscles: musclesOfDay(day).map((m) => m.charAt(0).toUpperCase() + m.slice(1)),
+    lastDone: last ? formatLocalDate(local(last)).split(",")[0] : null,
+    lastExercises: dayNames.slice(0, 5),
+    tip: tip ? tip.title : null,
+  };
 }

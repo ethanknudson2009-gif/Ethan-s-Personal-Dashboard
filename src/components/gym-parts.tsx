@@ -19,6 +19,7 @@ import {
   useTransition,
 } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   addExerciseAction,
   addSetAction,
@@ -108,12 +109,16 @@ export function StartWorkout({
   label = "Start workout",
   day,
   big,
+  goTo,
 }: {
   label?: string;
   day?: string;
   big?: boolean;
+  /** Where to go once it's ready (Home's card jumps to the Gym page). */
+  goTo?: string;
 }) {
   const sheet = useTaskSheet();
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   return (
     <button
@@ -123,6 +128,7 @@ export function StartWorkout({
         startTransition(async () => {
           const r = await startWorkoutAction(day);
           if (!r.ok) return sheet.toast(r.error);
+          if (goTo) router.push(goTo);
           if (r.from === "last time")
             sheet.toast(`Same as last ${day} day: change anything, then tap ✓`);
           else if (r.from === "starter")
