@@ -4,9 +4,10 @@
  * Interactive pieces of the Gym page: start a split day (pre-filled), the
  * live workout (tap ✓ per set), the exercise picker and the rest timer.
  *
- * Built for one thumb at the gym: big fields, the weight box selects itself
- * when tapped, "+ Set" copies the last set, and nothing is wider than the
- * phone.
+ * Built for one thumb at the gym: big fields that select themselves when
+ * tapped, −5/+5 nudge buttons under the box you're in (no keyboard needed),
+ * an empty set shows the one above in grey and ✓ copies it, "+ Set" copies
+ * the last set, and nothing is wider than the phone.
  */
 import { playSound } from "@/lib/sound";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
@@ -120,11 +121,16 @@ function RestTimer({ until, onDone, onAdd }: { until: number; onDone: () => void
   );
 }
 
-function SetRow({ set, index, onDone }: { set: SetRowData; index: number; onDone: () => void }) {
+/** Quick nudges shown under the box you're typing in, so most sets need no keyboard. */
+const NUDGE = { w: [-10, -5, 5, 10], r: [-2, -1, 1, 2] } as const;
+
+function SetRow({ set, index, prev, onDone }: { set: SetRowData; index: number; prev?: SetRowData; onDone: () => void }) {
   const sheet = useTaskSheet();
   const [weight, setWeight] = useState(set.weightLb?.toString() ?? "");
   const [reps, setReps] = useState(set.reps?.toString() ?? "");
   const [done, setDone] = useState(set.done);
+  const [focus, setFocus] = useState<"w" | "r" | null>(null);
+  const repsBox = useRef<HTMLInputElement>(null);
   const [, startTransition] = useTransition();
   const num = (v: string) => (v.trim() === "" || Number.isNaN(Number(v)) ? null : Number(v));
   const save = (patch: Parameters<typeof updateSetAction>[1]) =>
@@ -132,62 +138,135 @@ function SetRow({ set, index, onDone }: { set: SetRowData; index: number; onDone
       const r = await updateSetAction(set.id, patch);
       if (!r.ok) sheet.toast(r.error);
     });
-  const field = "w-full min-w-0 rounded-xl border border-line bg-raised px-1 py-2.5 text-center font-display text-lg font-semibold tabular-nums text-ink placeholder:text-faint placeholder:font-normal placeholder:text-sm focus:border-[#ff6b4a] focus:outline-none";
+  // An empty box shows the set above in grey; ✓ on an empty set copies it.
+  const ghostW = prev?.weightLb ?? null;
+  const ghostR = prev?.reps ?? null;
+
+  function nudge(which: "w" | "r", by: number) {
+    if (which === "w") {
+      const base = num(weight) ?? ghostW ?? 0;
+      setWeight(String(Math.max(0, base + by)));
+    } else {
+      const base = num(reps) ?? ghostR ?? 0;
+      setReps(String(Math.max(0, Math.round(base + by))));
+    }
+  }
+
+  function toggleDone() {
+    const next = !done;
+    let w = num(weight);
+    let r = num(reps) === null ? null : Math.round(num(reps)!);
+    if (next) {
+      if (w === null && ghostW !== null) {
+        w = ghostW;
+        setWeight(String(ghostW));
+      }
+      if (r === null && ghostR !== null) {
+        r = ghostR;
+        setReps(String(ghostR));
+      }
+    }
+    playSound(next ? "done" : "undo");
+    setDone(next);
+    save({ done: next, weightLb: w, reps: r });
+    if (next) onDone();
+  }
+
+  const field = "w-full min-w-0 rounded-xl border border-line bg-raised px-1 py-2.5 text-center font-display text-lg font-semibold tabular-nums text-ink placeholder:text-faint placeholder:font-normal focus:border-[#ff6b4a] focus:outline-none";
   return (
-    <div className={cx(ROW, "rounded-xl py-1 transition", done && "bg-[#ff6b4a]/10")}>
-      <span className="text-center text-xs font-semibold text-muted">{index + 1}</span>
-      <input
-        value={weight}
-        onChange={(e) => setWeight(e.target.value)}
-        onFocus={(e) => e.target.select()}
-        onBlur={() => num(weight) !== set.weightLb && save({ weightLb: num(weight) })}
-        inputMode="decimal"
-        enterKeyHint="next"
-        placeholder="lb"
-        aria-label={`Set ${index + 1} weight`}
-        className={field}
-      />
-      <input
-        value={reps}
-        onChange={(e) => setReps(e.target.value)}
-        onFocus={(e) => e.target.select()}
-        onBlur={() => num(reps) !== set.reps && save({ reps: num(reps) === null ? null : Math.round(num(reps)!) })}
-        inputMode="numeric"
-        enterKeyHint="done"
-        placeholder="reps"
-        aria-label={`Set ${index + 1} reps`}
-        className={field}
-      />
-      <button
-        type="button"
-        aria-label={done ? "Not done" : "Done"}
-        onClick={() => {
-          const next = !done;
-          playSound(next ? "done" : "undo");
-          setDone(next);
-          save({ done: next, weightLb: num(weight), reps: num(reps) === null ? null : Math.round(num(reps)!) });
-          if (next) onDone();
-        }}
-        className={cx(
-          "flex h-11 items-center justify-center rounded-xl border-2 text-lg font-bold transition active:scale-90",
-          done ? "check-ring-done border-transparent text-white" : "border-line text-faint",
-        )}
-        style={done ? { backgroundColor: FIRE, boxShadow: `0 0 14px -2px ${FIRE}` } : undefined}
-      >
-        ✓
-      </button>
-      <button
-        type="button"
-        aria-label="Remove set"
-        onClick={() =>
-          startTransition(async () => {
-            await deleteSetAction(set.id);
-          })
-        }
-        className="flex h-11 items-center justify-center text-sm text-faint hover:text-danger"
-      >
-        ✕
-      </button>
+    <div className={cx("rounded-xl py-1 transition", done && "bg-[#ff6b4a]/10")}>
+      <div className={ROW}>
+        <span className="text-center text-xs font-semibold text-muted">{index + 1}</span>
+        <input
+          value={weight}
+          onChange={(e) => setWeight(e.target.value)}
+          onFocus={(e) => {
+            e.target.select();
+            setFocus("w");
+          }}
+          onBlur={() => {
+            setFocus(null);
+            if (num(weight) !== set.weightLb) save({ weightLb: num(weight) });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              repsBox.current?.focus();
+            }
+          }}
+          inputMode="decimal"
+          enterKeyHint="next"
+          placeholder={ghostW !== null ? String(ghostW) : "lb"}
+          aria-label={`Set ${index + 1} weight`}
+          className={field}
+        />
+        <input
+          ref={repsBox}
+          value={reps}
+          onChange={(e) => setReps(e.target.value)}
+          onFocus={(e) => {
+            e.target.select();
+            setFocus("r");
+          }}
+          onBlur={() => {
+            setFocus(null);
+            if (num(reps) !== set.reps) save({ reps: num(reps) === null ? null : Math.round(num(reps)!) });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              (e.target as HTMLInputElement).blur();
+            }
+          }}
+          inputMode="numeric"
+          enterKeyHint="done"
+          placeholder={ghostR !== null ? String(ghostR) : "reps"}
+          aria-label={`Set ${index + 1} reps`}
+          className={field}
+        />
+        <button
+          type="button"
+          data-silent
+          aria-label={done ? "Not done" : ghostW !== null && !weight && !reps ? "Done, same as last set" : "Done"}
+          onClick={toggleDone}
+          className={cx(
+            "flex h-11 items-center justify-center rounded-xl border-2 text-lg font-bold transition active:scale-90",
+            done ? "check-ring-done border-transparent text-white" : "border-line text-faint",
+          )}
+          style={done ? { backgroundColor: FIRE, boxShadow: `0 0 14px -2px ${FIRE}` } : undefined}
+        >
+          ✓
+        </button>
+        <button
+          type="button"
+          aria-label="Remove set"
+          onClick={() =>
+            startTransition(async () => {
+              await deleteSetAction(set.id);
+            })
+          }
+          className="flex h-11 items-center justify-center text-sm text-faint hover:text-danger"
+        >
+          ✕
+        </button>
+      </div>
+      {focus && (
+        <div className="mt-1.5 grid grid-cols-4 gap-1.5 pl-8" aria-label={focus === "w" ? "Change weight" : "Change reps"}>
+          {NUDGE[focus].map((by) => (
+            <button
+              key={by}
+              type="button"
+              // Keep the box focused (and the keyboard up) while nudging.
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => nudge(focus, by)}
+              className="rounded-lg border border-line bg-raised py-2 text-sm font-semibold tabular-nums text-ink active:scale-95"
+              style={by > 0 ? { borderColor: `${FIRE}66`, color: FIRE } : undefined}
+            >
+              {by > 0 ? `+${by}` : `−${-by}`}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -478,7 +557,7 @@ export function ActiveWorkout({
             </div>
             <div className="flex flex-col gap-1">
               {b.sets.map((s, i) => (
-                <SetRow key={s.id} set={s} index={i} onDone={() => setRestUntil(Date.now() + restLength.current * 1000)} />
+                <SetRow key={s.id} set={s} index={i} prev={b.sets[i - 1]} onDone={() => setRestUntil(Date.now() + restLength.current * 1000)} />
               ))}
             </div>
             <button
