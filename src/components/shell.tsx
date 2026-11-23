@@ -10,7 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { signOut } from "@/app/login/actions";
 import { cx } from "@/components/ui";
-import { IconCalendar, IconClasses, IconGrades, IconGym, IconInbox, IconPalette, IconLife, IconMoney, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconToday, IconTrash } from "@/components/icons";
+import { IconCalendar, IconClasses, IconGrades, IconGym, IconInbox, IconPalette, IconLife, IconMoney, IconMore, IconWork, IconMic, IconPlus, IconSchool, IconSettings, IconSignOut, IconStats, IconToday, IconTrash } from "@/components/icons";
 import { useTaskSheet } from "@/components/task-sheet";
 import { FocusOverlay } from "@/components/focus-overlay";
 
@@ -23,17 +23,35 @@ const NAV = [
   { href: "/life", label: "Life", Icon: IconLife },
   { href: "/gym", label: "Gym", Icon: IconGym },
   { href: "/calendar", label: "Calendar", Icon: IconCalendar },
+  { href: "/stats", label: "Stats", Icon: IconStats },
   { href: "/classes", label: "Classes", Icon: IconClasses },
   { href: "/grades", label: "Grades", Icon: IconGrades },
 ];
+const byHref = (href: string) => NAV.find((n) => n.href === href)!;
 
 /**
- * Phone bottom bar: every area, with the glowing + near the middle:
- * Today · School · Work · Money · + · Gym · Life · Calendar. (Classes and Grades live inside School.)
+ * Phone bottom bar, kept short so the icons can be big:
+ * Today · School · Work · + · Gym · More. Everything else is one tap away in More.
  */
-const TABS = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[5], NAV[4], NAV[6]];
-/** How many tabs sit left of the "+". */
-const LEFT = 4;
+const LEFT_TABS = [byHref("/today"), byHref("/tasks"), byHref("/work")];
+const RIGHT_TABS = [byHref("/gym")];
+
+/** Swiping sideways walks through every main page in this order. */
+const SWIPE = ["/today", "/tasks", "/work", "/money", "/gym", "/life", "/calendar", "/stats"];
+
+/** The More panel on phones: big tiles. */
+const MORE_TILES = [
+  byHref("/money"),
+  byHref("/life"),
+  byHref("/calendar"),
+  byHref("/stats"),
+  { href: "/plan", label: "Plan my day", Icon: IconCalendar },
+  { href: "/inbox", label: "Inbox", Icon: IconInbox },
+  byHref("/classes"),
+  byHref("/grades"),
+  { href: "/settings", label: "Settings", Icon: IconSettings },
+  { href: "/trash", label: "Trash", Icon: IconTrash },
+];
 
 /** Less-used places: sidebar on laptops; on phones they're linked from Today and School. */
 const MORE = [
@@ -81,14 +99,13 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
     }
   }, [sheet]);
 
-  // Thumb swipe left/right on a page moves to the next/previous tab
-  // (Today ⇄ School ⇄ Work ⇄ Money ⇄ Gym ⇄ Life ⇄ Calendar). Things with their own
+  // Thumb swipe left/right on a page moves to the next/previous page
+  // (Today ⇄ School ⇄ Work ⇄ Money ⇄ Gym ⇄ Life ⇄ Calendar ⇄ Stats). Things with their own
   // sideways gestures (task rows, scrolling chip rows, inputs) are left alone.
-  const tabIndex = TABS.findIndex(
-    (t) => isActive(t.href) || (t.href === "/tasks" && (isActive("/classes") || isActive("/grades"))),
-  );
-  // A page change needs a deliberate swipe: your thumb has to start moving sideways
-  // (not up/down while scrolling), go about a third of the screen, and not dawdle.
+  const tabIndex = SWIPE.findIndex((href) => isActive(href) || (href === "/tasks" && (isActive("/classes") || isActive("/grades"))));
+  // Easy but never by accident: whichever way your thumb moves first wins, so a
+  // scroll never turns the page. Then a short sideways swipe (about a fifth of
+  // the screen) or a quick flick is enough.
   const swipeStart = useRef<{ x: number; y: number; t: number; axis: "x" | "y" | null } | null>(null);
   const [slide, setSlide] = useState<{ dir: "left" | "right"; path: string } | null>(null);
   const swipeHandlers = {
@@ -109,8 +126,8 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
       const dx = Math.abs(touch.clientX - start.x);
       const dy = Math.abs(touch.clientY - start.y);
       // The first clear direction wins: a scroll that drifts sideways never turns the page.
-      if (dy > 10 && dy >= dx) start.axis = "y";
-      else if (dx > 16 && dx > dy * 1.5) start.axis = "x";
+      if (dy > 12 && dy > dx * 1.2) start.axis = "y";
+      else if (dx > 10 && dx > dy) start.axis = "x";
     },
     onTouchEnd: (e: React.TouchEvent) => {
       const start = swipeStart.current;
@@ -119,16 +136,27 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
       const touch = e.changedTouches[0];
       const dx = touch.clientX - start.x;
       const dy = touch.clientY - start.y;
-      const far = Math.max(120, window.innerWidth * 0.33);
-      if (start.axis !== "x" || Math.abs(dx) < far || Math.abs(dx) < Math.abs(dy) * 3 || Date.now() - start.t > 600) return;
+      const took = Date.now() - start.t;
+      const far = Math.abs(dx) >= Math.max(60, window.innerWidth * 0.18);
+      const flick = Math.abs(dx) >= 40 && took < 250;
+      if (start.axis !== "x" || !(far || flick) || Math.abs(dx) < Math.abs(dy) * 1.5) return;
       const next = tabIndex + (dx < 0 ? 1 : -1);
-      if (next < 0 || next >= TABS.length) return;
+      if (next < 0 || next >= SWIPE.length) return;
       navigator.vibrate?.(8);
       playSound("swipe");
-      setSlide({ dir: dx < 0 ? "left" : "right", path: TABS[next].href });
-      router.push(TABS[next].href);
+      setSlide({ dir: dx < 0 ? "left" : "right", path: SWIPE[next] });
+      router.push(SWIPE[next]);
     },
   };
+
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreActive = MORE_TILES.some((t) => isActive(t.href));
+  // Close the More panel whenever the page changes.
+  const [lastPath, setLastPath] = useState(pathname);
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
+    setMoreOpen(false);
+  }
 
   // The center "+": tap to type, press and hold to talk.
   const holdTimer = useRef<number | null>(null);
@@ -219,13 +247,44 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
 
       <FocusOverlay />
 
+      {/* Phone: the More panel (big tiles for everything not in the bar) */}
+      {moreOpen && (
+        <div className="fixed inset-0 z-30 md:hidden" role="dialog" aria-label="More">
+          <button type="button" aria-label="Close" onClick={() => setMoreOpen(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="sheet-up absolute inset-x-2 bottom-[calc(max(0.75rem,env(safe-area-inset-bottom))+5.25rem)] rounded-3xl border border-line bg-surface p-3 shadow-card">
+            <ul className="grid grid-cols-3 gap-2">
+              {MORE_TILES.map(({ href, label, Icon }) => (
+                <li key={href}>
+                  <Link
+                    href={href}
+                    onClick={() => setMoreOpen(false)}
+                    className={cx(
+                      "relative flex flex-col items-center gap-1.5 rounded-2xl border px-1 py-3 text-center text-xs font-semibold",
+                      isActive(href) ? "border-accent/60 bg-accent/10 text-accent" : "border-line bg-raised/70 text-ink",
+                    )}
+                  >
+                    <Icon size={28} />
+                    {label}
+                    {badges[href] ? (
+                      <span className="absolute top-1.5 right-1.5">
+                        <Badge n={badges[href]} />
+                      </span>
+                    ) : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Phone: bottom bar with the center "+" */}
       <nav
-        className="fixed inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex items-center justify-around gap-0.5 rounded-[1.75rem] border border-line bg-surface/90 px-1 py-1.5 shadow-card backdrop-blur-xl md:hidden"
+        className="fixed inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex items-center justify-around gap-1 rounded-[1.75rem] border border-line bg-surface/90 px-2 py-1.5 shadow-card backdrop-blur-xl md:hidden"
         aria-label="Main"
       >
-        {TABS.slice(0, LEFT).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/tasks" && (isActive("/classes") || isActive("/grades")))} badge={badges[item.href]} />
+        {LEFT_TABS.map((item) => (
+          <TabLink key={item.href} {...item} active={!moreOpen && (isActive(item.href) || (item.href === "/tasks" && (isActive("/classes") || isActive("/grades"))))} badge={badges[item.href]} />
         ))}
         <button
           type="button"
@@ -238,9 +297,29 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
             <IconMic size={11} strokeWidth={2.4} />
           </span>
         </button>
-        {TABS.slice(LEFT).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href)} badge={badges[item.href]} />
+        {RIGHT_TABS.map((item) => (
+          <TabLink key={item.href} {...item} active={!moreOpen && isActive(item.href)} badge={badges[item.href]} />
         ))}
+        <button
+          type="button"
+          onClick={() => setMoreOpen((o) => !o)}
+          aria-expanded={moreOpen}
+          aria-label="More"
+          className={cx(
+            "relative flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl transition-all duration-300",
+            moreOpen || moreActive ? "text-accent" : "text-muted",
+          )}
+        >
+          <span className={cx("flex h-9 w-11 items-center justify-center rounded-xl transition-all duration-300", (moreOpen || moreActive) && "bg-accent/15 shadow-glow")}>
+            <IconMore size={27} strokeWidth={moreOpen || moreActive ? 2.1 : 1.8} />
+          </span>
+          <span className="text-[10.5px] leading-none font-semibold">More</span>
+          {badges["/inbox"] ? (
+            <span className="absolute top-0 right-[calc(50%-1.6rem)]">
+              <Badge n={badges["/inbox"]} />
+            </span>
+          ) : null}
+        </button>
       </nav>
     </div>
   );
@@ -259,28 +338,16 @@ function TabLink({
       aria-label={label}
       aria-current={active ? "page" : undefined}
       className={cx(
-        "relative flex h-12 min-w-0 flex-1 flex-col items-center justify-center rounded-2xl transition-all duration-300",
+        "relative flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl transition-all duration-300",
         active ? "text-accent" : "text-muted active:scale-90",
       )}
     >
-      <span
-        className={cx(
-          "flex h-9 w-10 items-center justify-center rounded-xl transition-all duration-300",
-          active && "-translate-y-1 bg-accent/15 shadow-glow",
-        )}
-      >
-        <Icon size={23} strokeWidth={active ? 2.1 : 1.8} />
+      <span className={cx("flex h-9 w-11 items-center justify-center rounded-xl transition-all duration-300", active && "bg-accent/15 shadow-glow")}>
+        <Icon size={27} strokeWidth={active ? 2.1 : 1.8} />
       </span>
-      <span
-        className={cx(
-          "absolute bottom-0 text-[10px] leading-none font-semibold tracking-wide transition-all duration-300",
-          active ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
-        )}
-      >
-        {label}
-      </span>
+      <span className="text-[10.5px] leading-none font-semibold">{label}</span>
       {badge ? (
-        <span className="absolute top-0 right-[calc(50%-1.4rem)]">
+        <span className="absolute top-0 right-[calc(50%-1.6rem)]">
           <Badge n={badge} />
         </span>
       ) : null}

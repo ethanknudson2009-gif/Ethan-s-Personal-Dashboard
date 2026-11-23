@@ -363,6 +363,12 @@ textarea {
 }
 .slide-from-right { animation: slide-from-right 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .slide-from-left { animation: slide-from-left 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+/* The phone "More" panel rises out of the bottom bar. */
+@keyframes sheet-up {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.sheet-up { animation: sheet-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); transform-origin: bottom center; }
 @media (prefers-reduced-motion: reduce) {
-  .slide-from-right, .slide-from-left { animation: none; }
+  .slide-from-right, .slide-from-left, .sheet-up { animation: none; }
 }
