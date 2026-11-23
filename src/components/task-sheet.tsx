@@ -708,7 +708,8 @@ function Sheet({
             </div>
           )}
 
-          {!multi && (
+          {/* Task-only controls are hidden when it's going to Gym, Money, Food… */}
+          {!multi && !money && !lift && !other && (
             <>
           {/* Area: school, work, personal */}
           {!cls && (
@@ -871,7 +872,21 @@ function Sheet({
               </Button>
             )}
             <Button type="submit" disabled={pending || (multi ? keptItems.length === 0 : !title)} className="flex-1 py-3 text-base">
-              {pending ? "Saving…" : editing ? "Save" : multi ? `Save all ${keptItems.length}` : "Add"}
+              {pending
+                ? "Saving…"
+                : editing
+                  ? "Save"
+                  : multi
+                    ? `Save all ${keptItems.length}`
+                    : lift
+                      ? lift.skip && !lift.entries.length
+                        ? "Skip it ⏭️"
+                        : "Save workout 🏋️"
+                      : money
+                        ? "Save to Money"
+                        : other
+                          ? `Save to ${other.to}`
+                          : "Add"}
             </Button>
           </div>
         </form>

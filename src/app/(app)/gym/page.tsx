@@ -7,8 +7,11 @@ import { PageHeader } from "@/components/ui";
 import { ActiveWorkout, SplitCard, WorkoutNoteCard, type Block, type ExerciseOption } from "@/components/gym-parts";
 import { GymCharts } from "@/components/gym-charts";
 import { EXERCISE_LIBRARY, libraryEntry } from "@/lib/exercise-library";
-import { musclesOfDay } from "@/lib/gym-plan";
+import { musclesOfDay, STARTERS } from "@/lib/gym-plan";
 import { chartableExercises, splitCounts, strengthSeries, weeklyVolume, type PastWorkout } from "@/lib/gym-progress";
+
+/** The best-known lifts, listed first in the picker. */
+const POPULAR = [...new Set(Object.values(STARTERS).flat())];
 
 /** Split-day words that cover several muscle groups. */
 const MUSCLE_GROUPS: Record<string, string[]> = {
@@ -67,9 +70,12 @@ export default async function GymPage() {
     equipment: e.equipment,
     aliases: libraryEntry(e.name)?.aliases ?? [],
     recent: usedBefore.has(e.id),
+    // Popular lifts first (the starter lists), then the library's order, then your own.
     rank: (() => {
+      const popular = POPULAR.indexOf(e.name);
+      if (popular >= 0) return popular;
       const entry = libraryEntry(e.name);
-      return entry ? EXERCISE_LIBRARY.indexOf(entry) : 10_000;
+      return entry ? 100 + EXERCISE_LIBRARY.indexOf(entry) : 10_000;
     })(),
   }));
   const muscleById = new Map((exercises ?? []).map((e) => [e.id, e.muscle]));
