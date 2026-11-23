@@ -1,5 +1,5 @@
 import { toLocalDate } from "@/lib/time";
-import { Card, cx, PageHeader } from "@/components/ui";
+import { Card, PageHeader } from "@/components/ui";
 import { TaskItem } from "@/components/task-item";
 import { AreaActions } from "@/components/area-actions";
 import { ProgressRing } from "@/components/progress-ring";
@@ -42,20 +42,6 @@ export default async function WorkPage() {
           <AreaActions area="work" tone="work" />
         </div>
       </section>
-
-      {/* Stat tiles */}
-      <div className="grid grid-cols-3 gap-2">
-        {[
-          { label: "Today", value: urgent.length, tone: urgent.length ? "text-warn" : "text-muted" },
-          { label: "This week", value: thisWeek, tone: "text-ink" },
-          { label: "Done", value: doneWeek, tone: "text-ok" },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl border border-line bg-surface/80 px-3 py-3 text-center">
-            <p className={cx("font-display text-2xl font-semibold tabular-nums", s.tone)}>{s.value}</p>
-            <p className="text-[11px] tracking-wider text-muted uppercase">{s.label}</p>
-          </div>
-        ))}
-      </div>
 
       {buckets.length === 0 ? (
         <section className="relative flex flex-col items-center gap-1 overflow-hidden rounded-3xl border border-warn/30 bg-warn/5 px-4 py-8 text-center">
