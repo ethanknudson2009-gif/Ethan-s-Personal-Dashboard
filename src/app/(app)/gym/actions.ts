@@ -93,12 +93,13 @@ export async function addExerciseAction(workoutId: string, exerciseId: string): 
   return { ok: true };
 }
 
-export async function addSetAction(workoutId: string, exerciseId: string, weightLb: number | null, reps: number | null): Promise<Result> {
+/** `done`: true when fixing a past workout (the set already happened). */
+export async function addSetAction(workoutId: string, exerciseId: string, weightLb: number | null, reps: number | null, done = false): Promise<Result> {
   const supabase = await createClient();
   const { count } = await supabase.from("workout_sets").select("id", { count: "exact", head: true }).eq("workout_id", workoutId);
   const { error } = await supabase
     .from("workout_sets")
-    .insert({ workout_id: workoutId, exercise_id: exerciseId, position: count ?? 0, weight_lb: weightLb, reps, done: false });
+    .insert({ workout_id: workoutId, exercise_id: exerciseId, position: count ?? 0, weight_lb: weightLb, reps, done });
   if (error) return { ok: false, error: error.message };
   refresh();
   return { ok: true };

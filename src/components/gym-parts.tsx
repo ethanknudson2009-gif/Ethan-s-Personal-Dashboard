@@ -787,6 +787,7 @@ export function WorkoutNoteCard({
   day,
   skipped,
   lines,
+  exercises,
   meta,
   note,
 }: {
@@ -795,11 +796,13 @@ export function WorkoutNoteCard({
   day: string | null;
   skipped: boolean;
   lines: { name: string; sets: string }[];
+  exercises: PastExercise[];
   meta: string;
   note: string;
 }) {
   const sheet = useTaskSheet();
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   if (skipped) {
     return (
@@ -834,8 +837,17 @@ export function WorkoutNoteCard({
         </ul>
         {!open && lines.length > 3 && <p className="mt-1 text-[11px] text-faint">+{lines.length - 3} more · tap to open</p>}
       </button>
-      {open && (
+      {open && editing && <EditPastWorkout workoutId={id} exercises={exercises} onDone={() => setEditing(false)} />}
+      {open && !editing && (
         <div className="fade-in flex gap-2 border-t border-line px-4 py-2.5">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="rounded-lg px-3 py-1.5 text-xs font-semibold text-white"
+            style={{ backgroundColor: FIRE }}
+          >
+            ✏️ Edit
+          </button>
           <button
             type="button"
             onClick={() =>
@@ -865,5 +877,99 @@ export function WorkoutNoteCard({
         </div>
       )}
     </li>
+  );
+}
+
+export type PastExercise = { exerciseId: string; name: string; sets: { id: string; weightLb: number | null; reps: number | null }[] };
+
+/**
+ * Fix a workout after the fact ("I actually did 12 reps, not 10"): every set
+ * is a weight box and a reps box that save when you leave them, plus
+ * "+ Set" and ✕ per set.
+ */
+function EditPastWorkout({ workoutId, exercises, onDone }: { workoutId: string; exercises: PastExercise[]; onDone: () => void }) {
+  const sheet = useTaskSheet();
+  const [pending, startTransition] = useTransition();
+  const run = (job: () => Promise<{ ok: true } | { ok: false; error: string }>, ok?: string) =>
+    startTransition(async () => {
+      const r = await job();
+      if (!r.ok) sheet.toast(r.error);
+      else if (ok) sheet.toast(ok);
+    });
+  const save = (setId: string, field: "weightLb" | "reps", raw: string, was: number | null) => {
+    const v = raw.trim() === "" ? null : Number(raw);
+    if (v !== null && (!Number.isFinite(v) || v < 0)) return sheet.toast("Check the number");
+    if (v === was) return;
+    run(() => updateSetAction(setId, field === "reps" ? { reps: v === null ? null : Math.round(v) } : { weightLb: v }), "Fixed ✓");
+  };
+  const box =
+    "w-full min-w-0 rounded-xl border border-line bg-raised px-2 py-2 text-center font-display text-base font-semibold tabular-nums focus:border-[#ff6b4a] focus:outline-none";
+  return (
+    <div className="fade-in flex flex-col gap-3 border-t border-line px-4 py-3">
+      {exercises.map((e) => (
+        <div key={e.exerciseId || e.name}>
+          <p className="mb-1.5 text-sm font-semibold">{e.name}</p>
+          <div className="mb-1 grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_2rem] gap-2 text-[11px] text-faint">
+            <span />
+            <span className="text-center">lb</span>
+            <span className="text-center">reps</span>
+            <span />
+          </div>
+          <ul className="flex flex-col gap-1.5">
+            {e.sets.map((s, i) => (
+              <li key={s.id} className="grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_2rem] items-center gap-2">
+                <span className="text-center text-xs text-faint tabular-nums">{i + 1}</span>
+                <input
+                  defaultValue={s.weightLb ?? ""}
+                  inputMode="decimal"
+                  aria-label={`${e.name} set ${i + 1} weight`}
+                  onFocus={(ev) => ev.currentTarget.select()}
+                  onBlur={(ev) => save(s.id, "weightLb", ev.currentTarget.value, s.weightLb)}
+                  className={box}
+                />
+                <input
+                  defaultValue={s.reps ?? ""}
+                  inputMode="numeric"
+                  aria-label={`${e.name} set ${i + 1} reps`}
+                  onFocus={(ev) => ev.currentTarget.select()}
+                  onBlur={(ev) => save(s.id, "reps", ev.currentTarget.value, s.reps)}
+                  className={box}
+                />
+                <button
+                  type="button"
+                  aria-label={`Remove set ${i + 1}`}
+                  disabled={pending}
+                  onClick={() => run(() => deleteSetAction(s.id), "Set removed")}
+                  className="flex size-8 items-center justify-center rounded-full text-faint hover:text-danger"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+          {e.exerciseId && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                const last = e.sets[e.sets.length - 1];
+                run(() => addSetAction(workoutId, e.exerciseId, last?.weightLb ?? null, last?.reps ?? null, true), "Set added");
+              }}
+              className="mt-1.5 rounded-lg border border-dashed border-line px-3 py-1 text-xs font-semibold text-muted"
+            >
+              + Set
+            </button>
+          )}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={onDone}
+        className="self-end rounded-xl px-4 py-2 text-sm font-semibold text-white"
+        style={{ backgroundColor: FIRE }}
+      >
+        Done
+      </button>
+    </div>
   );
 }

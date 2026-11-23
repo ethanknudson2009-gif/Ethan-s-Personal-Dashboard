@@ -146,6 +146,14 @@ export default async function GymPage() {
       day: w.split_day,
       skipped: w.skipped,
       lines: entries.map((e) => ({ name: e.name, sets: setsSummary(e.sets) })),
+      // Every set with its id, so the card can fix a weight or rep count later.
+      exercises: entries.map((e) => ({
+        exerciseId: e.exerciseId ?? "",
+        name: e.name,
+        sets: sets
+          .filter((s) => s.exercise_id === e.exerciseId)
+          .map((s) => ({ id: s.id, weightLb: s.weight_lb === null ? null : Number(s.weight_lb), reps: s.reps })),
+      })),
       meta,
       note: `${dayLabel(w.started_at)} · ${workoutNote({ day: w.split_day, entries })}`,
     };
