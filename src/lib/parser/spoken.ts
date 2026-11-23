@@ -78,7 +78,7 @@ export function snapWord(word: string, known: readonly string[] = KNOWN): string
 }
 
 const LEADING_FILLERS =
-  /^(?:(?:um+|uh+|er+|hmm+|okay|ok|so|hey|alright|all right|please|yeah)[,\s]+|(?:can you|could you|would you|will you|go ahead and|i want to|i wanna|i need to|i have to|i've got to|i gotta|remind me to|remind me|don't let me forget to|don't forget to|make sure i|add|put|create|new|set)\s+)+/;
+  /^(?:(?:um+|uh+|er+|hmm+|okay|ok|so|hey|alright|all right|please|yeah)[,\s]+|(?:can you|could you|would you|will you|go ahead and|i want to|i wanna|i need to|i have to|i've got to|i gotta|remind me to|remind me|don't let me forget to|don't forget to|make sure i|add(?![^.!?]*\b(?:to|into|onto|in) (?:the|my|his|her|their|our|a|an) (?!list\b|to-?do|todo|tasks|reminders)[a-z])|put (?:on my list|down)(?: to)?|create (?:a )?(?:task|reminder)(?: to| for)?|new (?:task|reminder)|set (?:a )?reminder(?: to| for)?)\s+)+/;
 
 /** Turns a run of number words ("fifty nine") into a value, or null. */
 function wordsToNumber(words: string[]): number | null {
@@ -116,6 +116,9 @@ export function normalizeSpoken(input: string): string {
     const minute = words[0] === "oh" ? ONES[words[1]] : wordsToNumber(words);
     return minute === null || minute > 59 ? m : `${ONES[h]}:${String(minute).padStart(2, "0")}`;
   });
+
+  // "at 2 30" (the phone wrote the time without its colon) → "at 2:30".
+  s = s.replace(/\b(at|by|@)\s+(\d{1,2})\s+([0-5]\d)\b(?!\s*(?:x|%|minutes?|mins?|lbs?|pounds|reps?|sets?|dollars|bucks|miles?|people|pages?|problems?|questions?)\b)/g, (m, w, h, mm) => (Number(h) >= 1 && Number(h) <= 12 ? `${w} ${h}:${mm}` : m));
 
   // Ordinals: "the fifth" → "the 5th", "november twentieth" → "november 20th", "twenty first" → "21st".
   s = s.replace(/\b(twenty|thirty)[\s-](first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)\b/g, (_, t, o) => {

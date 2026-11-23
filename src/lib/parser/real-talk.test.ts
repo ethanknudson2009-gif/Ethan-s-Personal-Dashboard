@@ -70,6 +70,35 @@ describe("how Ethan talks", () => {
     ["PRMI call the client back friday because they had questions about the rate", { title: "Call the client back", notes: "Because they had questions about the rate", area: "work" }],
   ])("%s", (said, want) => expect(one(said)).toMatchObject(want));
 
+  it.each<[string, Want]>([
+    // Nov 22 batch: words that used to go missing or land in the wrong place.
+    ["read chapter 9 for anatomy and do the vocab", { title: "Read chapter 9 and do the vocab", cls: "Anatomy" }],
+    ["memorize lines for speech and practice them out loud three times", { title: "Memorize lines and practice them out loud 3 times", cls: "Speech" }],
+    ["email my counselor about switching out of choir next semester", { title: "Email my counselor about switching out of choir next semester" }],
+    ["I have to go to work at 3 tomorrow", { title: "Go to work", day: "2026-11-23", area: "work" }],
+    ["I need to get gas tomorrow morning before school", { title: "Get gas before school", day: "2026-11-23" }],
+    ["I have a dentist appointment on the 30th at 2 30", { title: "Dentist appointment", day: "2026-11-30" }],
+    ["put the Garcia appraisal in the file and let Mike know it came in", { title: "Put the Garcia appraisal in the file", notes: "Let Mike know it came in", area: "work" }],
+    ["I need to buy new running shoes my old ones have holes in them", { title: "Buy new running shoes", notes: "My old ones have holes in them" }],
+    ["update the loan estimate for the Brown family the rate changed", { title: "Update the loan estimate for the Brown family", notes: "The rate changed", area: "work" }],
+    ["tell Mike the Peterson file is missing a bank statement from October", { title: "Tell Mike the Peterson file is missing a bank statement from October", notes: null }],
+    ["I got to upload the Ramirez pay stubs to the portal before noon tomorrow", { title: "Upload the Ramirez pay stubs to the portal", day: "2026-11-23", area: "work" }],
+    ["I want to start going to bed earlier like by 10", { title: "Start going to bed earlier" }],
+    ["add the receipts to the Garcia file", { title: "Add the receipts to the Garcia file" }],
+    ["add speech outline due thursday", { title: "Outline", cls: "Speech", day: "2026-11-26" }],
+    ["add eggs and bread to my list", { title: "Eggs and bread" }],
+  ])("%s", (said, want) => expect(one(said)).toMatchObject(want));
+
+  it("'I forgot it at home' is a detail, not part of the title", () => {
+    const d = one("turn in my anatomy homework I forgot it at home it was due friday");
+    expect(d.title).toBe("Turn in my homework");
+    expect(d.notes).toContain("I forgot it at home");
+    expect(d.notes).toContain("It was due friday");
+  });
+  it("'at 2 30' is 2:30 PM", () => {
+    expect(parse("dentist appointment on the 30th at 2 30", ctx).when?.time).toMatchObject({ hour: 14, minute: 30 });
+  });
+
   it("a plain pair shares the day said at the end", () => {
     expect(many("clean my room and do laundry tonight")).toMatchObject([
       { title: "Clean my room", day: "2026-11-22" },

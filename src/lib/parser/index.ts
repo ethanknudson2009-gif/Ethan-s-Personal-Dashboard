@@ -76,14 +76,14 @@ export type Area = "school" | "work" | "personal";
 /** Phrases that say a task is for work. These words are removed from the title. */
 // Ethan calls PRMI "work", "primary" (also how speech often hears "PRMI")
 // or "the office". Mike is his LO (loan officer), so mentioning Mike means work.
-const WORK_TAGS = /\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work(?!\s+on\b)|primary|the office)\b:?/g;
+const WORK_TAGS = /(?<!\b(?:go|going|get|drive|driving|head|leave|come|walk|ride|back)\s)\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work(?!\s+on\b)|primary|the office)\b:?/g;
 /** Words that suggest work but stay in the title ("send Mike the files"). */
 const WORK_HINTS =
-  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loans?|loan files?|borrowers?|closing|closings|underwriting|underwriter|appraisals?|disclosures?|escrow|title company|pre-?approvals?|preapproval letter|rate locks?|lock the rate|refi|refinance|conditions|voe|1003|loan estimate|closing disclosure|processor|realtors?|pipeline|encompass|credit pull|pull credit|paystubs?|w-?2s?|bank statements?)\b|^(?:work(?!\s+on\b)|primary)\b/;
+  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loans?|loan files?|borrowers?|closing|closings|underwriting|underwriter|appraisals?|disclosures?|escrow|title company|pre-?approvals?|preapproval letter|rate locks?|lock the rate|refi|refinance|conditions|voe|1003|loan estimate|closing disclosure|processor|realtors?|pipeline|encompass|credit pull|pull credit|pay ?stubs?|w-?2s?|bank statements?)\b|^(?:work(?!\s+on\b)|primary)\b/;
 
 // ── Notes: where the main thing ends and extra context begins ─────────────
 const NOTE_MARKERS =
-  /(?<!\b(?:if|whether|that|because|cause|since|when|said|says|think|know|asked?|until|unless))(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|i still (?:need|have) to|i think|i guess|i feel like|(?:the|my|his|her|their|our) [a-z]+ (?:is|are|was|were|keeps|has been|have been)|note that|it needs|it has to|it should|it must|it'?s about|it is about|make sure|be sure|remember|don'?t forget|dont forget|because|cause|so that|so i can|so we can|so i|so we|(?:the |my )?teacher said|(?:she|he|they|mike) said|(?:she|he|they|mike) wants?|(?:she|he|they|mike) needs?|also|and also|plus|another thing|one more thing|oh and|bring|include|including|it covers|it'?s on|it is on|it'?s worth|it is worth|it'?s for|it is for|it'?ll be|it will be|it'?s going to be|it'?s gonna be|it'?s like|it'?s only|it'?s just|it'?s a|it is a|it'?s an|it'?s the|it'?s due|it is due|it'?s at|it is at|it'?s|it is|it was|that'?s|which is|which|i need to|i have to|i should|i gotta|i'?ve got to|i want to|we need to|we have to|i'?ll|i will|i have (?:some|a|an|the|my|these|those)|(?:it|she|he|they) (?:came|went|got|is|isn'?t|was|wasn'?t|has|hasn'?t|had|did|didn'?t|does|doesn'?t|can'?t|won'?t|already)|and ask|ask (?:him|her|them|mike|about)|and tell|tell (?:him|her|them|mike)|details?\s*:)\b)/g;
+  /(?<!\b(?:if|whether|that|because|cause|since|when|said|says|think|know|asked?|until|unless|get|got|getting|have|had|has))(?<!\b(?:tell|told|let|ask|remind|text|email|show|warn)\s+[a-z]+)(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|i still (?:need|have) to|i think|i guess|i feel like|(?:the|my|his|her|their|our) (?:[a-z]+ )?(?!(?:it|they|he|she|we|i|you)\b)[a-z]+ (?:is|are|was|were|keeps|has been|have been|has(?! to)|have(?! to)|changed|came|went|broke|got|moved|died|fell|ran out)|i (?:forgot|left|lost) (?:it|them|my|the)|note that|it needs|it has to|it should|it must|it'?s about|it is about|make sure|be sure|remember|don'?t forget|dont forget|because|cause|so that|so i can|so we can|so i|so we|(?:the |my )?teacher said|(?:she|he|they|mike) said|(?:she|he|they|mike) wants?|(?:she|he|they|mike) needs?|also|and also|plus|another thing|one more thing|oh and|bring|include|including|it covers|it'?s on|it is on|it'?s worth|it is worth|it'?s for|it is for|it'?ll be|it will be|it'?s going to be|it'?s gonna be|it'?s like|it'?s only|it'?s just|it'?s a|it is a|it'?s an|it'?s the|it'?s due|it is due|it'?s at|it is at|it'?s|it is|it was|that'?s|which is|which|i need to|i have to|i should|i gotta|i'?ve got to|i want to|we need to|we have to|i'?ll|i will|i have (?:some|a|an|the|my|these|those)|(?:it|she|he|they) (?:came|went|got|is|isn'?t|was|wasn'?t|has|hasn'?t|had|did|didn'?t|does|doesn'?t|can'?t|won'?t|already)|and ask|ask (?:him|her|them|mike|about)|and tell|tell (?:him|her|them|mike)|details?\s*:)\b)/g;
 
 /** Where notes start in the text, or -1. The main part keeps at least 2 words. */
 export function findNotesStart(low: string, after = 0): number {
@@ -185,7 +185,15 @@ function matchClass(
       const partOfThing =
         /\b(?:my|the|this|your|our)\s+$/.test(low.slice(0, m.index)) &&
         /^(?:\s*$|\s*[,.;!?]|\s+(?:in|on|at|for|to|with|before|after|by|and|so|until|because|tonight|tomorrow|today|again|twice|once)\b)/.test(low.slice(m.index + m[0].length));
-      if (!partOfThing) spans.claim(m.index, m.index + m[0].length);
+      // "switching out of choir", "drop choir": the class is what it's about.
+      const isObject = /\b(?:out of|into|join|joining|drop|dropping|quit|quitting|switch|switching)\s+$/.test(low.slice(0, m.index));
+      if (!partOfThing && !isObject) {
+        // "read chapter 9 for anatomy and do the vocab": "for" goes with the class.
+        const prep = /\b(?:for|in)\s+(?:my\s+)?$/.exec(low.slice(0, m.index));
+        const ends = /^(?:\s*$|\s*[,.;!?]|\s+(?:and|by|on|due|tonight|tomorrow|today|this|next|before)\b)/.test(low.slice(m.index + m[0].length));
+        const start = prep && ends ? prep.index : m.index;
+        spans.claim(start, m.index + m[0].length);
+      }
       return { cls: c, problem: null };
     }
   }
@@ -316,7 +324,9 @@ function cleanTitle(leftover: string, type: CaptureType): string {
   words = words.filter((w) => !["due", "by"].includes(w.toLowerCase()));
   const edgeJunk = (w: string) => FILLER.has(w.toLowerCase()) || w === ",";
   while (words.length && edgeJunk(words[0])) words.shift();
-  while (words.length && edgeJunk(words[words.length - 1])) words.pop();
+  const particle = (i: number) =>
+    words[i]?.toLowerCase() === "in" && /^(?:came|come|comes|coming|turn|turned|it|them|check|checked|log|logged|sign|signed|hand|handed|fill|plug|clock|clocked|move|moved|log)$/i.test(words[i - 1] ?? "");
+  while (words.length && (edgeJunk(words[words.length - 1]) || /^(?:like|um|uh)$/i.test(words[words.length - 1])) && !particle(words.length - 1)) words.pop();
   // Only commas between two real words stay; "milk , , eggs" → "milk, eggs".
   words = words.filter((w, i) => w !== "," || (words[i - 1] !== "," && i > 0));
   // Speech arrives lowercase: give names we know their capitals back.
@@ -447,6 +457,8 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
   const saidWork = WORK_HINTS.test(original.toLowerCase().slice(0, 40));
   const saidWorkFirst = /^(?:\W*(?:okay|ok|so|then|and|alright|um|uh)\b[\s,]*)*(?:at|for) (?:work|the office|prmi|primary)\b/i.test(original);
   original = stripLeadIn(original);
+  // "add milk to my list" → "milk" (the list is the app itself).
+  original = original.replace(/^(?:add\s+)?(.+?)\s+(?:to|on|onto) (?:my|the) (?:list|to-?do list|todo list|to-?dos|tasks|reminders)\b/i, "$1");
   const caseText = ctx.caseSource ? `${rawText}\n${ctx.caseSource}` : rawText;
   const noteMatch = NOTE_PREFIX.exec(original);
   if (noteMatch) original = original.slice(noteMatch[0].length);

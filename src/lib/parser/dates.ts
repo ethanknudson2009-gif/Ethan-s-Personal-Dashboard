@@ -49,7 +49,7 @@ const mo = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join("|");
 
 // Order matters: more specific patterns first.
 const RE = {
-  relative: /\b(today|tonight|tonite|tomorrow|tomorow|tmrw|tmr|yesterday)\b/g,
+  relative: /\b(today|tonight|tonite|tomorrow|tomorow|tmrw|tmr|yesterday)(?:\s+(?:morning|afternoon|evening|night))?\b/g,
   inN: /\bin\s+(\d+|a|an|one|two|three|four|five|six|seven)\s+(days?|weeks?)\b/g,
   numeric: /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?\b/g,
   monthDay: new RegExp(`\\b(${mo})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, "g"),
