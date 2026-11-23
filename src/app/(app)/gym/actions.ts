@@ -443,6 +443,7 @@ export type FixPreview = { workoutId: string; date: string; day: string | null; 
  * sets change. Saves nothing: the + sheet shows this so you can confirm.
  */
 export async function previewFixAction(fix: GymFix): Promise<Result<{ preview: FixPreview }>> {
+  if (fix.field === "sets") return { ok: false, error: "Changing how many sets you did needs the Edit button on that workout (Gym → past workouts)" };
   const supabase = await createClient();
   const { timeZone } = await loadSettings(supabase);
   const today = toLocalDate(new Date(), timeZone);

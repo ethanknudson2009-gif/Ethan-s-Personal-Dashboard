@@ -66,7 +66,8 @@ const TIME_RE = {
   ampm: /\b(\d{1,2})(?::(\d{2}))?(?:\s*(a\.m\.|p\.m\.|am|pm)|(a|p))(?![a-z])/g,
   named: /\b(noon|midday|midnight)\b/g,
   clock: /\b(\d{1,2}):(\d{2})\b/g,
-  bare: new RegExp(`(?:\\b(?:at|by|around)\\s+|@\\s*)(\\d{1,2})\\b(?!${NOT_A_TIME})`, "g"),
+  // "3 by 12" is 3 sets of 12, not "by noon".
+  bare: new RegExp(`(?:(?<!\\d\\s*)\\b(?:at|by|around|before)\\s+|@\\s*)(\\d{1,2})\\b(?!${NOT_A_TIME})`, "g"),
   // A number right after a day word: "sat 9", "tomorrow 3".
   afterDay: new RegExp(`\\b(?:${wd}|today|tonight|tomorrow|tmrw)\\s+(\\d{1,2})\\b(?!${NOT_A_TIME}|:)`, "g"),
 };

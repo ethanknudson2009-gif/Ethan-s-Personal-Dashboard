@@ -25,6 +25,25 @@ const SPORT_NAMES = [...new Set(EXERCISE_LIBRARY.filter((e) => e.muscle === "car
   .filter((w) => w.length > 2 && !EVERYDAY.has(w))
   .sort((a, b) => b.length - a.length);
 const SPORT = new RegExp(`\\b(?:${SPORT_NAMES.join("|")})\\b`);
+/**
+ * Any real exercise said with numbers is a workout: "plank for 60 seconds 3 times",
+ * "calf raises 4 by 20", "hip thrust 225 for 10". Multi-word names and nicknames
+ * from the library, plus single words that only mean exercise.
+ */
+const NOT_EXERCISE_PHRASES = new Set(["good morning", "good mornings", "get ups", "the clean"]);
+const EXERCISE_PHRASES = [
+  ...new Set(
+    EXERCISE_LIBRARY.filter((e) => e.muscle !== "cardio")
+      .flatMap((e) => [e.name, ...e.aliases])
+      .map(plain)
+      .filter((p) => p.includes(" ") && p.length >= 6 && !NOT_EXERCISE_PHRASES.has(p) && !/\d/.test(p)),
+  ),
+].sort((a, b) => b.length - a.length);
+// (plain() leaves only letters, digits and spaces, so the names need no escaping.)
+const EXERCISE_SAID = new RegExp(
+  `\\b(?:${EXERCISE_PHRASES.join("|")}|planks?|squats|deadlifts?|rdls?|curls|crunches|lunges|push ?ups|pull ?ups|chin ?ups|dips|shrugs|flys|flyes|pulldowns?|pushdowns?|skull ?crushers|hip thrusts?|kickbacks)\\b`,
+);
+
 /** "did yoga", "played basketball for an hour", "went bouldering": something you did, to log. */
 function sportDone(low: string): boolean {
   if (!SPORT.test(low)) return false;
@@ -274,6 +293,12 @@ function matchClass(
   return { cls: null, problem: null };
 }
 
+/** Past tenses that don't end in -ed: "drank water" checks off "Drink water". */
+const IRREGULAR: Record<string, string> = {
+  drank: "drink", ran: "run", ate: "eat", wrote: "write", slept: "sleep", took: "take", went: "go", did: "do",
+  made: "make", rode: "ride", swam: "swim", sang: "sing", spoke: "speak", read: "read", prayed: "pray",
+};
+
 /** Rough word stem so "meditated" matches "Meditate" and "reading" matches "Reading". */
 function stem(w: string): string {
   return w.length > 4 ? w.replace(/(ing|ed|es|s)$/, "").replace(/e$/, "") : w;
@@ -281,7 +306,7 @@ function stem(w: string): string {
 
 /** The habit a sentence mentions: every word of its name (by stem) appears. Longest name wins. */
 export function findHabit(low: string, habits: string[]): string | null {
-  const said = new Set((low.match(/[a-z0-9']+/g) ?? []).map(stem));
+  const said = new Set((low.match(/[a-z0-9']+/g) ?? []).map((w) => stem(IRREGULAR[w] ?? w)));
   const fits = habits.filter((h) => {
     const words = (h.toLowerCase().match(/[a-z0-9']+/g) ?? []).filter((w) => !FILLER.has(w) && w !== "my");
     return words.length > 0 && words.every((w) => said.has(stem(w)));
@@ -316,7 +341,8 @@ function detectType(low: string, ctx: ParseContext): CaptureType | null {
   if (!plan && !mealPlan && FOOD_WORDS.test(low)) return "food";
   // "gym after school", "chest day tomorrow": a plan to go, not a workout to log.
   const gymPlan = /\b(?:gym|workout|leg day|arm day|chest day|back day|push day|pull day)\b/.test(low) && !/\d|\b(?:did|went|worked out|lifted|hit|benched|squatted|ran|finished|done)\b/.test(low) && /\b(?:after|before|later|tonight|tomorrow|today|this|next|at|around|go|going|gonna|need|have to|want)\b/.test(low);
-  if (!plan && !notExercise && !gymPlan && (WORKOUT_WORDS.test(low) || sportDone(low))) return "workout";
+  const exerciseWithNumbers = /\d/.test(low) && EXERCISE_SAID.test(low.replace(/-/g, " "));
+  if (!plan && !notExercise && !gymPlan && (WORKOUT_WORDS.test(low) || sportDone(low) || exerciseWithNumbers || /\b\d{1,2} by \d{1,3}\b/.test(low) && EXERCISE_SAID.test(low))) return "workout";
   if (/\$\s?\d/.test(low)) return "expense";
   if (SCHOOL_WORDS.test(low) && !/^(?:call|text|email|e-mail|message|ask|tell|meet|remind)\b/.test(low)) return "homework";
   return null; // decided later (a class match makes it homework, otherwise task)
@@ -344,7 +370,12 @@ function cleanTitle(leftover: string, type: CaptureType): string {
   // Only commas between two real words stay; "milk , , eggs" → "milk, eggs".
   words = words.filter((w, i) => w !== "," || (words[i - 1] !== "," && i > 0));
   // Speech arrives lowercase: give names we know their capitals back.
-  const title = words.join(" ").replace(/ ,/g, ",").replace(PROPER_NAMES, (w) => PROPER[w.toLowerCase()] ?? w);
+  const title = words
+    .join(" ")
+    .replace(/ ,/g, ",")
+    .replace(PROPER_NAMES, (w) => PROPER[w.toLowerCase()] ?? w)
+    // Teachers: "mrs johnson" → "Mrs Johnson".
+    .replace(/\b(mr|mrs|ms|miss|dr|coach)\.? ([a-z])/gi, (_m, t: string, c: string) => `${t.charAt(0).toUpperCase()}${t.slice(1).toLowerCase()} ${c.toUpperCase()}`);
   return title.charAt(0).toUpperCase() + title.slice(1);
 }
 
@@ -483,6 +514,14 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
   // "I'm going to the gym later" → "go to the gym later", "…I think" at the end is just a hedge.
   original = original
     .replace(/\bthe plan (?:for )?(today|tomorrow|tonight|this weekend)(?: is)?\b/i, "$1")
+    // "Mike wants the Garcia LE sent out today" → "send out the Garcia LE today".
+    .replace(
+      /^(?:mike|my lo|he|she|they) (?:wants|needs) (the [a-z0-9' ]+?) (sent out|sent|done|finished|submitted|ordered|uploaded|signed|pulled|ran|run)\b/i,
+      (_m, what: string, verb: string) =>
+        `${({ "sent out": "send out", sent: "send", done: "finish", finished: "finish", submitted: "submit", ordered: "order", uploaded: "upload", signed: "get signed", pulled: "pull", ran: "run", run: "run" } as Record<string, string>)[verb.toLowerCase()]} ${what}`,
+    )
+    // "my algebra homework is pages 45 through 50" → the pages are the homework.
+    .replace(/\bhomework (?:is|are) (?=(?:pages?|problems?|questions?|chapters?|sections?|exercises?|numbers?|the worksheet|a worksheet|worksheet)\b)/i, "homework ")
     .replace(/\bi(?:'m| am) (?:going|gonna go|heading) to (?=the |my |work\b|school\b|class\b|practice\b|[a-z]+'s\b|costco|target|walmart)/i, "go to ")
     .replace(/\b(?:i (?:have|need|gotta|got) to|i'?ve got to|i gotta) work\b(?!\s+on\b)/i, "work shift")
     // (speech cleanup may already have dropped "I have to": "work saturday from 9 to 1")

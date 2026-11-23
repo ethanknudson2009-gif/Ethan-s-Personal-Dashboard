@@ -12,6 +12,7 @@
  */
 
 import { libraryEntry } from "./exercise-library";
+import { selfCorrect } from "./parser/spoken";
 
 export type GymExercise = { id: string; name: string; muscle?: string; bodyweight?: boolean };
 export type SpokenSet = { weightLb: number | null; reps: number | null };
@@ -43,8 +44,19 @@ const val = (w: string): number | null => (w in UNITS ? UNITS[w] : w in TENS ? T
  * Also undoes clock times the general speech cleanup made ("1:35" → 135).
  */
 export function gymNumbers(text: string): string {
-  const words = text
+  // "80 pounds… excuse me I mean 60 pounds" → "60 pounds…" (people fix themselves mid-sentence).
+  const words = selfCorrect(text)
     .toLowerCase()
+    // The mic mishears some gym words.
+    .replace(/\bschool crushers?\b/g, "skull crushers")
+    .replace(/\bskull crunchers?\b/g, "skull crushers")
+    .replace(/\b(?:lat|lats) pull downs?\b/g, "lat pulldown")
+    .replace(/\bpull downs?\b/g, "pulldown")
+    .replace(/\bdead lifts?\b/g, "deadlift")
+    // "3 by 12" / "4 by 20" = 3 sets of 12.
+    .replace(/\b(\d{1,2}) by (\d{1,3})\b/g, "$1 x $2")
+    // "plank for 60 seconds 3 times", "135 for 10, 3 times" = 3 sets.
+    .replace(/\b(\d{1,3})\s*(?:seconds?|secs?|reps?)?\s*,?\s+(\d{1,2}|two|three|four|five) times\b/g, (_m, n: string, t: string) => `${{ two: 2, three: 3, four: 4, five: 5 }[t] ?? t} x ${n}`)
     .replace(/\b([1-9]):([0-5]\d)\b/g, (_m, h: string, mm: string) => String(Number(h) * 100 + Number(mm)))
     // Gym slang: "pulled 315" is a deadlift, "squatted 225" a squat.
     .replace(/\bpulled (?=\d|a |one |two |three |four |five )/g, "deadlift ")

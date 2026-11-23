@@ -13,7 +13,8 @@ export type FixDay = { kind: "split"; word: string } | { kind: "daysAgo"; n: num
 export type GymFix = {
   exerciseId: string;
   exercise: string;
-  field: "reps" | "weightLb" | null; // null: work it out from the old number
+  /** null: work it out from the old number. "sets": how many sets (not fixable by voice yet). */
+  field: "reps" | "weightLb" | "sets" | null;
   to: number;
   from: number | null;
   day: FixDay;
@@ -74,6 +75,9 @@ export function readFix(said: string, exercises: GymExercise[]): GymFix | null {
     }
   }
   if (to === null) return null;
+  // "4 sets not 3" changes how many sets there were, not a number in one set.
+  // Marked so the preview can say "edit it by hand" instead of guessing.
+  const setCount = /\b\d+ sets? (?:and |but )?(?:not|instead of|rather than)\b|\bnot \d+ sets?\b/.test(low);
   // Plates: "3 plates" means the bar weight.
   if (/plates?/.test(low) && field === "weightLb" && to !== null && (to as number) < 10) to = 45 + 90 * (to as number);
 
@@ -107,7 +111,7 @@ export function readFix(said: string, exercises: GymExercise[]): GymFix | null {
   else if (/\blast set\b/.test(low)) set = "last";
   else if (/\b(?:all|every|each)(?: of the| of my| the)? sets?\b|\ball of them\b/.test(low)) set = "all";
 
-  return { exerciseId: entry.exerciseId, exercise: entry.name, field, to, from, day, set };
+  return { exerciseId: entry.exerciseId, exercise: entry.name, field: setCount ? "sets" : field, to, from, day, set };
 }
 
 export type FixSet = { id: string; weightLb: number | null; reps: number | null };
@@ -115,7 +119,7 @@ export type FixChange = { setId: string; n: number; field: "reps" | "weightLb"; 
 
 /** Which sets change, given the sets of that exercise in the chosen workout (in order). */
 export function planFix(fix: GymFix, sets: FixSet[]): FixChange[] {
-  if (!sets.length) return [];
+  if (!sets.length || fix.field === "sets") return [];
   let field = fix.field;
   if (!field) {
     // Work out reps vs weight from the old number, else from the size of the new one.

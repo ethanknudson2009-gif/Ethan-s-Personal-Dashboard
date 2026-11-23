@@ -95,8 +95,47 @@ function wordsToNumber(words: string[]): number | null {
 
 const NUM_WORD = `(?:${[...Object.keys(TENS), ...Object.keys(ONES)].join("|")})`;
 
+/**
+ * Fixing yourself mid-sentence, like people do:
+ *   "80 pounds for 10 reps, excuse me I mean 60 pounds" → "60 pounds for 10 reps"
+ *   "bench 185 for 8 no wait 6"                         → "bench 185 for 6"
+ *   "meet at 5, sorry, make that 6"                     → "meet at 6"
+ * The new number replaces the last one said with the same unit (pounds, reps…),
+ * or simply the last number when no unit is said.
+ */
+const CORRECTION =
+  /[\s,.]*\b(?:no wait|wait no|excuse me|sorry|oops|i mean|i meant|make that|scratch that|no no|correction|my bad)\b[\s,.]*(?:(?:i mean|i meant|make that|it was|it's|its|no)\b[\s,.]*)?(\d+(?:\.\d+)?)(?:\s*(pounds?|lbs?|reps?|sets?|seconds?|secs?|minutes?|mins?|miles?))?\b/i;
+const unitKind = (u: string | undefined) =>
+  !u ? null : /^(?:pound|lb)/i.test(u) ? "lb" : /^rep/i.test(u) ? "rep" : /^set/i.test(u) ? "set" : /^sec/i.test(u) ? "sec" : /^min/i.test(u) ? "min" : "mi";
+
+export function selfCorrect(text: string): string {
+  let s = text;
+  for (let guard = 0; guard < 5; guard++) {
+    const m = CORRECTION.exec(s);
+    if (!m) break;
+    const before = s.slice(0, m.index);
+    const after = s.slice(m.index + m[0].length);
+    // "225 for 5, sorry 235 for 5": the whole "weight for reps" was said again.
+    const again = after.match(/^\s*((?:for|x|by)\s+\d+(?:\s*reps?)?)/i);
+    const pairs = [...before.matchAll(/(\d+(?:\.\d+)?)(?:\s*(?:pounds?|lbs?))?\s+(?:for|x|by)\s+\d+(?:\s*reps?)?/gi)];
+    if (again && pairs.length) {
+      const p = pairs[pairs.length - 1];
+      s = `${before.slice(0, p.index)}${m[1]} ${again[1]}${before.slice(p.index! + p[0].length)}${after.slice(again[0].length)}`.replace(/\s+/g, " ");
+      continue;
+    }
+    const kind = unitKind(m[2]);
+    const said = [...before.matchAll(/(\d+(?:\.\d+)?)(?:\s*(pounds?|lbs?|reps?|sets?|seconds?|secs?|minutes?|mins?|miles?))?\b/gi)];
+    if (!said.length) break;
+    const target = (kind && [...said].reverse().find((x) => unitKind(x[2]) === kind)) || said[said.length - 1];
+    const at = target.index!;
+    const fixed = before.slice(0, at) + m[1] + before.slice(at + target[1].length);
+    s = `${fixed}${after}`.replace(/\s+/g, " ");
+  }
+  return s;
+}
+
 export function normalizeSpoken(input: string): string {
-  let s = ` ${input.toLowerCase().replace(/[“”"]/g, '"').replace(/[’]/g, "'")} `;
+  let s = ` ${selfCorrect(input).toLowerCase().replace(/[“”"]/g, '"').replace(/[’]/g, "'")} `;
 
   // Fillers anywhere ("um", "uh", "like," between words).
   s = s.replace(/\s(?:um+|uh+|er+|hmm+)[,.]?(?=\s)/g, " ");
@@ -107,6 +146,9 @@ export function normalizeSpoken(input: string): string {
   s = s.replace(/(\s(?:so|um|uh|and|but|to|gonna|gotta|wanna|it's|its|in|for|about|is|was|were|just|get|got|maybe|or|be|at|around|with))\s+like,?(?=\s(?!to\b|it\b|that\b|this\b|them\b|him\b|her\b|me\b|you\b))/g, "$1");
   s = s.replace(/\s+like,?(?=\s(?:\d|a few|a couple|two|three|four|five|ten|twenty|half)\b)/g, "");
   s = s.replace(/\s+/g, " ");
+
+  // "mr. smith": the dot isn't the end of a sentence.
+  s = s.replace(/\b(mr|mrs|ms|dr)\.(?=\s)/g, "$1");
 
   // "P R M I" / "p.r.m.i." (Ethan's job) → prmi
   s = s.replace(/\bp\.?\s?r\.?\s?m\.?\s?i\b\.?/g, "prmi");
