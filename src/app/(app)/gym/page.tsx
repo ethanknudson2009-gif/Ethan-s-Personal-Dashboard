@@ -6,6 +6,8 @@ import { DEFAULT_SPLIT, setsSummary, workoutNote, type SpokenEntry } from "@/lib
 import { PageHeader } from "@/components/ui";
 import { ActiveWorkout, SplitCard, WorkoutNoteCard, type Block, type ExerciseOption } from "@/components/gym-parts";
 import { GymCharts } from "@/components/gym-charts";
+import { CoachCard } from "@/components/gym-coach-card";
+import { coachTips } from "@/lib/gym-coach";
 import { EXERCISE_LIBRARY, libraryEntry } from "@/lib/exercise-library";
 import { musclesOfDay, STARTERS } from "@/lib/gym-plan";
 import { chartableExercises, splitCounts, strengthSeries, weeklyVolume, type PastWorkout } from "@/lib/gym-progress";
@@ -118,6 +120,13 @@ export default async function GymPage() {
     skipped: w.skipped,
     sets: (w.workout_sets ?? []).map(toGym),
   }));
+  // Coach tips: patterns in every set you've logged (too many reps, stalls, skipped muscles...).
+  const tips = coachTips(
+    pastForCharts,
+    (exercises ?? []).map((e) => ({ id: e.id, name: e.name, muscle: e.muscle })),
+    today,
+    { nextDay: open ? null : split[next] },
+  );
   const lifts = chartableExercises(pastForCharts)
     .slice(0, 12)
     .map((l) => ({ id: l.exerciseId, name: names.get(l.exerciseId) ?? "Exercise", sessions: l.sessions }));
@@ -182,6 +191,8 @@ export default async function GymPage() {
       </section>
 
       {open && <ActiveWorkout workoutId={open.id} startedAt={open.started_at} day={liveDay} dayMuscles={dayMuscles} blocks={blocks} exercises={options} />}
+
+      {!open && <CoachCard tips={tips} />}
 
       {bests.length > 0 && (
         <section>
