@@ -40,7 +40,7 @@ export default async function GymPage() {
   const today = toLocalDate(new Date(), timeZone);
 
   const [{ data: exercises }, { data: open }, { data: past }, { data: profile }] = await Promise.all([
-    supabase.from("exercises").select("id, name, muscle, equipment").order("name"),
+    supabase.from("exercises").select("id, name, muscle, equipment, bodyweight").order("name"),
     supabase
       .from("workouts")
       .select("id, started_at, split_day, workout_sets(id, exercise_id, position, weight_lb, reps, done)")
@@ -81,6 +81,10 @@ export default async function GymPage() {
     })(),
   }));
   const muscleById = new Map((exercises ?? []).map((e) => [e.id, e.muscle]));
+  const isBodyweight = (id: string | null) => {
+    const e = (exercises ?? []).find((x) => x.id === id);
+    return !!e && (libraryEntry(e.name)?.bodyweight ?? e.bodyweight ?? false);
+  };
   // The muscles for the picker's "🔥 Chest" tab: the live workout's day, else the next one up.
   const liveDay = open?.split_day ?? null;
   const dayMuscles = [...new Set(musclesOfDay(liveDay ?? split[next]).flatMap((m) => (m in MUSCLE_GROUPS ? MUSCLE_GROUPS[m] : [m])))];
@@ -100,7 +104,7 @@ export default async function GymPage() {
       let b = blocks.find((x) => x.exerciseId === s.exercise_id);
       if (!b) {
         const prev = lastTime(s.exercise_id, history);
-        b = { exerciseId: s.exercise_id, name: names.get(s.exercise_id) ?? "Exercise", muscle: muscleById.get(s.exercise_id) ?? "other", last: prev.length ? prev.map(setLabel).join(", ") : null, sets: [] };
+        b = { exerciseId: s.exercise_id, name: names.get(s.exercise_id) ?? "Exercise", muscle: muscleById.get(s.exercise_id) ?? "other", bodyweight: isBodyweight(s.exercise_id), last: prev.length ? prev.map(setLabel).join(", ") : null, sets: [] };
         blocks.push(b);
       }
       b.sets.push({ id: s.id, weightLb: s.weight_lb === null ? null : Number(s.weight_lb), reps: s.reps, done: s.done });
@@ -159,6 +163,7 @@ export default async function GymPage() {
       exercises: entries.map((e) => ({
         exerciseId: e.exerciseId ?? "",
         name: e.name,
+        bodyweight: isBodyweight(e.exerciseId),
         sets: sets
           .filter((s) => s.exercise_id === e.exerciseId)
           .map((s) => ({ id: s.id, weightLb: s.weight_lb === null ? null : Number(s.weight_lb), reps: s.reps })),

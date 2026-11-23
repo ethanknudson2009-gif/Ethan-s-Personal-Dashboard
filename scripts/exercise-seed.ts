@@ -3,7 +3,7 @@
  * so the database and the app share one list. Safe to run again: existing
  * exercises are updated, missing ones added. Run with:
  *   node scripts/exercise-seed.ts 0020_more_exercises
- * (0019_exercise_library was the first one.)
+ * (0019_exercise_library was the first one, then 0020, 0021.)
  */
 import { writeFileSync } from "node:fs";
 

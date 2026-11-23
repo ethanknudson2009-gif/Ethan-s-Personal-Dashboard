@@ -10,7 +10,14 @@
  * the last set, and nothing is wider than the phone.
  */
 import { playSound } from "@/lib/sound";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   addExerciseAction,
@@ -27,23 +34,59 @@ import {
 } from "@/app/(app)/gym/actions";
 import { cx } from "@/components/ui";
 import { useTaskSheet } from "@/components/task-sheet";
-import { DETAIL_LABELS, MUSCLE_LABELS, MUSCLE_TREE, detailOf, groupOf, searchScore, type Detail, type Muscle } from "@/lib/exercise-library";
+import {
+  DETAIL_LABELS,
+  MUSCLE_LABELS,
+  MUSCLE_TREE,
+  detailOf,
+  groupOf,
+  searchScore,
+  type Detail,
+  type Muscle,
+} from "@/lib/exercise-library";
 
 const FIRE = "#ff6b4a";
 
 /** `rank`: the library's order (most common first); your own exercises come after. */
-export type ExerciseOption = { id: string; name: string; muscle: string; equipment: string | null; aliases: string[]; recent: boolean; rank: number };
-export type SetRowData = { id: string; weightLb: number | null; reps: number | null; done: boolean };
-export type Block = { exerciseId: string; name: string; muscle: string; last: string | null; sets: SetRowData[] };
+export type ExerciseOption = {
+  id: string;
+  name: string;
+  muscle: string;
+  equipment: string | null;
+  aliases: string[];
+  recent: boolean;
+  rank: number;
+};
+export type SetRowData = {
+  id: string;
+  weightLb: number | null;
+  reps: number | null;
+  done: boolean;
+};
+/** `bodyweight`: push-ups, pull-ups, dips… only reps are asked for (tap "Bodyweight" to add a vest or belt). */
+export type Block = {
+  exerciseId: string;
+  name: string;
+  muscle: string;
+  bodyweight: boolean;
+  last: string | null;
+  sets: SetRowData[];
+};
 
 /** Set rows: number · weight · reps · ✓ · remove. minmax(0,…) lets the boxes shrink on a phone. */
-const ROW = "grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_3rem_1.75rem] items-center gap-2";
+const ROW =
+  "grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_3rem_1.75rem] items-center gap-2";
 
-const muscleLabel = (m: string) => MUSCLE_LABELS[m as Muscle] ?? m.charAt(0).toUpperCase() + m.slice(1);
+const muscleLabel = (m: string) =>
+  MUSCLE_LABELS[m as Muscle] ?? m.charAt(0).toUpperCase() + m.slice(1);
 
 /** The exact muscle (Hamstrings, Side delts…), or null for your own "other" exercises. */
 const partOf = (e: { name: string; muscle: string }): Detail | null =>
-  e.muscle in MUSCLE_LABELS ? detailOf(e.name, e.muscle) : e.muscle === "arms" ? "biceps" : null;
+  e.muscle in MUSCLE_LABELS
+    ? detailOf(e.name, e.muscle)
+    : e.muscle === "arms"
+      ? "biceps"
+      : null;
 const partLabel = (e: { name: string; muscle: string }) => {
   const p = partOf(e);
   return p ? DETAIL_LABELS[p] : muscleLabel(e.muscle);
@@ -55,12 +98,21 @@ const groupKeyOf = (e: { name: string; muscle: string }) => {
 };
 /** The muscle saved for a new exercise made while a group (and maybe a part) is picked. */
 function muscleFor(group: string, part: Detail | null): string {
-  if (part === "biceps" || part === "triceps" || part === "forearms") return part;
+  if (part === "biceps" || part === "triceps" || part === "forearms")
+    return part;
   if (part) return groupOf(part).key;
   return group === "arms" ? "biceps" : group;
 }
 
-export function StartWorkout({ label = "Start workout", day, big }: { label?: string; day?: string; big?: boolean }) {
+export function StartWorkout({
+  label = "Start workout",
+  day,
+  big,
+}: {
+  label?: string;
+  day?: string;
+  big?: boolean;
+}) {
   const sheet = useTaskSheet();
   const [pending, startTransition] = useTransition();
   return (
@@ -71,8 +123,10 @@ export function StartWorkout({ label = "Start workout", day, big }: { label?: st
         startTransition(async () => {
           const r = await startWorkoutAction(day);
           if (!r.ok) return sheet.toast(r.error);
-          if (r.from === "last time") sheet.toast(`Same as last ${day} day: change anything, then tap ✓`);
-          else if (r.from === "starter") sheet.toast(`Starter ${day} workout: swap exercises any time`);
+          if (r.from === "last time")
+            sheet.toast(`Same as last ${day} day: change anything, then tap ✓`);
+          else if (r.from === "starter")
+            sheet.toast(`Starter ${day} workout: swap exercises any time`);
         })
       }
       className={cx(
@@ -104,7 +158,15 @@ function beep() {
   }
 }
 
-function RestTimer({ until, onDone, onAdd }: { until: number; onDone: () => void; onAdd: (s: number) => void }) {
+function RestTimer({
+  until,
+  onDone,
+  onAdd,
+}: {
+  until: number;
+  onDone: () => void;
+  onAdd: (s: number) => void;
+}) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 250);
@@ -124,16 +186,31 @@ function RestTimer({ until, onDone, onAdd }: { until: number; onDone: () => void
       style={{ borderColor: `${FIRE}88`, boxShadow: `0 0 24px -6px ${FIRE}` }}
     >
       <span className="text-sm font-semibold">Rest</span>
-      <span className="font-display text-xl font-semibold tabular-nums" style={{ color: FIRE }}>
+      <span
+        className="font-display text-xl font-semibold tabular-nums"
+        style={{ color: FIRE }}
+      >
         {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}
       </span>
-      <button type="button" onClick={() => onAdd(-15)} className="rounded-full bg-raised px-2.5 py-1 text-xs font-semibold">
+      <button
+        type="button"
+        onClick={() => onAdd(-15)}
+        className="rounded-full bg-raised px-2.5 py-1 text-xs font-semibold"
+      >
         −15
       </button>
-      <button type="button" onClick={() => onAdd(30)} className="rounded-full bg-raised px-2.5 py-1 text-xs font-semibold">
+      <button
+        type="button"
+        onClick={() => onAdd(30)}
+        className="rounded-full bg-raised px-2.5 py-1 text-xs font-semibold"
+      >
         +30
       </button>
-      <button type="button" onClick={onDone} className="rounded-full px-2 py-1 text-xs text-muted">
+      <button
+        type="button"
+        onClick={onDone}
+        className="rounded-full px-2 py-1 text-xs text-muted"
+      >
         Skip
       </button>
     </div>
@@ -143,22 +220,39 @@ function RestTimer({ until, onDone, onAdd }: { until: number; onDone: () => void
 /** Quick nudges shown under the box you're typing in, so most sets need no keyboard. */
 const NUDGE = { w: [-10, -5, 5, 10], r: [-2, -1, 1, 2] } as const;
 
-function SetRow({ set, index, prev, onDone }: { set: SetRowData; index: number; prev?: SetRowData; onDone: () => void }) {
+function SetRow({
+  set,
+  index,
+  prev,
+  bodyweight = false,
+  onDone,
+}: {
+  set: SetRowData;
+  index: number;
+  prev?: SetRowData;
+  bodyweight?: boolean;
+  onDone: () => void;
+}) {
   const sheet = useTaskSheet();
   const [weight, setWeight] = useState(set.weightLb?.toString() ?? "");
   const [reps, setReps] = useState(set.reps?.toString() ?? "");
   const [done, setDone] = useState(set.done);
   const [focus, setFocus] = useState<"w" | "r" | null>(null);
+  // Bodyweight moves hide the weight box until you add weight (a vest, a dip belt).
+  const [withWeight, setWithWeight] = useState(
+    !bodyweight || set.weightLb !== null || prev?.weightLb != null,
+  );
   const repsBox = useRef<HTMLInputElement>(null);
   const [, startTransition] = useTransition();
-  const num = (v: string) => (v.trim() === "" || Number.isNaN(Number(v)) ? null : Number(v));
+  const num = (v: string) =>
+    v.trim() === "" || Number.isNaN(Number(v)) ? null : Number(v);
   const save = (patch: Parameters<typeof updateSetAction>[1]) =>
     startTransition(async () => {
       const r = await updateSetAction(set.id, patch);
       if (!r.ok) sheet.toast(r.error);
     });
   // An empty box shows the set above in grey; ✓ on an empty set copies it.
-  const ghostW = prev?.weightLb ?? null;
+  const ghostW = withWeight ? (prev?.weightLb ?? null) : null;
   const ghostR = prev?.reps ?? null;
 
   function nudge(which: "w" | "r", by: number) {
@@ -191,34 +285,55 @@ function SetRow({ set, index, prev, onDone }: { set: SetRowData; index: number; 
     if (next) onDone();
   }
 
-  const field = "w-full min-w-0 rounded-xl border border-line bg-raised px-1 py-2.5 text-center font-display text-lg font-semibold tabular-nums text-ink placeholder:text-faint placeholder:font-normal focus:border-[#ff6b4a] focus:outline-none";
+  const field =
+    "w-full min-w-0 rounded-xl border border-line bg-raised px-1 py-2.5 text-center font-display text-lg font-semibold tabular-nums text-ink placeholder:text-faint placeholder:font-normal focus:border-[#ff6b4a] focus:outline-none";
   return (
-    <div className={cx("rounded-xl py-1 transition", done && "bg-[#ff6b4a]/10")}>
+    <div
+      className={cx("rounded-xl py-1 transition", done && "bg-[#ff6b4a]/10")}
+    >
       <div className={ROW}>
-        <span className="text-center text-xs font-semibold text-muted">{index + 1}</span>
-        <input
-          value={weight}
-          onChange={(e) => setWeight(e.target.value)}
-          onFocus={(e) => {
-            e.target.select();
-            setFocus("w");
-          }}
-          onBlur={() => {
-            setFocus(null);
-            if (num(weight) !== set.weightLb) save({ weightLb: num(weight) });
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              repsBox.current?.focus();
+        <span className="text-center text-xs font-semibold text-muted">
+          {index + 1}
+        </span>
+        {!withWeight ? (
+          <button
+            type="button"
+            onClick={() => setWithWeight(true)}
+            aria-label={`Set ${index + 1}: bodyweight (tap to add weight)`}
+            className="h-11 rounded-xl border border-dashed border-line text-xs font-semibold text-muted"
+          >
+            Bodyweight
+          </button>
+        ) : (
+          <input
+            autoFocus={
+              bodyweight && set.weightLb === null && prev?.weightLb == null
             }
-          }}
-          inputMode="decimal"
-          enterKeyHint="next"
-          placeholder={ghostW !== null ? String(ghostW) : "lb"}
-          aria-label={`Set ${index + 1} weight`}
-          className={field}
-        />
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            onFocus={(e) => {
+              e.target.select();
+              setFocus("w");
+            }}
+            onBlur={() => {
+              setFocus(null);
+              if (num(weight) !== set.weightLb) save({ weightLb: num(weight) });
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                repsBox.current?.focus();
+              }
+            }}
+            inputMode="decimal"
+            enterKeyHint="next"
+            placeholder={
+              ghostW !== null ? String(ghostW) : bodyweight ? "+ lb" : "lb"
+            }
+            aria-label={`Set ${index + 1} weight`}
+            className={field}
+          />
+        )}
         <input
           ref={repsBox}
           value={reps}
@@ -229,7 +344,10 @@ function SetRow({ set, index, prev, onDone }: { set: SetRowData; index: number; 
           }}
           onBlur={() => {
             setFocus(null);
-            if (num(reps) !== set.reps) save({ reps: num(reps) === null ? null : Math.round(num(reps)!) });
+            if (num(reps) !== set.reps)
+              save({
+                reps: num(reps) === null ? null : Math.round(num(reps)!),
+              });
           }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -246,13 +364,25 @@ function SetRow({ set, index, prev, onDone }: { set: SetRowData; index: number; 
         <button
           type="button"
           data-silent
-          aria-label={done ? "Not done" : ghostW !== null && !weight && !reps ? "Done, same as last set" : "Done"}
+          aria-label={
+            done
+              ? "Not done"
+              : ghostW !== null && !weight && !reps
+                ? "Done, same as last set"
+                : "Done"
+          }
           onClick={toggleDone}
           className={cx(
             "flex h-11 items-center justify-center rounded-xl border-2 text-lg font-bold transition active:scale-90",
-            done ? "check-ring-done border-transparent text-white" : "border-line text-faint",
+            done
+              ? "check-ring-done border-transparent text-white"
+              : "border-line text-faint",
           )}
-          style={done ? { backgroundColor: FIRE, boxShadow: `0 0 14px -2px ${FIRE}` } : undefined}
+          style={
+            done
+              ? { backgroundColor: FIRE, boxShadow: `0 0 14px -2px ${FIRE}` }
+              : undefined
+          }
         >
           ✓
         </button>
@@ -270,7 +400,10 @@ function SetRow({ set, index, prev, onDone }: { set: SetRowData; index: number; 
         </button>
       </div>
       {focus && (
-        <div className="mt-1.5 grid grid-cols-4 gap-1.5 pl-8" aria-label={focus === "w" ? "Change weight" : "Change reps"}>
+        <div
+          className="mt-1.5 grid grid-cols-4 gap-1.5 pl-8"
+          aria-label={focus === "w" ? "Change weight" : "Change reps"}
+        >
           {NUDGE[focus].map((by) => (
             <button
               key={by}
@@ -279,7 +412,9 @@ function SetRow({ set, index, prev, onDone }: { set: SetRowData; index: number; 
               onPointerDown={(e) => e.preventDefault()}
               onClick={() => nudge(focus, by)}
               className="rounded-lg border border-line bg-raised py-2 text-sm font-semibold tabular-nums text-ink active:scale-95"
-              style={by > 0 ? { borderColor: `${FIRE}66`, color: FIRE } : undefined}
+              style={
+                by > 0 ? { borderColor: `${FIRE}66`, color: FIRE } : undefined
+              }
             >
               {by > 0 ? `+${by}` : `−${-by}`}
             </button>
@@ -312,33 +447,54 @@ function ExercisePicker({
   const sheet = useTaskSheet();
   const [q, setQ] = useState("");
   const hasDay = dayMuscles.some((m) => exercises.some((e) => e.muscle === m));
-  const [tab, setTab] = useState<string>(hasDay ? "day" : exercises.some((e) => e.recent) ? "recent" : "chest");
+  const [tab, setTab] = useState<string>(
+    hasDay ? "day" : exercises.some((e) => e.recent) ? "recent" : "chest",
+  );
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [pending, startTransition] = useTransition();
   // Muscles as a tree: tap a group (Legs), then a part (Hamstrings) if you want.
   const [part, setPart] = useState<Detail | null>(null);
   const groups = useMemo(() => {
-    const tree = MUSCLE_TREE.filter((g) => exercises.some((e) => groupKeyOf(e) === g.key)).map((g) => ({
+    const tree = MUSCLE_TREE.filter((g) =>
+      exercises.some((e) => groupKeyOf(e) === g.key),
+    ).map((g) => ({
       key: g.key,
       label: g.label,
       parts: g.parts.filter((p) => exercises.some((e) => partOf(e) === p)),
     }));
-    return exercises.some((e) => groupKeyOf(e) === "other") ? [...tree, { key: "other", label: "Other", parts: [] as Detail[] }] : tree;
+    return exercises.some((e) => groupKeyOf(e) === "other")
+      ? [...tree, { key: "other", label: "Other", parts: [] as Detail[] }]
+      : tree;
   }, [exercises]);
   const current = groups.find((g) => g.key === tab);
 
   const list = useMemo(() => {
     if (q.trim()) {
       return exercises
-        .map((e) => ({ e, s: searchScore(q, e.name, e.aliases) + (e.recent ? 3 : 0) }))
+        .map((e) => ({
+          e,
+          s: searchScore(q, e.name, e.aliases) + (e.recent ? 3 : 0),
+        }))
         .filter((x) => x.s > 3 || (x.s > 0 && !x.e.recent))
         .sort((a, b) => b.s - a.s)
         .slice(0, 40)
         .map((x) => x.e);
     }
-    const pick = tab === "day" ? exercises.filter((e) => dayMuscles.includes(e.muscle)) : tab === "recent" ? exercises.filter((e) => e.recent) : exercises.filter((e) => groupKeyOf(e) === tab && (!part || partOf(e) === part));
+    const pick =
+      tab === "day"
+        ? exercises.filter((e) => dayMuscles.includes(e.muscle))
+        : tab === "recent"
+          ? exercises.filter((e) => e.recent)
+          : exercises.filter(
+              (e) => groupKeyOf(e) === tab && (!part || partOf(e) === part),
+            );
     // Ones you've done before first, then the most common ones.
-    return [...pick].sort((a, b) => Number(b.recent) - Number(a.recent) || a.rank - b.rank || a.name.localeCompare(b.name));
+    return [...pick].sort(
+      (a, b) =>
+        Number(b.recent) - Number(a.recent) ||
+        a.rank - b.rank ||
+        a.name.localeCompare(b.name),
+    );
   }, [q, tab, part, exercises, dayMuscles]);
 
   const add = (id: string) => {
@@ -367,7 +523,9 @@ function ExercisePicker({
 
   const tabs = [
     ...(hasDay ? [{ key: "day", label: `🔥 ${dayName ?? "Today"}` }] : []),
-    ...(exercises.some((e) => e.recent) ? [{ key: "recent", label: "⭐ Done before" }] : []),
+    ...(exercises.some((e) => e.recent)
+      ? [{ key: "recent", label: "⭐ Done before" }]
+      : []),
     ...groups.map((g) => ({ key: g.key, label: g.label })),
   ];
 
@@ -380,7 +538,11 @@ function ExercisePicker({
   );
   if (!onClient) return null;
   return createPortal(
-    <div className="fade-in fixed inset-0 z-50 flex flex-col bg-bg/95 backdrop-blur" role="dialog" aria-label="Add exercises">
+    <div
+      className="fade-in fixed inset-0 z-50 flex flex-col bg-bg/95 backdrop-blur"
+      role="dialog"
+      aria-label="Add exercises"
+    >
       <div className="mx-auto flex w-full max-w-xl min-h-0 flex-1 flex-col gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center gap-2">
           <input
@@ -413,7 +575,9 @@ function ExercisePicker({
                 }}
                 className={cx(
                   "shrink-0 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition",
-                  tab === t.key ? "border-transparent font-semibold text-white" : "border-line bg-raised text-muted",
+                  tab === t.key
+                    ? "border-transparent font-semibold text-white"
+                    : "border-line bg-raised text-muted",
                 )}
                 style={tab === t.key ? { backgroundColor: FIRE } : undefined}
               >
@@ -425,7 +589,10 @@ function ExercisePicker({
 
         {/* The second level of the tree: only the parts of the group you tapped. */}
         {!q && current && current.parts.length > 1 && (
-          <div key={tab} className="sheet-down -mx-4 -mt-1 flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+          <div
+            key={tab}
+            className="sheet-down -mx-4 -mt-1 flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]"
+          >
             {[null, ...current.parts].map((p) => (
               <button
                 key={p ?? "all"}
@@ -433,9 +600,19 @@ function ExercisePicker({
                 onClick={() => setPart(p)}
                 className={cx(
                   "shrink-0 rounded-full border px-3 py-1 text-xs whitespace-nowrap transition",
-                  part === p ? "font-semibold" : "border-line bg-surface text-muted",
+                  part === p
+                    ? "font-semibold"
+                    : "border-line bg-surface text-muted",
                 )}
-                style={part === p ? { borderColor: FIRE, color: FIRE, backgroundColor: "rgb(255 107 74 / 0.1)" } : undefined}
+                style={
+                  part === p
+                    ? {
+                        borderColor: FIRE,
+                        color: FIRE,
+                        backgroundColor: "rgb(255 107 74 / 0.1)",
+                      }
+                    : undefined
+                }
               >
                 {p ? DETAIL_LABELS[p] : `All ${current.label.toLowerCase()}`}
               </button>
@@ -444,7 +621,11 @@ function ExercisePicker({
         )}
 
         <ul className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">
-          {list.length === 0 && <li className="py-6 text-center text-sm text-muted">{q ? "Not in the list. Add it below." : "Nothing here yet."}</li>}
+          {list.length === 0 && (
+            <li className="py-6 text-center text-sm text-muted">
+              {q ? "Not in the list. Add it below." : "Nothing here yet."}
+            </li>
+          )}
           {list.map((e) => {
             const isIn = inWorkout.has(e.id) || added.has(e.id);
             return (
@@ -466,7 +647,12 @@ function ExercisePicker({
                     </span>
                   </span>
                   <span
-                    className={cx("flex size-8 shrink-0 items-center justify-center rounded-full border text-base font-bold", isIn ? "border-transparent text-white" : "border-line text-muted")}
+                    className={cx(
+                      "flex size-8 shrink-0 items-center justify-center rounded-full border text-base font-bold",
+                      isIn
+                        ? "border-transparent text-white"
+                        : "border-line text-muted",
+                    )}
                     style={isIn ? { backgroundColor: FIRE } : undefined}
                   >
                     {isIn ? "✓" : "+"}
@@ -477,26 +663,32 @@ function ExercisePicker({
           })}
         </ul>
 
-        {q.trim() && !exercises.some((e) => e.name.toLowerCase() === q.trim().toLowerCase()) && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                const muscle = tab === "day" || tab === "recent" ? (dayMuscles[0] ?? "other") : muscleFor(tab, part);
-                const r = await createExerciseAction(q, muscle);
-                if (!r.ok) return sheet.toast(r.error);
-                const r2 = await addExerciseAction(workoutId, r.id);
-                if (!r2.ok) return sheet.toast(r2.error);
-                setAdded((s) => new Set(s).add(r.id));
-                setQ("");
-              })
-            }
-            className="shrink-0 rounded-2xl border border-dashed border-line px-4 py-3 text-sm font-semibold text-muted"
-          >
-            + Add “{q.trim()}” as a new exercise
-          </button>
-        )}
+        {q.trim() &&
+          !exercises.some(
+            (e) => e.name.toLowerCase() === q.trim().toLowerCase(),
+          ) && (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                startTransition(async () => {
+                  const muscle =
+                    tab === "day" || tab === "recent"
+                      ? (dayMuscles[0] ?? "other")
+                      : muscleFor(tab, part);
+                  const r = await createExerciseAction(q, muscle);
+                  if (!r.ok) return sheet.toast(r.error);
+                  const r2 = await addExerciseAction(workoutId, r.id);
+                  if (!r2.ok) return sheet.toast(r2.error);
+                  setAdded((s) => new Set(s).add(r.id));
+                  setQ("");
+                })
+              }
+              className="shrink-0 rounded-2xl border border-dashed border-line px-4 py-3 text-sm font-semibold text-muted"
+            >
+              + Add “{q.trim()}” as a new exercise
+            </button>
+          )}
       </div>
     </div>,
     document.body,
@@ -528,17 +720,29 @@ export function ActiveWorkout({
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, []);
-  const mins = Math.max(0, Math.floor((now - new Date(startedAt).getTime()) / 60000));
+  const mins = Math.max(
+    0,
+    Math.floor((now - new Date(startedAt).getTime()) / 60000),
+  );
   const allSets = blocks.flatMap((b) => b.sets);
   const doneSets = allSets.filter((s) => s.done).length;
-  const inWorkout = useMemo(() => new Set(blocks.map((b) => b.exerciseId)), [blocks]);
+  const inWorkout = useMemo(
+    () => new Set(blocks.map((b) => b.exerciseId)),
+    [blocks],
+  );
 
   return (
     <div className="flex flex-col gap-4">
       {/* Sticky header: time, progress, Finish */}
-      <div className="sticky top-2 z-20 flex items-center justify-between gap-3 rounded-2xl border bg-surface/95 px-4 py-3 backdrop-blur" style={{ borderColor: `${FIRE}55` }}>
+      <div
+        className="sticky top-2 z-20 flex items-center justify-between gap-3 rounded-2xl border bg-surface/95 px-4 py-3 backdrop-blur"
+        style={{ borderColor: `${FIRE}55` }}
+      >
         <div className="min-w-0">
-          <p className="truncate text-xs font-semibold tracking-[0.16em] uppercase" style={{ color: FIRE }}>
+          <p
+            className="truncate text-xs font-semibold tracking-[0.16em] uppercase"
+            style={{ color: FIRE }}
+          >
             ● {day ? `${day} day` : "Live workout"}
           </p>
           <p className="font-display text-lg font-semibold tabular-nums">
@@ -553,8 +757,12 @@ export function ActiveWorkout({
               const r = await finishWorkoutAction(workoutId);
               if (!r.ok) return sheet.toast(r.error);
               setRestUntil(null);
-              const pr = r.records.length ? ` · 🏆 ${r.records.length} PR${r.records.length === 1 ? "" : "s"}: ${r.records.map((x) => x.name).join(", ")}` : "";
-              sheet.toast(`Workout done ✓ ${r.volume.toLocaleString()} lb${pr}`);
+              const pr = r.records.length
+                ? ` · 🏆 ${r.records.length} PR${r.records.length === 1 ? "" : "s"}: ${r.records.map((x) => x.name).join(", ")}`
+                : "";
+              sheet.toast(
+                `Workout done ✓ ${r.volume.toLocaleString()} lb${pr}`,
+              );
             })
           }
           className="glow-gym shrink-0 rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition active:scale-95"
@@ -565,13 +773,19 @@ export function ActiveWorkout({
       </div>
 
       {blocks.length > 0 && doneSets === 0 && (
-        <p className="px-1 text-xs text-muted">Weights are from last time. Change a number if needed, then tap ✓ after each set. A rest timer starts.</p>
+        <p className="px-1 text-xs text-muted">
+          Weights are from last time. Change a number if needed, then tap ✓
+          after each set. A rest timer starts.
+        </p>
       )}
 
       {blocks.map((b) => {
         const done = b.sets.filter((s) => s.done).length;
         return (
-          <section key={b.exerciseId} className="min-w-0 rounded-3xl border border-line bg-surface/85 p-3.5 shadow-card">
+          <section
+            key={b.exerciseId}
+            className="min-w-0 rounded-3xl border border-line bg-surface/85 p-3.5 shadow-card"
+          >
             <div className="mb-2 flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 <h3 className="font-semibold">{b.name}</h3>
@@ -580,7 +794,12 @@ export function ActiveWorkout({
                   {b.last ? ` · Last: ${b.last}` : ""}
                 </p>
               </div>
-              <span className="shrink-0 pt-0.5 text-xs font-semibold tabular-nums" style={{ color: done === b.sets.length && done > 0 ? FIRE : undefined }}>
+              <span
+                className="shrink-0 pt-0.5 text-xs font-semibold tabular-nums"
+                style={{
+                  color: done === b.sets.length && done > 0 ? FIRE : undefined,
+                }}
+              >
                 {done}/{b.sets.length}
               </span>
               <button
@@ -589,7 +808,10 @@ export function ActiveWorkout({
                 onClick={() =>
                   window.confirm(`Take ${b.name} out of this workout?`) &&
                   startTransition(async () => {
-                    const r = await removeExerciseAction(workoutId, b.exerciseId);
+                    const r = await removeExerciseAction(
+                      workoutId,
+                      b.exerciseId,
+                    );
                     if (!r.ok) sheet.toast(r.error);
                   })
                 }
@@ -598,7 +820,12 @@ export function ActiveWorkout({
                 ✕
               </button>
             </div>
-            <div className={cx(ROW, "mb-1 text-center text-[10px] tracking-wider text-faint uppercase")}>
+            <div
+              className={cx(
+                ROW,
+                "mb-1 text-center text-[10px] tracking-wider text-faint uppercase",
+              )}
+            >
               <span>Set</span>
               <span>Lb</span>
               <span>Reps</span>
@@ -607,7 +834,16 @@ export function ActiveWorkout({
             </div>
             <div className="flex flex-col gap-1">
               {b.sets.map((s, i) => (
-                <SetRow key={s.id} set={s} index={i} prev={b.sets[i - 1]} onDone={() => setRestUntil(Date.now() + restLength.current * 1000)} />
+                <SetRow
+                  key={s.id}
+                  set={s}
+                  index={i}
+                  prev={b.sets[i - 1]}
+                  bodyweight={b.bodyweight}
+                  onDone={() =>
+                    setRestUntil(Date.now() + restLength.current * 1000)
+                  }
+                />
               ))}
             </div>
             <button
@@ -615,7 +851,12 @@ export function ActiveWorkout({
               onClick={() =>
                 startTransition(async () => {
                   const lastSet = b.sets[b.sets.length - 1];
-                  await addSetAction(workoutId, b.exerciseId, lastSet?.weightLb ?? null, lastSet?.reps ?? null);
+                  await addSetAction(
+                    workoutId,
+                    b.exerciseId,
+                    lastSet?.weightLb ?? null,
+                    lastSet?.reps ?? null,
+                  );
                 })
               }
               className="mt-2 w-full rounded-xl border border-dashed border-line py-2.5 text-sm font-semibold text-muted hover:text-ink"
@@ -673,8 +914,13 @@ export function ActiveWorkout({
           until={restUntil}
           onDone={() => setRestUntil(null)}
           onAdd={(s) => {
-            restLength.current = Math.min(300, Math.max(30, restLength.current + s));
-            setRestUntil((u) => Math.max(Date.now() + 5000, (u ?? Date.now()) + s * 1000));
+            restLength.current = Math.min(
+              300,
+              Math.max(30, restLength.current + s),
+            );
+            setRestUntil((u) =>
+              Math.max(Date.now() + 5000, (u ?? Date.now()) + s * 1000),
+            );
           }}
         />
       )}
@@ -687,7 +933,15 @@ export function ActiveWorkout({
  * last time's exercises), the whole rotation (tap a day to do that one
  * instead), Skip, and the mic for saying a whole workout after the fact.
  */
-export function SplitCard({ split, next, lastDone }: { split: string[]; next: number; lastDone: Record<string, string> }) {
+export function SplitCard({
+  split,
+  next,
+  lastDone,
+}: {
+  split: string[];
+  next: number;
+  lastDone: Record<string, string>;
+}) {
   const sheet = useTaskSheet();
   const [pending, startTransition] = useTransition();
   const day = split[next];
@@ -695,11 +949,18 @@ export function SplitCard({ split, next, lastDone }: { split: string[]; next: nu
     <div className="flex min-w-0 flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-medium tracking-[0.16em] uppercase" style={{ color: FIRE }}>
+          <p
+            className="text-xs font-medium tracking-[0.16em] uppercase"
+            style={{ color: FIRE }}
+          >
             Up next
           </p>
-          <p className="font-display text-3xl leading-tight font-semibold">{day}</p>
-          <p className="text-xs text-muted">{lastDone[day] ? `Last time: ${lastDone[day]}` : "Not trained yet"}</p>
+          <p className="font-display text-3xl leading-tight font-semibold">
+            {day}
+          </p>
+          <p className="text-xs text-muted">
+            {lastDone[day] ? `Last time: ${lastDone[day]}` : "Not trained yet"}
+          </p>
         </div>
         <button
           type="button"
@@ -707,7 +968,9 @@ export function SplitCard({ split, next, lastDone }: { split: string[]; next: nu
           onClick={() =>
             startTransition(async () => {
               const r = await skipDayAction();
-              sheet.toast(r.ok ? `⏭️ Skipped ${r.skipped}. Next up: ${r.next}` : r.error);
+              sheet.toast(
+                r.ok ? `⏭️ Skipped ${r.skipped}. Next up: ${r.next}` : r.error,
+              );
             })
           }
           className="shrink-0 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-muted transition hover:text-ink active:scale-95"
@@ -731,9 +994,15 @@ export function SplitCard({ split, next, lastDone }: { split: string[]; next: nu
             }
             className={cx(
               "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition",
-              i === next ? "text-white" : "border-line text-muted hover:text-ink",
+              i === next
+                ? "text-white"
+                : "border-line text-muted hover:text-ink",
             )}
-            style={i === next ? { backgroundColor: FIRE, borderColor: FIRE } : undefined}
+            style={
+              i === next
+                ? { backgroundColor: FIRE, borderColor: FIRE }
+                : undefined
+            }
           >
             {i === next ? "● " : ""}
             {d}
@@ -754,7 +1023,8 @@ export function SplitCard({ split, next, lastDone }: { split: string[]; next: nu
         <EmptyStart />
       </div>
       <p className="text-[11px] leading-snug text-faint">
-        Already done? Say it all at once: “{day.toLowerCase()} day, bench 3x10 at 135, incline 3 sets of 8 at 50”. Or “skip {day.toLowerCase()} day”.
+        Already done? Say it all at once: “{day.toLowerCase()} day, bench 3x10
+        at 135, incline 3 sets of 8 at 50”. Or “skip {day.toLowerCase()} day”.
       </p>
     </div>
   );
@@ -815,11 +1085,18 @@ export function WorkoutNoteCard({
   }
   return (
     <li className="overflow-hidden rounded-2xl border border-line bg-surface/80">
-      <button type="button" onClick={() => setOpen((v) => !v)} className="w-full px-4 py-3 text-left">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-4 py-3 text-left"
+      >
         <div className="flex items-baseline justify-between gap-2">
           <p className="min-w-0 truncate font-semibold">
             {day ? (
-              <span className="mr-2 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white" style={{ backgroundColor: FIRE }}>
+              <span
+                className="mr-2 rounded-md px-1.5 py-0.5 text-[11px] font-bold text-white"
+                style={{ backgroundColor: FIRE }}
+              >
                 {day}
               </span>
             ) : null}
@@ -827,17 +1104,37 @@ export function WorkoutNoteCard({
           </p>
           <p className="shrink-0 text-xs text-faint tabular-nums">{meta}</p>
         </div>
-        <ul className={cx("mt-1.5 flex flex-col gap-0.5 text-sm", !open && "max-h-[4.5rem] overflow-hidden")}>
+        <ul
+          className={cx(
+            "mt-1.5 flex flex-col gap-0.5 text-sm",
+            !open && "max-h-[4.5rem] overflow-hidden",
+          )}
+        >
           {lines.map((l) => (
-            <li key={l.name} className="flex items-baseline justify-between gap-3">
+            <li
+              key={l.name}
+              className="flex items-baseline justify-between gap-3"
+            >
               <span className="min-w-0 truncate text-muted">{l.name}</span>
-              <span className="shrink-0 font-display text-xs font-semibold tabular-nums">{l.sets}</span>
+              <span className="shrink-0 font-display text-xs font-semibold tabular-nums">
+                {l.sets}
+              </span>
             </li>
           ))}
         </ul>
-        {!open && lines.length > 3 && <p className="mt-1 text-[11px] text-faint">+{lines.length - 3} more · tap to open</p>}
+        {!open && lines.length > 3 && (
+          <p className="mt-1 text-[11px] text-faint">
+            +{lines.length - 3} more · tap to open
+          </p>
+        )}
       </button>
-      {open && editing && <EditPastWorkout workoutId={id} exercises={exercises} onDone={() => setEditing(false)} />}
+      {open && editing && (
+        <EditPastWorkout
+          workoutId={id}
+          exercises={exercises}
+          onDone={() => setEditing(false)}
+        />
+      )}
       {open && !editing && (
         <div className="fade-in flex gap-2 border-t border-line px-4 py-2.5">
           <button
@@ -880,27 +1177,58 @@ export function WorkoutNoteCard({
   );
 }
 
-export type PastExercise = { exerciseId: string; name: string; sets: { id: string; weightLb: number | null; reps: number | null }[] };
+export type PastExercise = {
+  exerciseId: string;
+  name: string;
+  bodyweight: boolean;
+  sets: { id: string; weightLb: number | null; reps: number | null }[];
+};
 
 /**
  * Fix a workout after the fact ("I actually did 12 reps, not 10"): every set
  * is a weight box and a reps box that save when you leave them, plus
  * "+ Set" and ✕ per set.
  */
-function EditPastWorkout({ workoutId, exercises, onDone }: { workoutId: string; exercises: PastExercise[]; onDone: () => void }) {
+function EditPastWorkout({
+  workoutId,
+  exercises,
+  onDone,
+}: {
+  workoutId: string;
+  exercises: PastExercise[];
+  onDone: () => void;
+}) {
   const sheet = useTaskSheet();
   const [pending, startTransition] = useTransition();
-  const run = (job: () => Promise<{ ok: true } | { ok: false; error: string }>, ok?: string) =>
+  const run = (
+    job: () => Promise<{ ok: true } | { ok: false; error: string }>,
+    ok?: string,
+  ) =>
     startTransition(async () => {
       const r = await job();
       if (!r.ok) sheet.toast(r.error);
       else if (ok) sheet.toast(ok);
     });
-  const save = (setId: string, field: "weightLb" | "reps", raw: string, was: number | null) => {
+  const save = (
+    setId: string,
+    field: "weightLb" | "reps",
+    raw: string,
+    was: number | null,
+  ) => {
     const v = raw.trim() === "" ? null : Number(raw);
-    if (v !== null && (!Number.isFinite(v) || v < 0)) return sheet.toast("Check the number");
+    if (v !== null && (!Number.isFinite(v) || v < 0))
+      return sheet.toast("Check the number");
     if (v === was) return;
-    run(() => updateSetAction(setId, field === "reps" ? { reps: v === null ? null : Math.round(v) } : { weightLb: v }), "Fixed ✓");
+    run(
+      () =>
+        updateSetAction(
+          setId,
+          field === "reps"
+            ? { reps: v === null ? null : Math.round(v) }
+            : { weightLb: v },
+        ),
+      "Fixed ✓",
+    );
   };
   const box =
     "w-full min-w-0 rounded-xl border border-line bg-raised px-2 py-2 text-center font-display text-base font-semibold tabular-nums focus:border-[#ff6b4a] focus:outline-none";
@@ -917,14 +1245,22 @@ function EditPastWorkout({ workoutId, exercises, onDone }: { workoutId: string; 
           </div>
           <ul className="flex flex-col gap-1.5">
             {e.sets.map((s, i) => (
-              <li key={s.id} className="grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_2rem] items-center gap-2">
-                <span className="text-center text-xs text-faint tabular-nums">{i + 1}</span>
+              <li
+                key={s.id}
+                className="grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_2rem] items-center gap-2"
+              >
+                <span className="text-center text-xs text-faint tabular-nums">
+                  {i + 1}
+                </span>
                 <input
                   defaultValue={s.weightLb ?? ""}
+                  placeholder={e.bodyweight ? "BW" : "lb"}
                   inputMode="decimal"
                   aria-label={`${e.name} set ${i + 1} weight`}
                   onFocus={(ev) => ev.currentTarget.select()}
-                  onBlur={(ev) => save(s.id, "weightLb", ev.currentTarget.value, s.weightLb)}
+                  onBlur={(ev) =>
+                    save(s.id, "weightLb", ev.currentTarget.value, s.weightLb)
+                  }
                   className={box}
                 />
                 <input
@@ -932,14 +1268,18 @@ function EditPastWorkout({ workoutId, exercises, onDone }: { workoutId: string; 
                   inputMode="numeric"
                   aria-label={`${e.name} set ${i + 1} reps`}
                   onFocus={(ev) => ev.currentTarget.select()}
-                  onBlur={(ev) => save(s.id, "reps", ev.currentTarget.value, s.reps)}
+                  onBlur={(ev) =>
+                    save(s.id, "reps", ev.currentTarget.value, s.reps)
+                  }
                   className={box}
                 />
                 <button
                   type="button"
                   aria-label={`Remove set ${i + 1}`}
                   disabled={pending}
-                  onClick={() => run(() => deleteSetAction(s.id), "Set removed")}
+                  onClick={() =>
+                    run(() => deleteSetAction(s.id), "Set removed")
+                  }
                   className="flex size-8 items-center justify-center rounded-full text-faint hover:text-danger"
                 >
                   ✕
@@ -953,7 +1293,17 @@ function EditPastWorkout({ workoutId, exercises, onDone }: { workoutId: string; 
               disabled={pending}
               onClick={() => {
                 const last = e.sets[e.sets.length - 1];
-                run(() => addSetAction(workoutId, e.exerciseId, last?.weightLb ?? null, last?.reps ?? null, true), "Set added");
+                run(
+                  () =>
+                    addSetAction(
+                      workoutId,
+                      e.exerciseId,
+                      last?.weightLb ?? null,
+                      last?.reps ?? null,
+                      true,
+                    ),
+                  "Set added",
+                );
               }}
               className="mt-1.5 rounded-lg border border-dashed border-line px-3 py-1 text-xs font-semibold text-muted"
             >

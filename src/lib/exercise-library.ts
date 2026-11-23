@@ -33,7 +33,8 @@ const list: LibraryExercise[] = [];
 function add(muscle: Muscle, equipment: Equipment, ...lines: string[]) {
   for (const line of lines) {
     const [name, ...aliases] = line.split("|").map((s) => s.trim());
-    list.push({ name, muscle, equipment, bodyweight: equipment === "bodyweight", aliases });
+    // Bodyweight moves don't ask for a weight (but "Weighted pull-ups" do: that's the added weight).
+    list.push({ name, muscle, equipment, bodyweight: equipment === "bodyweight" && !/^weighted\b/i.test(name), aliases });
   }
 }
 
@@ -572,6 +573,29 @@ add("cardio", "other",
   "Track practice",
   "Cross country",
 );
+
+// ── Dumbbell versions (Nov 23): a dumbbell option for every lift that has one ──
+add("chest", "dumbbell", "Dumbbell squeeze press (incline)|incline squeeze press", "Dumbbell close-grip floor press");
+add("back", "dumbbell", "Dumbbell good morning|db good morning", "Dumbbell Pendlay row|db pendlay row", "Dumbbell Yates row", "Dumbbell high pull|db high pull", "Dumbbell straight-arm pullover");
+add("legs", "dumbbell",
+  "Dumbbell front squat|db front squat",
+  "Dumbbell stiff-leg deadlift|db stiff leg deadlift|db sldl",
+  "Dumbbell sumo deadlift|db sumo deadlift",
+  "Dumbbell box squat",
+  "Dumbbell overhead squat",
+  "Dumbbell single-leg calf raise|db single leg calf raise",
+  "Dumbbell seated calf raise",
+  "Dumbbell leg curl|db leg curl|lying dumbbell leg curl",
+  "Dumbbell Cossack squat",
+  "Dumbbell step-downs",
+  "Dumbbell Bulgarian split squat (front foot elevated)|front foot elevated split squat",
+);
+add("glutes", "dumbbell", "Dumbbell glute bridge|db glute bridge", "Dumbbell single-leg hip thrust", "Dumbbell kickback (glutes)|dumbbell glute kickback");
+add("shoulders", "dumbbell", "Dumbbell Z press|db z press", "Dumbbell push press|db push press", "Dumbbell external rotation|db external rotation");
+add("biceps", "dumbbell", "Dumbbell drag curl|db drag curl", "Reverse dumbbell curl|reverse db curl|dumbbell reverse curl");
+add("triceps", "dumbbell", "Dumbbell JM press|db jm press", "Dumbbell tricep extension (lying)|lying dumbbell extension|lying db extension");
+add("forearms", "dumbbell", "Dumbbell reverse wrist curl|db reverse wrist curl", "Dumbbell behind-the-back wrist curl", "Dumbbell wrist rotation|pronation supination|db wrist rotations", "Dumbbell pinch hold|db pinch hold");
+add("core", "dumbbell", "Dumbbell windmill|db windmill", "Dumbbell woodchopper|db woodchop", "Dumbbell V-ups|weighted v ups", "Dumbbell dead bug", "Plank dumbbell drag|plank pull through");
 
 /** The whole library, in a stable order (chest, back, legs… cardio). */
 export const EXERCISE_LIBRARY: readonly LibraryExercise[] = list;
