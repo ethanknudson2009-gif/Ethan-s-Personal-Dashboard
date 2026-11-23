@@ -208,3 +208,25 @@ describe("stress batch 3: how people actually talk", () => {
     expect(sets("shoulder press 135 for 6 no I mean 8")[0].sets).toEqual([[8, 135]]);
   });
 });
+
+describe("leftovers from batch 3", () => {
+  it("'monday morning' said on Monday at 10 AM means next Monday", () => {
+    expect(one("send the closing disclosure for the Brown loan monday morning").when?.date).toBe("2026-11-30");
+    expect(one("monday call the bank").when?.date).toBe("2026-11-23");
+  });
+
+  it("a day and time said first stays with the thing", () => {
+    expect(one("monday at 3 call the bank")).toMatchObject({ title: "Call the bank", when: { date: "2026-11-23", time: { hour: 15 } } });
+  });
+
+  it("friends' names get capitals, family words and things don't", () => {
+    expect(one("venmo jake 20 for pizza").title).toBe("Venmo Jake for pizza");
+    expect(one("text sarah about the project").title).toBe("Text Sarah about the project");
+    expect(one("call mom").title).toBe("Call mom");
+    expect(one("pick up prescription").title).toBe("Pick up prescription");
+  });
+
+  it("'my essay is about…' keeps what it's about", () => {
+    expect(one("my history essay is about the civil war due friday")).toMatchObject({ title: "Essay about the civil war", className: "World History" });
+  });
+});

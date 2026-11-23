@@ -60,7 +60,7 @@ const SCHOOL = /\b(essay|quiz|test|exam|midterm|final|homework|hw|lab|project|wo
 const LOG_START = /^(?:i\s+)?(?:spent|paid|bought|got paid|venmo'?d|ate|had (?:a |an |some )?\w+ for (?:breakfast|lunch|dinner)|drank|ran|jogged|biked|swam|walked \d|did \d|worked out|went to the gym|lifted|benched|squatted)\b/;
 /** Short "for tomorrow", "work stuff" openers that set context for every item. */
 const CONTEXT_ONLY =
-  /^(?:for |at |on |about |re )?(?:next |this |by )?(?:work|school|prmi|primary|the office|home|personal|today|tomorrow|tonight|this weekend|this week|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|in the morning|in the afternoon|in the evening|this morning|this afternoon|this evening|tomorrow morning|tomorrow afternoon|tomorrow night|after school|after work|after class|before school|before work|at lunch|first thing(?: in the morning)?)(?: stuff| things| tasks| list| errands)?$/;
+  /^(?:for |at |on |about |re )?(?:next |this |by )?(?:work|school|prmi|primary|the office|home|personal|today|tomorrow|tonight|this weekend|this week|next week|monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri|sat|sun|in the morning|in the afternoon|in the evening|this morning|this afternoon|this evening|tomorrow morning|tomorrow afternoon|tomorrow night|after school|after work|after class|before school|before work|at lunch|first thing(?: in the morning)?)(?: morning| afternoon| evening| night)?(?: (?:at|by|around) \d{1,2}(?::\d{2})?\s*(?:am|pm)?)?(?: stuff| things| tasks| list| errands)?$/;
 const INTRO_WORDS = /\b(?:things?|stuff|list|to[ -]?dos?|tasks?|errands|reminders?|a few|a bunch|a couple|a lot)\b/;
 const SHOPPING = /^(?:buy|get|grab|pick up|order|go get)\b/;
 

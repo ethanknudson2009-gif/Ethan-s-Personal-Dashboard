@@ -104,7 +104,7 @@ const NUM_WORD = `(?:${[...Object.keys(TENS), ...Object.keys(ONES)].join("|")})`
  * or simply the last number when no unit is said.
  */
 const CORRECTION =
-  /[\s,.]*\b(?:no,? (?:wait,? )?i mean|no,? i meant|no wait|wait no|excuse me|sorry|oops|i mean|i meant|make that|scratch that|no no|correction|my bad)\b[\s,.]*(?:(?:i mean|i meant|make that|it was|it's|its|no)\b[\s,.]*)?(\d+(?:\.\d+)?)(?:\s*(pounds?|lbs?|reps?|sets?|seconds?|secs?|minutes?|mins?|miles?))?\b/i;
+  /[\s,.]*\b(?:no,? (?:wait,? )?i mean|no,? i meant|no wait|wait no|excuse me|sorry|oops|i mean|i meant|make that|scratch that|no no|correction|my bad)\b[\s,.]*(?:(?:i mean|i meant|make that|it was|it's|its|no)\b[\s,.]*)?(\d+(?:\.\d+)?)(?:\s*(pounds?|lbs?|reps?|sets?|seconds?|secs?|minutes?|mins?|miles?))?s?\b/i;
 const unitKind = (u: string | undefined) =>
   !u ? null : /^(?:pound|lb)/i.test(u) ? "lb" : /^rep/i.test(u) ? "rep" : /^set/i.test(u) ? "set" : /^sec/i.test(u) ? "sec" : /^min/i.test(u) ? "min" : "mi";
 
@@ -124,7 +124,7 @@ export function selfCorrect(text: string): string {
       continue;
     }
     const kind = unitKind(m[2]);
-    const said = [...before.matchAll(/(\d+(?:\.\d+)?)(?:\s*(pounds?|lbs?|reps?|sets?|seconds?|secs?|minutes?|mins?|miles?))?\b/gi)];
+    const said = [...before.matchAll(/(\d+(?:\.\d+)?)(?:\s*(pounds?|lbs?|reps?|sets?|seconds?|secs?|minutes?|mins?|miles?))?s?\b/gi)]; // (30s = a pair of 30 lb dumbbells)
     if (!said.length) break;
     const target = (kind && [...said].reverse().find((x) => unitKind(x[2]) === kind)) || said[said.length - 1];
     const at = target.index!;

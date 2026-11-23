@@ -41,7 +41,8 @@ const EXERCISE_PHRASES = [
 ].sort((a, b) => b.length - a.length);
 // (plain() leaves only letters, digits and spaces, so the names need no escaping.)
 const EXERCISE_SAID = new RegExp(
-  `\\b(?:${EXERCISE_PHRASES.join("|")}|planks?|squats|deadlifts?|rdls?|curls|crunches|lunges|push ?ups|pull ?ups|chin ?ups|dips|shrugs|flys|flyes|pulldowns?|pushdowns?|skull ?crushers|hip thrusts?|kickbacks)\\b`,
+  // (plurals too: "barbell rows", "leg extensions")
+  `\\b(?:(?:${EXERCISE_PHRASES.join("|")})(?:s|es)?|planks?|squats|deadlifts?|rdls?|curls|crunches|lunges|push ?ups|pull ?ups|chin ?ups|dips|shrugs|flys|flyes|pulldowns?|pushdowns?|skull ?crushers|hip thrusts?|kickbacks)\\b`,
 );
 
 /** "did yoga", "played basketball for an hour", "went bouldering": something you did, to log. */
@@ -385,6 +386,14 @@ function cleanTitle(leftover: string, type: CaptureType): string {
     .replace(PROPER_NAMES, (w) => PROPER[w.toLowerCase()] ?? w)
     // Tests: "the sat" → "the SAT".
     .replace(/\b(?:the|my|for) (sat|act|psat)\b|\b(psat|ap)\b(?= (?:test|exam|prep|class|bio|chem|lang|lit|gov|history|calc|stats|psych))/gi, (m) => m.replace(/\b(sat|act|psat|ap)\b/i, (w) => w.toUpperCase()))
+    // A friend's name after "venmo/text/call…": "venmo jake" → "Venmo Jake" (family words stay).
+    .replace(
+      /\b(venmo|zelle|text|call|tell|email|ask|facetime) ([a-z]{3,})\b/gi,
+      (m, verb: string, name: string) =>
+        /^(?:the|my|his|her|him|them|they|you|mom|dad|mama|papa|grandma|grandpa|nana|papa|brother|sister|bro|sis|about|back|everyone|someone|people|teacher|coach|boss|manager|counselor|doctor|dentist|guys|team|class|group|friends?|uncle|aunt|cousin|over|into|from|with|for|out|off|up|and|that|this|it|me|us|again|today|tonight|tomorrow|soon|later|title|lender|realtor|processor|underwriter|borrower|client|customer|bank|insurance|school|work|office|home|mike|prmi|questions?|permission|help|ahead|around|now|anyone|anybody|everybody|nobody|support|tech|reminders?|everything|something|somebody|parents|kids|landlord|pharmacy|clinic|hospital|vet|plumber|mechanic|police|gym|church)$/i.test(name) || PROPER[name.toLowerCase()]
+          ? m
+          : `${verb} ${name.charAt(0).toUpperCase()}${name.slice(1)}`,
+    )
     // Teachers: "mrs johnson" → "Mrs Johnson".
     .replace(/\b(mr|mrs|ms|miss|dr|coach)\.? ([a-z])/gi, (_m, t: string, c: string) => `${t.charAt(0).toUpperCase()}${t.slice(1).toLowerCase()} ${c.toUpperCase()}`);
   return title.charAt(0).toUpperCase() + title.slice(1);
@@ -533,6 +542,8 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
     )
     // "Mike said the Johnson file needs a VOE by end of day" → "get a VOE for the Johnson file…".
     .replace(/^(?:mike|my lo|he|she|they) said (the [a-z0-9' ]+?) (?:needs|is missing|still needs) (an?|the|its|their) ([a-z0-9' ]+?)(?=\s+(?:by|before|today|tonight|tomorrow|on|asap|eod)\b|\s*$)/i, "get $2 $3 for $1")
+    // "the speech is about climate change" → "speech about climate change".
+    .replace(/^(?:the|my|our) ((?:[a-z]+ )?(?:speech|essay|paper|project|presentation|report|poster))(?: for [a-z]+)? (?:is|has to be|needs to be) (about|on) /i, "$1 $2 ")
     // "my algebra homework is pages 45 through 50" → the pages are the homework.
     .replace(/\bhomework (?:is|are) (?=(?:pages?|problems?|questions?|chapters?|sections?|exercises?|numbers?|the worksheet|a worksheet|worksheet)\b)/i, "homework ")
     .replace(/\bi(?:'m| am) (?:going|gonna go|heading) to (?=the |my |work\b|school\b|class\b|practice\b|[a-z]+'s\b|costco|target|walmart)/i, "go to ")

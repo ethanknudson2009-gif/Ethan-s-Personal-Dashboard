@@ -249,8 +249,12 @@ export function parseWhen(low: string, spans: SpanTracker, now: Date, timeZone: 
       const target = WEEKDAYS[day[2]];
       const isToday = target === weekdayOf(today);
       // Today counts only if the time (if any) hasn't passed yet.
+      // "monday morning" said on Monday at 10 AM: that morning has started, so it's next Monday.
+      const part = /\b(morning|afternoon|evening|night)$/.exec(day[0])?.[1];
+      const partStart = { morning: 5, afternoon: 12, evening: 17, night: 19 }[part ?? ""] ?? null;
       const timeStillAhead =
-        time === null || time.hour * 60 + time.minute > nowParts.hour * 60 + nowParts.minute;
+        (time === null || time.hour * 60 + time.minute > nowParts.hour * 60 + nowParts.minute) &&
+        (partStart === null || nowParts.hour < partStart);
       // "before Monday" / "by Monday" said on a Monday means next Monday.
       const deadline = /\b(?:before|by|until|till)\s+$/.test(low.slice(0, day.index));
       date = nextWeekday(target, isToday && timeStillAhead && day[1] !== "next" && !deadline);
