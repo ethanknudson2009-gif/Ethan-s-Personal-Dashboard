@@ -15,8 +15,8 @@ export const CONTEXT_LEAD =
 /** Warm-up words people say before the actual thing. Removed from the start (repeatedly). */
 const LEAD_INS = [
   /^(?:okay|ok|alright|all right|so|um+|uh+|hey|yeah|yes|well|right|oh|also|and also|and then|then|plus|hmm+|basically|real quick|quick)\b[\s,.:!-]*/i,
-  /^(?:remind me (?:to|that i (?:need|have) to|that)|don'?t let me forget (?:to )?|can you (?:add|remind me to|put)?|could you (?:add)?|please|add (?:a )?(?:task|reminder|to-?do)?(?: to| for| that)?|new (?:task|reminder|to-?do)|put (?:on my list|down)(?: to)?|make (?:a )?(?:task|reminder|note) (?:to|for|that)?)\b[\s,:-]*/i,
-  /^(?:i (?:also )?(?:need|have|want|gotta|got|should|must|ought) to|i'?ve got to|i'?ve gotta|i gotta|i got to|i'?ll need to|i need|need to|have to|gotta|got to)\b[\s,]*(?=\S)/i,
+  /^(?:(?:mike|he|she|they|my (?:boss|manager|mom|dad|teacher|coach|lo)|the teacher) (?:wants|asked|told|needs) me to|(?:mike|he|she) said to|remind me (?:to|that i (?:need|have) to|that)|remember to|don'?t forget to|make sure to|don'?t let me forget (?:to )?|can you (?:add|remind me to|put)?|could you (?:add)?|please|add (?:a )?(?:task|reminder|to-?do)?(?: to| for| that)?|new (?:task|reminder|to-?do)|put (?:on my list|down)(?: to)?|make (?:a )?(?:task|reminder|note) (?:to|for|that)?)\b[\s,:-]*/i,
+  /^(?:i (?:also |still )?(?:need|have|want|gotta|got|should|must|ought) to|i'?ve got to|i'?ve gotta|i gotta|i got to|i'?ll need to|i need|need to|have to|gotta|got to)\b[\s,]*(?=\S)/i,
   CONTEXT_LEAD,
   /^(?:i have (?:a|an|my|some|the)|i'?ve got (?:a|an|my|some|the)|i got (?:a|an|my|some|the)|there'?s (?:a|an|my|the)|there is (?:a|an|my|the)|we have (?:a|an|the)|i'?ve got|i have)\b[\s,]*(?=\S)/i,
 ];
@@ -46,12 +46,12 @@ export function stripLeadIn(text: string, opts: { context?: boolean } = {}): str
 const POINT_GLUE =
   /(?<=^|[\s,;])(?:and also|also|plus|and then|then|oh and|oh yeah and|oh yeah|another thing(?: is)?|one more thing(?: is)?|the other thing(?: is)?|on top of that|after that|besides that|additionally)\b[\s,:]*/gi;
 const POINT_STARTS =
-  /(?<!\b(?:the|my|to|sure|and|please|will|should|can|gotta|must|need|have|also))[\s,;](?=(?:and )?(?:make sure|be sure|remember|don'?t forget|dont forget|bring|the teacher said|my teacher said|teacher said|(?:she|he|they|mike) said|(?:he|she|they|mike) wants|it needs|it has to|it should|it must|it'?s due|it is due|it'?s worth|it is worth|it covers|it'?s on|it is on|it'?s about|it is about|it'?ll be|it will be|i need to|i have to|i should|i gotta|i'?ve got to|we need to|we have to|ask (?:him|her|them|mike|about)|tell (?:him|her|them|mike)|and ask|and tell|text (?:him|her|them)|call (?:him|her|them))\b)/gi;
+  /(?<!\b(?:the|my|to|sure|and|please|will|should|can|gotta|must|need|have|also|because|cause|since|if|when|that|but|until|unless|where|said|says|think|know|hope|guess))[\s,;](?=(?:and )?(?:make sure|be sure|remember|don'?t forget|dont forget|bring|the teacher said|my teacher said|teacher said|(?:she|he|they|mike) said|(?:he|she|they|mike) wants|it needs|it has to|it should|it must|it'?s due|it is due|it'?s worth|it is worth|it covers|it'?s on|it is on|it'?s about|it is about|it'?ll be|it will be|i need to|i have to|i should|i gotta|i'?ve got to|we need to|we have to|i'?ll|i will|i have (?:some|a|an|the|my|these|those)|(?:it|she|he|they) (?:came|went|got|is|isn'?t|was|wasn'?t|has|hasn'?t|had|did|didn'?t|does|doesn'?t|can'?t|won'?t|already)|ask (?:him|her|them|mike|about)|tell (?:him|her|them|mike)|and ask|and tell|text (?:him|her|them)|call (?:him|her|them))\b)/gi;
 
 /** Openers rewritten so each bullet reads cleanly ("it needs to be 5 pages" → "Needs to be 5 pages"). */
 const OPENERS: [RegExp, string][] = [
   [/^(?:and|so|but then|then|also|plus|oh|okay|ok|um+|uh+|like|yeah|well|and so|so yeah)\b[\s,]*/i, ""],
-  [/^(?:i (?:also )?(?:need|have|gotta|got|should|must) to|i'?ve got to|i gotta|we (?:need|have) to|need to|have to|gotta)\s+/i, ""],
+  [/^(?:i (?:also |still )?(?:need|have|gotta|got|should|must) to|i'?ve got to|i gotta|we (?:need|have) to|need to|have to|gotta)\s+/i, ""],
   [/^it needs to\b/i, "Needs to"],
   [/^it has to\b/i, "Has to"],
   [/^it should\b/i, "Should"],

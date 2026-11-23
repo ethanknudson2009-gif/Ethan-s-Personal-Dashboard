@@ -88,8 +88,9 @@ describe("one long thought → title + notes", () => {
   });
   it("a run-on with no markers gets a short title; the rest becomes notes", () => {
     const d = say("write an essay about the great gatsby and the american dream using at least three quotes from the book");
-    expect(d.title.split(" ").length).toBeLessThanOrEqual(9);
-    expect(d.notes).toMatch(/american dream/i);
+    // Long titles are cut only at a natural spot ("…using three quotes"), never mid-phrase.
+    expect(d.title).toBe("Write an essay about the great gatsby and the american dream");
+    expect(d.notes).toMatch(/3 quotes/i);
   });
   it("a one-word thing with a detail", () => {
     expect(say("laundry, it's piling up")).toMatchObject({ title: "Laundry", notes: "It's piling up" });
@@ -145,9 +146,8 @@ describe("big lists → many items", () => {
     const s = summary(
       "for work: send the disclosures to the Smith borrower, order the appraisal for the Johnson loan, and follow up with the title company about the closing date",
     );
-    expect(s.map((x) => x.title)).toEqual(["Send the disclosures to the Smith borrower", "Order the appraisal for the Johnson loan", "Follow up with the title company"]);
+    expect(s.map((x) => x.title)).toEqual(["Send the disclosures to the Smith borrower", "Order the appraisal for the Johnson loan", "Follow up with the title company about the closing date"]);
     expect(s.every((x) => x.area === "work")).toBe(true);
-    expect(s[2].notes).toBe("About the closing date");
   });
 
   it("two assignments for one class share the class", () => {
@@ -207,7 +207,7 @@ describe("big lists → many items", () => {
     const s = summary(
       "alright work stuff for tomorrow order the appraisal on the Garcia file follow up with the title company on the Johnson closing send the initial disclosures to the new borrower",
     );
-    expect(s.map((x) => x.title)).toEqual(["Order the appraisal on the Garcia file", "Follow up with the title company", "Send the initial disclosures to the new borrower"]);
+    expect(s.map((x) => x.title)).toEqual(["Order the appraisal on the Garcia file", "Follow up with the title company on the Johnson closing", "Send the initial disclosures to the new borrower"]);
     expect(s.every((x) => x.area === "work" && x.day === "2026-11-11")).toBe(true);
   });
 

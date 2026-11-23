@@ -50,8 +50,18 @@ export function tolerance(length: number): number {
 }
 
 /** The closest known word, if it's close enough; otherwise null. */
+/** Real words that look close to a known one but aren't misheard ("remember" isn't "december"). */
+const NEVER_SNAP = new Set([
+  "remember", "remembered", "member", "members", "protect", "protected", "product", "products", "match", "matched",
+  "matches", "marching", "mainly", "monkey", "sunday's", "someday", "summary", "thirsty", "teamwork", "network",
+  "framework", "paperwork", "artwork", "housework", "schoolwork", "coursework", "workout", "subject", "object",
+  "objects", "subjects", "prospect", "perfect", "present", "presents", "presented", "tonights", "borrow", "sorrow",
+]);
+
 export function snapWord(word: string, known: readonly string[] = KNOWN): string | null {
-  if (word.length < 5 || known.includes(word)) return null;
+  if (word.length < 5 || known.includes(word) || NEVER_SNAP.has(word)) return null;
+  // Plurals of known words are fine as they are ("projects", "mondays").
+  if (known.some((k) => word === `${k}s` || word === `${k}es`)) return null;
   let best: string | null = null;
   let bestD = Infinity;
   for (const k of known) {
@@ -62,7 +72,9 @@ export function snapWord(word: string, known: readonly string[] = KNOWN): string
       best = k;
     }
   }
-  return best && bestD <= tolerance(best.length) ? best : null;
+  // Speech-to-text rarely gets the first letter wrong ("wensday", "thrusday"),
+  // so a different first letter means a different word ("remember" ≠ "december").
+  return best && bestD <= tolerance(best.length) && best[0] === word[0] ? best : null;
 }
 
 const LEADING_FILLERS =
@@ -110,7 +122,7 @@ export function normalizeSpoken(input: string): string {
     const n = TENS[t] + ORDINALS[o];
     return `${n}${n % 10 === 1 ? "st" : n % 10 === 2 ? "nd" : n % 10 === 3 ? "rd" : "th"}`;
   });
-  s = s.replace(new RegExp(`\\b(the|on|${["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"].join("|")})\\s+(${Object.keys(ORDINALS).join("|")})\\b`, "g"), (_, before, o) => {
+  s = s.replace(new RegExp(`\\b(the|on|${["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"].join("|")})\\s+(${Object.keys(ORDINALS).join("|")})\\b(?!\\s+(?:two|three|four|five|six|seven|eight|nine|ten|couple|half|halves|part|parts|page|pages|chapter|chapters|time|times|thing|things|step|steps|draft|drafts|paragraph|paragraphs|section|sections|question|questions|problem|problems|one|ones|few|day of|week of|unit|units|lesson|lessons|period|class|quarter|semester|round|set|sets|slide|slides|act|scene|verse|line|lines|of the))`, "g"), (_, before, o) => {
     const n = ORDINALS[o];
     return `${before} ${n}${n === 1 || n === 21 || n === 31 ? "st" : n === 2 || n === 22 ? "nd" : n === 3 || n === 23 ? "rd" : "th"}`;
   });

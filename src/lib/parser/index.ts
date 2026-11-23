@@ -11,7 +11,7 @@
  */
 import { parseWhen, type ParsedWhen } from "./dates";
 import { SpanTracker } from "./spans";
-import { organizeNotes, stripLeadIn } from "./notes";
+import { notePoints, organizeNotes, stripLeadIn } from "./notes";
 import { editDistance, normalizeSpoken, tolerance } from "./spoken";
 
 export type CaptureType = "homework" | "task" | "food" | "workout" | "expense" | "note" | "habit";
@@ -83,11 +83,11 @@ const WORK_HINTS =
 
 // ── Notes: where the main thing ends and extra context begins ─────────────
 const NOTE_MARKERS =
-  /(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|note that|it needs|it has to|it should|it must|it'?s about|it is about|make sure|be sure|remember|don'?t forget|dont forget|because|cause|so that|so i can|so we can|so i|so we|(?:the |my )?teacher said|(?:she|he|they|mike) said|(?:she|he|they|mike) wants?|(?:she|he|they|mike) needs?|also|and also|plus|another thing|one more thing|oh and|bring|include|including|it covers|it'?s on|it is on|it'?s worth|it is worth|it'?s for|it is for|it'?ll be|it will be|it'?s going to be|it'?s gonna be|it'?s like|it'?s only|it'?s just|it'?s a|it is a|it'?s an|it'?s the|it'?s due|it is due|it'?s at|it is at|it'?s|it is|it was|that'?s|which is|which|i need to|i have to|i should|i gotta|i'?ve got to|i want to|we need to|we have to|and ask|ask (?:him|her|them|mike|about)|and tell|tell (?:him|her|them|mike)|details?\s*:)\b)/g;
+  /(?<!\b(?:if|whether|that|because|cause|since|when|said|says|think|know|asked?|until|unless))(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|i still (?:need|have) to|i think|i guess|i feel like|(?:the|my|his|her|their|our) [a-z]+ (?:is|are|was|were|keeps|has been|have been)|note that|it needs|it has to|it should|it must|it'?s about|it is about|make sure|be sure|remember|don'?t forget|dont forget|because|cause|so that|so i can|so we can|so i|so we|(?:the |my )?teacher said|(?:she|he|they|mike) said|(?:she|he|they|mike) wants?|(?:she|he|they|mike) needs?|also|and also|plus|another thing|one more thing|oh and|bring|include|including|it covers|it'?s on|it is on|it'?s worth|it is worth|it'?s for|it is for|it'?ll be|it will be|it'?s going to be|it'?s gonna be|it'?s like|it'?s only|it'?s just|it'?s a|it is a|it'?s an|it'?s the|it'?s due|it is due|it'?s at|it is at|it'?s|it is|it was|that'?s|which is|which|i need to|i have to|i should|i gotta|i'?ve got to|i want to|we need to|we have to|i'?ll|i will|i have (?:some|a|an|the|my|these|those)|(?:it|she|he|they) (?:came|went|got|is|isn'?t|was|wasn'?t|has|hasn'?t|had|did|didn'?t|does|doesn'?t|can'?t|won'?t|already)|and ask|ask (?:him|her|them|mike|about)|and tell|tell (?:him|her|them|mike)|details?\s*:)\b)/g;
 
 /** Where notes start in the text, or -1. The main part keeps at least 2 words. */
-export function findNotesStart(low: string): number {
-  const enoughBefore = (i: number) => low.slice(0, i).trim().split(/\s+/).filter(Boolean).length >= 1;
+export function findNotesStart(low: string, after = 0): number {
+  const enoughBefore = (i: number) => i > after && low.slice(0, i).trim().split(/\s+/).filter(Boolean).length >= 1;
   const candidates: number[] = [];
   for (const m of low.matchAll(NOTE_MARKERS)) if (enoughBefore(m.index)) candidates.push(m.index);
   // A new sentence also starts notes: "Speech outline due Thursday. Three pages."
@@ -146,8 +146,10 @@ const NUMBER_WORDS: Record<string, number> = {
 /** Words that carry no meaning once the date/amount/class are pulled out. */
 const FILLER = new Set([
   "due", "by", "on", "at", "for", "is", "it's", "its", "i", "need", "to", "have", "has", "the", "about", "around",
-  "~", "@", "and", "&", "of", "a", "an", "in", "my",
+  "~", "@", "and", "&", "of", "a", "an", "in", "my", "before", "until", "till",
 ]);
+/** Everyday words that also start a class name ("his" → History): never a class guess. */
+const NOT_A_CLASS_START = new Set(["his", "her", "part", "page", "test", "work", "home", "back", "read", "real", "more", "form", "life", "line", "list", "last", "late", "lead", "high", "even", "some", "come", "spent", "college"]);
 /** Verbs dropped from the start of the title for these types ("ate eggs" → "Eggs"). */
 const LEAD_VERBS: Partial<Record<CaptureType, RegExp>> = {
   food: /^(ate|eat|eating|drank|drink|had)\b/,
@@ -178,7 +180,12 @@ function matchClass(
   for (const { c, n } of candidates) {
     const m = spans.free(new RegExp(`\\b${escapeRe(n)}\\b`, "g"), low)[0];
     if (m) {
-      spans.claim(m.index, m.index + m[0].length);
+      // "practice my speech in front of…": the class word IS the thing, so it stays in the title.
+      // "speech outline", "for speech", "in anatomy", "my algebra homework": it just says the class, so it's removed.
+      const partOfThing =
+        /\b(?:my|the|this|your|our)\s+$/.test(low.slice(0, m.index)) &&
+        /^(?:\s*$|\s*[,.;!?]|\s+(?:in|on|at|for|to|with|before|after|by|and|so|until|because|tonight|tomorrow|today|again|twice|once)\b)/.test(low.slice(m.index + m[0].length));
+      if (!partOfThing) spans.claim(m.index, m.index + m[0].length);
       return { cls: c, problem: null };
     }
   }
@@ -237,7 +244,7 @@ function matchClass(
   // 4) A word that is the start of a word in a class name: "anat" → "Human Anatomy".
   for (const m of spans.free(/\b[a-z]{3,}\b/g, low)) {
     const word = m[0];
-    if (FILLER.has(word)) continue;
+    if (FILLER.has(word) || NOT_A_CLASS_START.has(word)) continue;
     const fits = classes.filter((cl) => cl.name.toLowerCase().split(/\s+/).some((part) => part.startsWith(word)));
     if (fits.length === 1) {
       spans.claim(m.index, m.index + word.length);
@@ -334,7 +341,9 @@ const TITLE_CUTS: { words: string[]; latest: boolean }[] = [
   { words: ["and"], latest: true },
   { words: ["about", "for", "to", "on"], latest: false },
 ];
-const MAX_TITLE_WORDS = 9;
+const MAX_TITLE_WORDS = 12;
+/** With no natural spot to cut, a title this long is still kept whole. */
+const HARD_MAX_TITLE_WORDS = 18;
 
 /** Split a run-on title into a short title and the rest (or null if it's short enough). */
 export function cutLongTitle(title: string): { title: string; rest: string } | null {
@@ -342,6 +351,7 @@ export function cutLongTitle(title: string): { title: string; rest: string } | n
   if (words.length <= MAX_TITLE_WORDS) return null;
   for (const { words: cuts, latest } of TITLE_CUTS) {
     const spots: number[] = [];
+    // Cut after word 3 at the earliest, and leave at least 2 words for the notes.
     for (let i = 3; i <= MAX_TITLE_WORDS && i < words.length - 1; i++) {
       // A comma cut goes after the word with the comma.
       if (cuts[0] === "," ? words[i - 1].endsWith(",") : cuts.includes(words[i].toLowerCase())) spots.push(i);
@@ -351,14 +361,90 @@ export function cutLongTitle(title: string): { title: string; rest: string } | n
       return { title: words.slice(0, i).join(" ").replace(/,$/, ""), rest: words.slice(i).join(" ") };
     }
   }
-  return { title: words.slice(0, 7).join(" ").replace(/,$/, ""), rest: words.slice(7).join(" ") };
+  // No natural spot: cutting mid-phrase ("…those initial | disclosures signed off") reads worse than a long title.
+  if (words.length <= HARD_MAX_TITLE_WORDS) return null;
+  return { title: words.slice(0, 12).join(" ").replace(/,$/, ""), rest: words.slice(12).join(" ") };
 }
 
-export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
+/** Titles that say nothing ("Do homework", "Stuff"): the first detail is the real thing. */
+const GENERIC_TITLE = /^(?:(?:do|finish|work on|start|get|my|some|the|for)\s+)*(?:homework|hw|assignments?|work|stuff|things?|school ?work|task|class)$/i;
+
+/** A title that only says when/where ("After school"): the thing itself came after. */
+const CONTEXT_ONLY_TITLE =
+  /^(?:in the (?:morning|afternoon|evening)|this (?:morning|afternoon|evening)|after (?:school|work|class|lunch|practice)|before (?:school|work|class)|at (?:lunch|work|school)|on my (?:lunch|break)|later(?: on| today)?|first thing(?: in the morning)?)$/i;
+
+/** A note that only repeats the due day ("Due Thursday", "It's due tomorrow at 5"). */
+const ONLY_A_DAY =
+  /^(?:it'?s |it is |and )?(?:due )?(?:on |by |before )?(?:the )?(?:today|tonight|tomorrow|this weekend|next week|(?:next |this )?(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?:st|nd|rd|th))(?: (?:at|by) \d{1,2}(?::\d{2})?\s*(?:am|pm)?| (?:morning|afternoon|night|evening))?$/i;
+
+/** Details that are really the thing to do: "(for history) I have some textbook questions", "I need to memorize…". */
+const DOING_START =
+  /^[\s,.;:!?]*(?:(?:and|so|also|then|okay|ok|um|uh)\s+)*(?:for (?:my |the )?[a-z' ]{2,30}?\s+)?(?:i (?:also )?(?:need|have|gotta|got|should|want|must) to|i'?ve got to|i gotta|we (?:need|have) to|i have (?:some|a|an|the|my|these|those)|i'?ve got (?:some|a|an|the|my)|there'?s (?:a|an|some|the))\b/i;
+
+/** "I have some textbook questions (that) I need to get done" → "…textbook questions". */
+const GET_DONE =
+  /(?<=[a-z0-9'])(?<!\b(?:yesterday|today|tonight|tomorrow|week|day|monday|tuesday|wednesday|thursday|friday|saturday|sunday))[\s,]+(?:that |which )?(?:i|we) (?:need|have|got|gotta|'?ve got|still need|still have) to (?:get (?:it |them |that )?(?:done|finished|in)|finish(?: it| them| up)?|do(?: it| them)?|turn (?:it |them )?in|complete)\b(?=\s*(?:[.,;!?]|$|and\b|i\b|it\b|for\b|by\b|before\b|on\b|tomorrow\b|today\b|tonight\b))/gi;
+
+/** Days said about the past ("the lab I missed on Tuesday") aren't due dates. */
+const PAST_DAY =
+  /\b(?:missed|was|were|had|did|didn'?t|wasn'?t|went|happened|got|took|from|since|last|ago)\s+(?:[a-z']+\s+){0,4}?(?:on\s+)?(?:last\s+)?((?:mon|tues|tue|wednes|wed|thurs|thu|fri|satur|sat|sun)(?:day)?|yesterday)\b/g;
+const maskPastDays = (low: string) => low.replace(PAST_DAY, (m, day: string) => m.slice(0, m.length - day.length) + " ".repeat(day.length));
+
+export function parse(rawText: string, ctx: ParseContext, opts: { depth?: number } = {}): CaptureDraft {
+  const { draft, notesRaw } = parseOnce(rawText, ctx);
+  if ((opts.depth ?? 0) > 1 || (draft.type !== "task" && draft.type !== "homework")) return draft;
+
+  // The main part was only "for speech" / "do homework" and the real thing came after
+  // ("so for speech I need to memorize the first half…"): use that detail as the title.
+  if (draft.notes && draft.when) {
+    const kept = notePoints(draft.notes).filter((p) => !ONLY_A_DAY.test(p));
+    draft.notes = kept.length ? (kept.length === 1 ? kept[0] : kept.map((p) => `• ${p}`).join("\n")) : null;
+  }
+  const empty = draft.title === DEFAULT_TITLES[draft.type] || GENERIC_TITLE.test(draft.title) || CONTEXT_ONLY_TITLE.test(draft.title);
+  if (empty && draft.notes && notesRaw && (DOING_START.test(notesRaw) || CONTEXT_ONLY_TITLE.test(draft.title))) {
+    const points = notePoints(draft.notes);
+    // "For world history" + "I have some textbook questions" were said as one thought.
+    const take = points.length > 1 && points[0].split(" ").length <= 4 && /^for\b/i.test(points[0]) ? 2 : 1;
+    const first = points.slice(0, take).join(" ");
+    const rest = points.slice(take);
+    const innerCtx = { ...ctx, spoken: false, caseSource: ctx.caseSource ?? rawText, classes: draft.classId ? [] : ctx.classes };
+    const inner = parse(first, innerCtx, { depth: (opts.depth ?? 0) + 1 });
+    if (inner.title && inner.title !== DEFAULT_TITLES[inner.type] && !GENERIC_TITLE.test(inner.title)) {
+      const notes = organizeNotes([inner.notes ?? "", ...rest].filter(Boolean).join("\n"));
+      const when = draft.when ?? inner.when;
+      const cls = draft.classId ? { id: draft.classId, name: draft.className } : { id: inner.classId, name: inner.className };
+      return {
+        ...draft,
+        type: cls.id ? "homework" : draft.type,
+        title: inner.title,
+        notes,
+        when,
+        whenFromNotes: draft.when ? draft.whenFromNotes : Boolean(inner.when),
+        classId: cls.id,
+        className: cls.name,
+        area: cls.id ? "school" : draft.area === "personal" ? inner.area : draft.area,
+        problems: draft.problems.filter((p) => !(when && p === "No due date found") && !(cls.id && /class/i.test(p))),
+      };
+    }
+  }
+  return draft;
+}
+
+function parseOnce(rawText: string, ctx: ParseContext): { draft: CaptureDraft; notesRaw: string | null } {
+  const result = parseInner(rawText, ctx);
+  return result;
+}
+
+function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; notesRaw: string | null } {
   // Same length for both, so match positions line up for building the title.
   let original = (ctx.spoken ? normalizeSpoken(rawText) : rawText).trim().replace(/\s+/g, " ");
+  // "…textbook questions I need to get done" → "…textbook questions".
+  original = original.replace(GET_DONE, "");
+  // "…essay that was due yesterday" says why it's late, not when it's due.
+  original = original.replace(/\s+(?:that|which) (?:was|were) (?:due|assigned) (?:[a-z]+ ){0,2}?(?:yesterday|last [a-z]+|on (?:mon|tues|wednes|thurs|fri|satur|sun)day)\b/gi, "");
   // "Okay so I need to…", "remind me to…": warm-up words aren't the thing.
   // ("At work I need to…" still says it's for work.)
+  const saidWork = WORK_HINTS.test(original.toLowerCase().slice(0, 40));
   const saidWorkFirst = /^(?:\W*(?:okay|ok|so|then|and|alright|um|uh)\b[\s,]*)*(?:at|for) (?:work|the office|prmi|primary)\b/i.test(original);
   original = stripLeadIn(original);
   const caseText = ctx.caseSource ? `${rawText}\n${ctx.caseSource}` : rawText;
@@ -378,14 +464,14 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
 
   // Notes keep their words exactly; we don't pull dates or amounts out of them.
   if (type0 === "note") {
-    return {
+    return { notesRaw: null, draft: {
       ...emptyDraft("note", rawText),
       title: original
         ? restoreCase(original.charAt(0).toUpperCase() + original.slice(1), caseText).replace(/\bi\b/g, "I").replace(/\bi'(m|ll|ve|d)\b/g, "I'$1")
         : DEFAULT_TITLES.note,
       mood: moodOf(low),
       confidence: 1,
-    };
+    } };
   }
 
   // ── Repeat: "every monday", "daily", "every other week" ─────────────────
@@ -456,10 +542,10 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
 
   // ── Date & time ───────────────────────────────────────────────────────────
   // The day said in the main part wins ("math test next monday, so start studying on the weekend").
-  let dateResult = parseWhen(head, spans, ctx.now, ctx.timeZone);
+  let dateResult = parseWhen(maskPastDays(head), spans, ctx.now, ctx.timeZone);
   let whenFromNotes = false;
   if (!dateResult.when && head.length < low.length) {
-    dateResult = parseWhen(low, spans, ctx.now, ctx.timeZone);
+    dateResult = parseWhen(maskPastDays(low), spans, ctx.now, ctx.timeZone);
     whenFromNotes = Boolean(dateResult.when);
   }
   problems.push(...dateResult.problems);
@@ -535,7 +621,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   }
 
   // ── Work or school? ──────────────────────────────────────────────────────
-  const isWork = saidWorkFirst || WORK_HINTS.test(low) || /\bprmi\b/.test(low);
+  const isWork = saidWorkFirst || saidWork || WORK_HINTS.test(low) || /\bprmi\b/.test(low);
   if (isWork) {
     // "at work" / "for PRMI" just say where it belongs: keep them out of the title.
     for (const m of spans.free(WORK_TAGS, low)) spans.claim(m.index, m.index + m[0].length);
@@ -561,6 +647,11 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
   if (type === "expense") category = title ? title.toLowerCase() : null;
   if (!title) title = cls && type === "homework" ? DEFAULT_TITLES.homework : incoming ? "Paycheck" : DEFAULT_TITLES[type];
   title = title.replace(/\bi\b/g, "I");
+  // A class or day said first can leave warm-up words at the front ("for speech I need to memorize…").
+  if (type === "homework" || type === "task") {
+    const bare = stripLeadIn(title);
+    if (bare !== title && bare.length > 0) title = bare.charAt(0).toUpperCase() + bare.slice(1);
+  }
   // A title is a few words. A long run-on gets cut at a natural spot; the rest becomes notes.
   if (type === "homework" || type === "task") {
     const cut = cutLongTitle(title);
@@ -593,7 +684,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     confidence -= 0.2;
   }
 
-  return {
+  return { notesRaw: notesStart >= 0 ? original.slice(notesStart) : null, draft: {
     type,
     title,
     rawText,
@@ -617,7 +708,7 @@ export function parse(rawText: string, ctx: ParseContext): CaptureDraft {
     area,
     confidence: clamp01(confidence),
     problems,
-  };
+  } };
 }
 
 function emptyDraft(type: CaptureType, rawText: string): CaptureDraft {

@@ -326,5 +326,18 @@ export function parseMany(rawText: string, ctx: ParseContext): ManyItem[] {
     }
     out.push({ text, draft });
   }
+  // "Clean my room and do laundry tonight": a day said once at the very end of a
+  // short, unpunctuated pair goes with both.
+  const low = rawText.toLowerCase().trim();
+  const plainPair = / and /.test(low) && !/\b(?:and then|then|also|oh|first|plus|another|next)\b/.test(low);
+  const dayAtEnd = /\b(?:tonight|today|tomorrow|[a-z]+day|weekend|morning|afternoon|evening|night|\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\W*$/.test(low);
+  if (out.length === 2 && plainPair && dayAtEnd && !/[.,;!?]/.test(rawText.trim().slice(0, -1))) {
+    const [a, b] = out.map((o) => o.draft);
+    const tasky = (d: CaptureDraft) => d.type === "task" || d.type === "homework";
+    if (!a.when && b.when && !b.whenFromNotes && tasky(a) && tasky(b) && rawText.split(/\s+/).length <= 14) {
+      a.when = b.when;
+      a.problems = a.problems.filter((x) => x !== "No due date found" && !x.startsWith("Couldn't tell"));
+    }
+  }
   return out;
 }
