@@ -87,3 +87,11 @@ describe("split rotation", () => {
     expect(nextAfter(split, null, 2)).toBe(2);
   });
 });
+
+describe("1-rep max only from real strength sets", () => {
+  it("no estimate past 15 reps", () => {
+    expect(oneRepMax(50, 170)).toBe(0);
+    expect(oneRepMax(135, 15)).toBe(203);
+    expect(bestByExercise([{ exerciseId: "c", weightLb: 50, reps: 170 }]).has("c")).toBe(false);
+  });
+});

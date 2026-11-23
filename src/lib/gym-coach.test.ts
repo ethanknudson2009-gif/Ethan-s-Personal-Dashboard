@@ -110,3 +110,16 @@ describe("the gym coach", () => {
     expect(t[0].id).toBe("heavier-bench");
   });
 });
+
+describe("sets that look like mistakes", () => {
+  it("170 reps at 50 lb → 'check this set', not 'go heavier'", () => {
+    const t = tips([day("2026-11-22", sets("curl", 50, 170))]);
+    expect(t[0]).toMatchObject({ id: "check-curl", tone: "warn" });
+    expect(t[0].why).toContain("170 reps at 50 lb");
+    expect(t.some((x) => x.id === "heavier-curl")).toBe(false);
+  });
+
+  it("normal high-rep sets are still coached", () => {
+    expect(ids([day("2026-11-22", sets("curl", 30, 25, 22))])).toContain("heavier-curl");
+  });
+});

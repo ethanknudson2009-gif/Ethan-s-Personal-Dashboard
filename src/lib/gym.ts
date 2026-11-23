@@ -8,9 +8,12 @@ export type GymSet = { exerciseId: string; weightLb: number | null; reps: number
 /**
  * Estimated 1-rep max (Epley formula: weight × (1 + reps/30)). One rep = the
  * weight itself. Used to compare sets with different reps fairly.
+ * Past 15 reps the formula stops meaning anything (170 crunches at 50 lb isn't
+ * a 333 lb max), so those sets don't get an estimate.
  */
+export const MAX_REPS_FOR_1RM = 15;
 export function oneRepMax(weightLb: number, reps: number): number {
-  if (weightLb <= 0 || reps <= 0) return 0;
+  if (weightLb <= 0 || reps <= 0 || reps > MAX_REPS_FOR_1RM) return 0;
   return reps === 1 ? weightLb : Math.round(weightLb * (1 + reps / 30));
 }
 

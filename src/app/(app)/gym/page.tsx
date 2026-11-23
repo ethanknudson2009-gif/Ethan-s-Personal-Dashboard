@@ -4,7 +4,8 @@ import { addDays, toLocalDate } from "@/lib/time";
 import { bestByExercise, lastTime, setLabel, volume, type GymSet } from "@/lib/gym";
 import { DEFAULT_SPLIT, setsSummary, workoutNote, type SpokenEntry } from "@/lib/gym-speech";
 import { PageHeader } from "@/components/ui";
-import { ActiveWorkout, SplitCard, WorkoutNoteCard, type Block, type ExerciseOption } from "@/components/gym-parts";
+import { ActiveWorkout, SplitCard, type Block, type ExerciseOption } from "@/components/gym-parts";
+import { WorkoutNoteCard } from "@/components/gym-history";
 import { GymCharts } from "@/components/gym-charts";
 import { CoachCard } from "@/components/gym-coach-card";
 import { coachTips } from "@/lib/gym-coach";
@@ -115,7 +116,11 @@ export default async function GymPage() {
   const weekAgo = addDays(today, -6);
   const thisWeek = trained.filter((w) => toLocalDate(new Date(w.started_at), timeZone) >= weekAgo);
   const weekVolume = thisWeek.reduce((n, w) => n + volume((w.workout_sets ?? []).map(toGym)), 0);
-  const bests = [...bestByExercise(history.flat()).entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
+  // Core and cardio don't have a meaningful "max".
+  const bests = [...bestByExercise(history.flat()).entries()]
+    .filter(([id]) => !["core", "cardio"].includes(muscleById.get(id) ?? ""))
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
 
   // Progress charts: strength per lift, pounds per week, split balance.
   const pastForCharts: PastWorkout[] = (past ?? []).map((w) => ({
@@ -152,7 +157,8 @@ export default async function GymPage() {
     }
     const mins = w.ended_at ? Math.round((new Date(w.ended_at).getTime() - new Date(w.started_at).getTime()) / 60000) : 0;
     const lb = volume(sets.map(toGym));
-    const meta = [mins > 0 ? `${mins} min` : null, lb ? `${lb.toLocaleString()} lb` : null, entries.length ? null : w.name].filter(Boolean).join(" · ");
+    // Over 3 hours means it was left open, not a real session length.
+    const meta = [mins > 0 && mins <= 180 ? `${mins} min` : null, lb ? `${lb.toLocaleString()} lb` : null, entries.length ? null : w.name].filter(Boolean).join(" · ");
     return {
       id: w.id,
       date: dayLabel(w.started_at),

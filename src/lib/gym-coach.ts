@@ -119,6 +119,21 @@ export function coachTips(
     const step = stepFor(ex);
     const weighted = last.top > 0 && !bodyweight;
 
+    // 0) A set that's probably a typo or a mic mistake ("170 reps at 50 lb"):
+    // say so instead of coaching off a wrong number.
+    const odd = last.sets.find((s) => (s.w > 0 && s.r > 60) || s.r > 150);
+    if (odd) {
+      tips.push({
+        id: `check-${id}`,
+        emoji: "🤔",
+        title: `Check your ${ex.name} set`,
+        why: `${odd.r} reps${odd.w ? ` at ${odd.w} lb` : ""} on ${last.date.slice(5).replace("-", "/")} looks off. If it's a typo, open that workout in History and tap Edit, or say "fix my last ${ex.name.toLowerCase()} set to 20 reps" (with the right number).`,
+        tone: "warn",
+        score: 95,
+      });
+      continue;
+    }
+
     // 1) Way past the rep range: the weight is too light.
     if (weighted && minReps >= 15) {
       const next = round5(last.top * (1 + Math.min(0.25, (minReps - 10) * 0.025)));
