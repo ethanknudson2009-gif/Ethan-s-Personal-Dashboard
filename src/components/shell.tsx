@@ -27,10 +27,12 @@ const NAV = [
 ];
 
 /**
- * Phone bottom bar: every area, with the glowing + in the middle:
- * Today · School · Work · + · Money · Life · Calendar. (Classes and Grades live inside School; Gym lives inside Life.)
+ * Phone bottom bar: every area, with the glowing + near the middle:
+ * Today · School · Work · Money · + · Gym · Life · Calendar. (Classes and Grades live inside School.)
  */
-const TABS = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[4], NAV[6]];
+const TABS = [NAV[0], NAV[1], NAV[2], NAV[3], NAV[5], NAV[4], NAV[6]];
+/** How many tabs sit left of the "+". */
+const LEFT = 4;
 
 /** Less-used places: sidebar on laptops; on phones they're linked from Today and School. */
 const MORE = [
@@ -79,10 +81,10 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
   }, [sheet]);
 
   // Thumb swipe left/right on a page moves to the next/previous tab
-  // (Today ⇄ School ⇄ Work ⇄ Money ⇄ Life ⇄ Calendar). Things with their own
+  // (Today ⇄ School ⇄ Work ⇄ Money ⇄ Gym ⇄ Life ⇄ Calendar). Things with their own
   // sideways gestures (task rows, scrolling chip rows, inputs) are left alone.
   const tabIndex = TABS.findIndex(
-    (t) => isActive(t.href) || (t.href === "/tasks" && (isActive("/classes") || isActive("/grades"))) || (t.href === "/life" && isActive("/gym")),
+    (t) => isActive(t.href) || (t.href === "/tasks" && (isActive("/classes") || isActive("/grades"))),
   );
   const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null);
   const [slide, setSlide] = useState<{ dir: "left" | "right"; path: string } | null>(null);
@@ -207,7 +209,7 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
         className="fixed inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-30 flex items-center justify-around gap-0.5 rounded-[1.75rem] border border-line bg-surface/90 px-1 py-1.5 shadow-card backdrop-blur-xl md:hidden"
         aria-label="Main"
       >
-        {TABS.slice(0, 3).map((item) => (
+        {TABS.slice(0, LEFT).map((item) => (
           <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/tasks" && (isActive("/classes") || isActive("/grades")))} badge={badges[item.href]} />
         ))}
         <button
@@ -221,8 +223,8 @@ export function AppShell({ children, badges }: { children: ReactNode; badges: Re
             <IconMic size={11} strokeWidth={2.4} />
           </span>
         </button>
-        {TABS.slice(3).map((item) => (
-          <TabLink key={item.href} {...item} active={isActive(item.href) || (item.href === "/life" && isActive("/gym"))} badge={badges[item.href]} />
+        {TABS.slice(LEFT).map((item) => (
+          <TabLink key={item.href} {...item} active={isActive(item.href)} badge={badges[item.href]} />
         ))}
       </nav>
     </div>
@@ -248,7 +250,7 @@ function TabLink({
     >
       <span
         className={cx(
-          "flex h-9 w-11 items-center justify-center rounded-xl transition-all duration-300",
+          "flex h-9 w-10 items-center justify-center rounded-xl transition-all duration-300",
           active && "-translate-y-1 bg-accent/15 shadow-glow",
         )}
       >

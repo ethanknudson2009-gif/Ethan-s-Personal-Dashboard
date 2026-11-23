@@ -7,18 +7,60 @@ import { loadSettings } from "@/lib/profile";
 import { toLocalDate } from "@/lib/time";
 import { lastTime, matchExercise, newRecords, nextAfter, volume, type GymSet } from "@/lib/gym";
 import { DEFAULT_SPLIT, dayForMuscles, muscleOf, readWorkout, workoutNote } from "@/lib/gym-speech";
+import { planForDay } from "@/lib/gym-plan";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
-/** Starts a workout, or returns the one you already have going. */
-export async function startWorkoutAction(): Promise<Result<{ id: string }>> {
+/**
+ * Starts a workout, or returns the one you already have going. With a split
+ * day ("Chest"), the workout comes ready: last time's exercises and weights
+ * for that day, or starter exercises the first time. Then you just tap ✓.
+ */
+export async function startWorkoutAction(day?: string): Promise<Result<{ id: string; from?: string }>> {
   const supabase = await createClient();
   const { data: open } = await supabase.from("workouts").select("id").is("ended_at", null).is("deleted_at", null).maybeSingle();
   if (open) return { ok: true, id: open.id };
-  const { data, error } = await supabase.from("workouts").insert({}).select("id").single();
+  const splitDay = day?.trim().slice(0, 40) || null;
+  const { data, error } = await supabase.from("workouts").insert({ split_day: splitDay }).select("id").single();
   if (error || !data) return { ok: false, error: error?.message ?? "Couldn't start" };
+  let from: string | undefined;
+  if (splitDay) {
+    const [{ data: past }, { data: exercises }] = await Promise.all([
+      supabase
+        .from("workouts")
+        .select("split_day, skipped, workout_sets(exercise_id, position, weight_lb, reps, done)")
+        .not("ended_at", "is", null)
+        .is("deleted_at", null)
+        .order("started_at", { ascending: false })
+        .limit(60),
+      supabase.from("exercises").select("id, name"),
+    ]);
+    const history = (past ?? []).map((w) => ({
+      day: w.split_day,
+      skipped: w.skipped,
+      sets: [...(w.workout_sets ?? [])]
+        .sort((a, b) => a.position - b.position)
+        .map((s) => ({ exerciseId: s.exercise_id, weightLb: s.weight_lb === null ? null : Number(s.weight_lb), reps: s.reps, done: s.done })),
+    }));
+    const plan = planForDay(splitDay, history, exercises ?? []);
+    from = plan.from;
+    if (plan.sets.length) {
+      const rows = plan.sets.map((s, i) => ({ workout_id: data.id, exercise_id: s.exerciseId, position: i, weight_lb: s.weightLb, reps: s.reps, done: false }));
+      const { error: e2 } = await supabase.from("workout_sets").insert(rows);
+      if (e2) return { ok: false, error: e2.message };
+    }
+  }
   refresh();
-  return { ok: true, id: data.id };
+  return { ok: true, id: data.id, from };
+}
+
+/** Takes an exercise (and all its sets) out of the live workout. */
+export async function removeExerciseAction(workoutId: string, exerciseId: string): Promise<Result> {
+  const supabase = await createClient();
+  const { error } = await supabase.from("workout_sets").delete().eq("workout_id", workoutId).eq("exercise_id", exerciseId);
+  if (error) return { ok: false, error: error.message };
+  refresh();
+  return { ok: true };
 }
 
 /** Adds an exercise to the workout, pre-filled with what you did last time (or 3 empty sets). */

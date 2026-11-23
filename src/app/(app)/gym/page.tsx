@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
 import { addDays, toLocalDate } from "@/lib/time";
@@ -7,7 +6,20 @@ import { DEFAULT_SPLIT, setsSummary, workoutNote, type SpokenEntry } from "@/lib
 import { PageHeader } from "@/components/ui";
 import { ActiveWorkout, SplitCard, WorkoutNoteCard, type Block, type ExerciseOption } from "@/components/gym-parts";
 import { GymCharts } from "@/components/gym-charts";
+import { libraryEntry } from "@/lib/exercise-library";
+import { musclesOfDay } from "@/lib/gym-plan";
 import { chartableExercises, splitCounts, strengthSeries, weeklyVolume, type PastWorkout } from "@/lib/gym-progress";
+
+/** Split-day words that cover several muscle groups. */
+const MUSCLE_GROUPS: Record<string, string[]> = {
+  push: ["chest", "shoulders", "triceps"],
+  pull: ["back", "biceps"],
+  "upper body": ["chest", "back", "shoulders", "biceps", "triceps"],
+  "lower body": ["legs", "glutes"],
+  "full body": ["chest", "back", "legs", "shoulders"],
+  arms: ["biceps", "triceps", "forearms"],
+  legs: ["legs", "glutes"],
+};
 
 type SetRow = { id: string; exercise_id: string; position: number; weight_lb: number | null; reps: number | null; done: boolean };
 
@@ -23,10 +35,10 @@ export default async function GymPage() {
   const today = toLocalDate(new Date(), timeZone);
 
   const [{ data: exercises }, { data: open }, { data: past }, { data: profile }] = await Promise.all([
-    supabase.from("exercises").select("id, name, muscle").order("name"),
+    supabase.from("exercises").select("id, name, muscle, equipment").order("name"),
     supabase
       .from("workouts")
-      .select("id, started_at, workout_sets(id, exercise_id, position, weight_lb, reps, done)")
+      .select("id, started_at, split_day, workout_sets(id, exercise_id, position, weight_lb, reps, done)")
       .is("ended_at", null)
       .is("deleted_at", null)
       .order("started_at", { ascending: false })
@@ -48,7 +60,18 @@ export default async function GymPage() {
   const trained = (past ?? []).filter((w) => !w.skipped);
   const history = trained.map((w) => (w.workout_sets ?? []).map(toGym));
   const usedBefore = new Set(history.flat().map((s) => s.exerciseId));
-  const options: ExerciseOption[] = (exercises ?? []).map((e) => ({ id: e.id, name: e.name, muscle: e.muscle, recent: usedBefore.has(e.id) }));
+  const options: ExerciseOption[] = (exercises ?? []).map((e) => ({
+    id: e.id,
+    name: e.name,
+    muscle: e.muscle,
+    equipment: e.equipment,
+    aliases: libraryEntry(e.name)?.aliases ?? [],
+    recent: usedBefore.has(e.id),
+  }));
+  const muscleById = new Map((exercises ?? []).map((e) => [e.id, e.muscle]));
+  // The muscles for the picker's "🔥 Chest" tab: the live workout's day, else the next one up.
+  const liveDay = open?.split_day ?? null;
+  const dayMuscles = [...new Set(musclesOfDay(liveDay ?? split[next]).flatMap((m) => (m in MUSCLE_GROUPS ? MUSCLE_GROUPS[m] : [m])))];
 
   const dayLabel = (iso: string) =>
     new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", month: "short", day: "numeric" }).format(new Date(iso));
@@ -65,7 +88,7 @@ export default async function GymPage() {
       let b = blocks.find((x) => x.exerciseId === s.exercise_id);
       if (!b) {
         const prev = lastTime(s.exercise_id, history);
-        b = { exerciseId: s.exercise_id, name: names.get(s.exercise_id) ?? "Exercise", last: prev.length ? prev.map(setLabel).join(", ") : null, sets: [] };
+        b = { exerciseId: s.exercise_id, name: names.get(s.exercise_id) ?? "Exercise", muscle: muscleById.get(s.exercise_id) ?? "other", last: prev.length ? prev.map(setLabel).join(", ") : null, sets: [] };
         blocks.push(b);
       }
       b.sets.push({ id: s.id, weightLb: s.weight_lb === null ? null : Number(s.weight_lb), reps: s.reps, done: s.done });
@@ -120,11 +143,7 @@ export default async function GymPage() {
 
   return (
     <div className="stagger flex flex-col gap-5">
-      <PageHeader title="Gym" subtitle="Life">
-        <Link href="/life" className="text-sm text-muted hover:text-ink">
-          ← Habits
-        </Link>
-      </PageHeader>
+      <PageHeader title="Gym" subtitle="Lift · track · progress" />
 
       <section className="hero hero-gym glow-gym rounded-3xl border bg-surface/70 p-5" style={{ borderColor: "#ff6b4a66" }}>
         {open ? (
@@ -144,7 +163,7 @@ export default async function GymPage() {
         </div>
       </section>
 
-      {open && <ActiveWorkout workoutId={open.id} startedAt={open.started_at} blocks={blocks} exercises={options} />}
+      {open && <ActiveWorkout workoutId={open.id} startedAt={open.started_at} day={liveDay} dayMuscles={dayMuscles} blocks={blocks} exercises={options} />}
 
       {bests.length > 0 && (
         <section>
