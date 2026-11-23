@@ -8,7 +8,8 @@
  * when tapped, "+ Set" copies the last set, and nothing is wider than the
  * phone.
  */
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { createPortal } from "react-dom";
 import {
   addExerciseAction,
   addSetAction,
@@ -28,7 +29,8 @@ import { MUSCLE_LABELS, searchScore, type Muscle } from "@/lib/exercise-library"
 
 const FIRE = "#ff6b4a";
 
-export type ExerciseOption = { id: string; name: string; muscle: string; equipment: string | null; aliases: string[]; recent: boolean };
+/** `rank`: the library's order (most common first); your own exercises come after. */
+export type ExerciseOption = { id: string; name: string; muscle: string; equipment: string | null; aliases: string[]; recent: boolean; rank: number };
 export type SetRowData = { id: string; weightLb: number | null; reps: number | null; done: boolean };
 export type Block = { exerciseId: string; name: string; muscle: string; last: string | null; sets: SetRowData[] };
 
@@ -226,8 +228,8 @@ function ExercisePicker({
         .map((x) => x.e);
     }
     const pick = tab === "day" ? exercises.filter((e) => dayMuscles.includes(e.muscle)) : tab === "recent" ? exercises.filter((e) => e.recent) : exercises.filter((e) => e.muscle === tab);
-    // Ones you've done before first, then A–Z.
-    return [...pick].sort((a, b) => Number(b.recent) - Number(a.recent) || a.name.localeCompare(b.name));
+    // Ones you've done before first, then the most common ones.
+    return [...pick].sort((a, b) => Number(b.recent) - Number(a.recent) || a.rank - b.rank || a.name.localeCompare(b.name));
   }, [q, tab, exercises, dayMuscles]);
 
   const add = (id: string) => {
@@ -261,7 +263,15 @@ function ExercisePicker({
     ...others.map((m) => ({ key: m, label: muscleLabel(m) })),
   ];
 
-  return (
+  // Drawn on top of the whole app (not inside the page, whose slide animation
+  // would trap a full-screen layer and let the bottom bar cover it).
+  const onClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  if (!onClient) return null;
+  return createPortal(
     <div className="fade-in fixed inset-0 z-50 flex flex-col bg-bg/95 backdrop-blur" role="dialog" aria-label="Add exercises">
       <div className="mx-auto flex w-full max-w-xl min-h-0 flex-1 flex-col gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center gap-2">
@@ -357,7 +367,8 @@ function ExercisePicker({
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

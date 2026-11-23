@@ -6,7 +6,7 @@ import { DEFAULT_SPLIT, setsSummary, workoutNote, type SpokenEntry } from "@/lib
 import { PageHeader } from "@/components/ui";
 import { ActiveWorkout, SplitCard, WorkoutNoteCard, type Block, type ExerciseOption } from "@/components/gym-parts";
 import { GymCharts } from "@/components/gym-charts";
-import { libraryEntry } from "@/lib/exercise-library";
+import { EXERCISE_LIBRARY, libraryEntry } from "@/lib/exercise-library";
 import { musclesOfDay } from "@/lib/gym-plan";
 import { chartableExercises, splitCounts, strengthSeries, weeklyVolume, type PastWorkout } from "@/lib/gym-progress";
 
@@ -67,6 +67,10 @@ export default async function GymPage() {
     equipment: e.equipment,
     aliases: libraryEntry(e.name)?.aliases ?? [],
     recent: usedBefore.has(e.id),
+    rank: (() => {
+      const entry = libraryEntry(e.name);
+      return entry ? EXERCISE_LIBRARY.indexOf(entry) : 10_000;
+    })(),
   }));
   const muscleById = new Map((exercises ?? []).map((e) => [e.id, e.muscle]));
   // The muscles for the picker's "🔥 Chest" tab: the live workout's day, else the next one up.
