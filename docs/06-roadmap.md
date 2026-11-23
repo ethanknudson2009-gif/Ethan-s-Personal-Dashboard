@@ -103,3 +103,6 @@
 - [x] Edit past workouts (Nov 23): by hand (History → Edit) or by voice ("on my last back day I actually hit dumbbell row for 12 reps not 10" → a preview of exactly which sets change → tap Fix it). `src/lib/gym-fix.ts` + tests.
 - [x] Gym coach (Nov 23): a Coach card reads every logged set: go heavier when reps are high, lighter when grinding, add weight at the top of the range, stalls, rest time, skipped muscles, push/pull balance, real progress (`src/lib/gym-coach.ts` + tests). No AI service: plain rules.
 - [x] Connector edit tools (Nov 23): `get_gym_history` (sets + coach tips, so Claude can do deeper analysis), `fix_workout_set`, `find_tasks`, `update_task`. Changes need Ethan's yes in the chat first (`confirmed_by_user`), same review-before-save rule as the app.
+- [x] Home "Up next" gym card (Nov 23): the next split day, its muscles, last time's exercises, a coach tip, and Start (starts it and opens Gym). Shows Continue when a workout is open.
+- [x] Mic stress test (Nov 23): self-corrections ("80, excuse me I mean 60"), mishearings (school crusher → skull crushers), "3 by 12", "60 seconds 3 times", "Mike wants X sent out before 3". Locked in by `src/lib/parser/stress.test.ts`.
+- [ ] Fix how many sets a past workout had by voice ("4 sets not 3"). For now it points you to Edit.
