@@ -2,15 +2,28 @@
 
 A personal "life dashboard" web app, built with Claude for a class assignment. It brings school, fitness, food, money, habits, notes and my job at PRMI into **one place**, with friends and leaderboards. It works on a computer browser and installs on my iPhone like an app.
 
-> **Status:** Live at https://ethan-s-personal-dashboard.vercel.app. Phase 1 (school dashboard) and Phase 2 (iPhone capture, reminders, Claude connector, voice, syllabus import) are done; from Phase 4, habits, XP/levels and grades are done. See the [Roadmap](docs/06-roadmap.md).
+> **Status:** Live at https://ethan-s-personal-dashboard.vercel.app. Phases 1–2 (school dashboard, iPhone capture, reminders, Claude connector, voice, syllabus import) are done, most of Phase 3 (gym, food) and Phase 4 (habits, XP, money, grades, day planning) is done, and Phase 5 (social) is next. See the [Roadmap](docs/06-roadmap.md).
 
 ## The idea in one minute
 
-- **One dashboard** for everything: homework and classes, calendar and to-dos, gym, calories, habits and goals, budget, notes/journal, and work tasks for my job.
+- **One dashboard** for everything: homework and classes, calendar and to-dos, gym, calories, habits and goals, budget, and work tasks for my job.
 - **One button to talk to it:** press a Lock Screen button on my iPhone, say "bio lab report due Friday" or "ate two eggs and toast," and it's saved, sorted, and on the dashboard.
-- **Claude is the brain:** it reads syllabus PDFs, estimates calories from food photos, and plans my week. It connects through a Claude custom connector, so there are no extra paid AI services.
-- **Social:** invite friends, groups, or the whole school for challenges and leaderboards.
+- **Claude is the brain:** it reads syllabus PDFs, looks up and fixes my workouts and tasks, and plans my week. It connects through a Claude custom connector, so there are no extra paid AI services.
+- **Social (next):** invite friends, groups, or the whole school for challenges and leaderboards.
 - **$0 to run:** free hosting (Vercel), free database (Supabase), and my existing Claude Pro plan.
+
+## What it does today
+
+| Section | Highlights |
+|---|---|
+| **Home** | What's due now, classes today, the gym day that's up next (one tap to start), and tiles for work, money, food, habits and stats |
+| **School** | Homework by class, due dates and times, syllabus import, grades with "what do I need on the final?" |
+| **Work** | My PRMI tasks for Mike, sorted by what's due today |
+| **Gym** | A 4-day split, live workouts pre-filled from last time, 520 exercises in a muscle tree, a coach that reads every set, progress charts, and fixing a past workout by voice |
+| **Voice** | Say anything ("bench 185 for 8, no wait 6", "Mike wants the Garcia LE sent out before 3") and it's sorted into the right place, with a preview before saving |
+| **Life** | Habits with streaks and XP, food and calories, money (Cash App import), morning plan and evening shutdown |
+
+Everything is checked by about 550 automated tests (`npx vitest run`), most of them real sentences the mic has to understand.
 
 ## How this project was planned
 
@@ -47,7 +60,7 @@ Everything below came from a planning session with Claude:
 
 A live, editable copy of the research is also kept as a Claude Doc: *Personal Dashboard — Best-of-the-Best Research Blueprint*.
 
-## Planned tech stack
+## Tech stack
 
 - **Next.js + React + TypeScript**: the web app, installable on a phone as a PWA
 - **Supabase** (free tier): login, database, file storage, realtime leaderboards

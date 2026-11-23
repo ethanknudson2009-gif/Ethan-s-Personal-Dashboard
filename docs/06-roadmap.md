@@ -92,10 +92,7 @@
 - [x] ~~Side business: window-washing jobs~~ Removed Nov 18, 2026: Ethan doesn't do window washing. Work = LOA at PRMI (Work section).
 - [x] Grades: weighted averages, letter grades, What-If, and "what do I need?" (/grades)
 
-## Phase 5: Social
-- [ ] Friends, groups, school-wide spaces
-- [ ] Challenges and leaderboards (realtime), "overtake" alerts, medals
-- [ ] Privacy controls for what's shared
+## Added Nov 22–23, 2026
 - [x] Journal removed (Nov 22, Ethan's call): no journal card, Today tile, shutdown mood step or `add_note` tool. Old entries stay in the `journal_entries` table, untouched.
 - [x] Bottom bar (Nov 23): just Home · Work · + · School · Gym. Everything else (Money, Life, Calendar, Stats, Inbox, Classes, Grades, Settings, Trash) is behind the menu button in the top-right of every page header (`src/components/menu.tsx`). Swiping follows the bar.
 - [x] Mic understands natural talk (Nov 23): filler words ("basically", "like") are dropped, lead-ins ("I just remembered", "put down that") skipped, and a minute of random story before the point is dropped when something real was asked for (`isChatter` in `src/lib/parser/multi.ts`, tests in `real-talk.test.ts`).
@@ -108,3 +105,8 @@
 - [x] Fix how many sets a past workout had by voice (Nov 23): "4 sets not 3" previews adding a copy of the last set; "2 sets not 3" previews removing one.
 - [x] Mic stress batch 2 (Nov 23): due time after the day ("tomorrow… due at 11:59"), "the SAT", "Mike said X needs Y", goals aren't logged as sets, "ran a mile".
 - [x] Mic stress batch 3 (Nov 23): "yo"/"ugh I forgot to" dropped from titles, "practice then work from 6 to 9" splits, venmo/food/Chick-fil-A, PRs/laps/ab circuits map to real exercises.
+
+## Phase 5: Social (next)
+- [ ] Friends, groups, school-wide spaces
+- [ ] Challenges and leaderboards (realtime), "overtake" alerts, medals
+- [ ] Privacy controls for what's shared
