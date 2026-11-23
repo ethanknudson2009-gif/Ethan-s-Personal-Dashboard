@@ -46,6 +46,22 @@ export function gymNumbers(text: string): string {
   const words = text
     .toLowerCase()
     .replace(/\b([1-9]):([0-5]\d)\b/g, (_m, h: string, mm: string) => String(Number(h) * 100 + Number(mm)))
+    // Gym slang: "pulled 315" is a deadlift, "squatted 225" a squat.
+    .replace(/\bpulled (?=\d|a |one |two |three |four |five )/g, "deadlift ")
+    .replace(/\bsquatted\b/g, "squat")
+    .replace(/\bdeadlifted\b/g, "deadlift")
+    // "315 for a PR" with no reps said is a single.
+    .replace(/\b(\d+) for an? (?:pr|pb|new pr|personal (?:record|best))\b/g, "$1 for 1")
+    .replace(/\bfor an? (?:pr|pb|new pr|personal (?:record|best))\b/g, "")
+    .replace(/\b(?:a|one) plate\b/g, "1 plate")
+    .replace(/\btwo plates\b/g, "2 plates")
+    .replace(/\bthree plates\b/g, "3 plates")
+    .replace(/\bfour plates\b/g, "4 plates")
+    .replace(/\bfive plates\b/g, "5 plates")
+    // "4 plates" on a leg press or sled is just the plates (45 lb each side)…
+    .replace(/\b(leg press|hack squat|sled|belt squat)([^,.;]*?)\b(\d(?:\.5)?)\s*plates?\b/g, (_m, ex: string, mid: string, n: string) => `${ex}${mid}${Math.round(Number(n) * 90)}`)
+    // …on a barbell it's the 45 lb bar plus a 45 on each side per plate: "3 plates" = 315.
+    .replace(/\b(\d(?:\.5)?)\s*plates?\b/g, (_m, n: string) => String(45 + Math.round(Number(n) * 90)))
     .replace(/(\d)\s*(?:x|×|\*)\s*(?=\d)/g, "$1 x ")
     .replace(/(\d)(lbs?|kg|pounds|kilos)\b/g, "$1 $2")
     .replace(/\b(\d+)s\b/g, "$1") // "30s" (dumbbells) → 30

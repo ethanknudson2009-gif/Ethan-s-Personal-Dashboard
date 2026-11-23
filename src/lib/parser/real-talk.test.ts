@@ -89,6 +89,36 @@ describe("how Ethan talks", () => {
     ["add eggs and bread to my list", { title: "Eggs and bread" }],
   ])("%s", (said, want) => expect(one(said)).toMatchObject(want));
 
+  it.each<[string, Partial<Want> & { type?: string }]>([
+    // Work words from PRMI
+    ["send the LE to the Hendersons by end of day", { title: "Send the LE to the Hendersons", area: "work" }],
+    ["I need to order the condo questionnaire for the Smith file", { title: "Order the condo questionnaire for the Smith file", area: "work" }],
+    ["get the gift letter signed for the Lopez loan before we submit to underwriting", { title: "Get the gift letter signed for the Lopez loan", notes: "Before we submit to underwriting", area: "work" }],
+    ["run DU on the Patel file and send Mike the findings", { type: "task", title: "Run DU on the Patel file and send Mike the findings", area: "work" }],
+    ["we got clear to close on the Wilson loan tell Mike", { title: "Tell Mike we got clear to close on the Wilson loan", area: "work" }],
+    ["the Garcia file has a COC the rate lock expires friday", { title: "Garcia file has a COC", notes: "The rate lock expires friday", area: "work" }],
+    ["call the borrower about the letter of explanation for the large deposit", { title: "Call the borrower about the letter of explanation for the large deposit", area: "work" }],
+    // Gym slang is a workout
+    ["benched 225 for 5 then 185 for 8", { type: "workout" }],
+    ["pulled 315 for a PR", { type: "workout" }],
+    ["hit legs today squat 3 plates for 3", { type: "workout" }],
+    // Everyday life
+    ["costco run this weekend for groceries", { type: "task", title: "Costco run for groceries", day: "2026-11-28" }],
+    ["meal prep on sunday chicken and rice", { title: "Meal prep chicken and rice" }],
+    ["hit up Tyler about the game friday night", { title: "Hit up Tyler about the game", day: "2026-11-27" }],
+    ["FaceTime grandma tomorrow after school", { title: "FaceTime grandma after school", day: "2026-11-23" }],
+    ["oil change saturday morning", { title: "Oil change", day: "2026-11-28" }],
+    ["grabbed a protein shake 300 calories 40 grams protein", { type: "food", title: "Protein shake" }],
+    ["lunch with mom on sunday at noon", { type: "task", title: "Lunch with mom" }],
+  ])("%s", (said, want) => {
+    const d = parse(said, ctx);
+    expect({ type: d.type, title: d.title, cls: d.className, day: d.when?.date ?? null, notes: d.notes, area: d.area }).toMatchObject(want);
+  });
+
+  it("'request the VOE… and follow up with HR' are both work", () => {
+    expect(many("request the VOE for the Johnson loan and follow up with HR on monday").map((d) => d.area)).toEqual(["work", "work"]);
+  });
+
   it("'I forgot it at home' is a detail, not part of the title", () => {
     const d = one("turn in my anatomy homework I forgot it at home it was due friday");
     expect(d.title).toBe("Turn in my homework");

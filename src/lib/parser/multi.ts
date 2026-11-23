@@ -43,7 +43,8 @@ const NOT_BEFORE_VERB = new Set(
   (
     "the a an my your his her our their this that these those to in of for on at with from by about i we you he she they me him them us it " +
     "will can could should would must might gonna wanna gotta need needs have has had let's lets please not don't dont didn't never just " +
-    "also then and or but so phone tax i'll we'll you'll can't won't who which to-do todo also and maybe probably really still even first"
+    "also then and or but so phone tax i'll we'll you'll can't won't who which to-do todo also and maybe probably really still even first " +
+      "large big small huge new old full whole quick another every each some any direct wire cash mobile"
   ).split(" "),
 );
 /** Nouns that make a verb word a noun instead ("book report", "study guide"). */

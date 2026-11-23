@@ -249,3 +249,24 @@ describe("the exercise library's nicknames", () => {
     expect(w.entries[0].sets.length).toBeGreaterThan(0);
   });
 });
+
+describe("gym slang", () => {
+  it("plates: 3 plates on a bar is 315; 4 plates on the leg press is 360", () => {
+    const w = read("squat 3 plates for 3 and leg press 4 plates for 12");
+    expect(w.entries.map((e) => [e.name, e.sets[0]])).toEqual([
+      ["Squat", { weightLb: 315, reps: 3 }],
+      ["Leg press", { weightLb: 360, reps: 12 }],
+    ]);
+  });
+  it("'pulled 315 for a PR' is a one-rep deadlift", () => {
+    const w = read("pulled 315 for a PR");
+    expect(w.entries[0].name).toBe("Deadlift");
+    expect(w.entries[0].sets).toEqual([{ weightLb: 315, reps: 1 }]);
+  });
+  it("'benched 225 for 5 then 185 for 8'", () => {
+    expect(read("benched 225 for 5 then 185 for 8").entries[0].sets).toEqual([
+      { weightLb: 225, reps: 5 },
+      { weightLb: 185, reps: 8 },
+    ]);
+  });
+});
