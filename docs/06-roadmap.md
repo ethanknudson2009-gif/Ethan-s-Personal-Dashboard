@@ -107,3 +107,4 @@
 - [x] Mic stress test (Nov 23): self-corrections ("80, excuse me I mean 60"), mishearings (school crusher → skull crushers), "3 by 12", "60 seconds 3 times", "Mike wants X sent out before 3". Locked in by `src/lib/parser/stress.test.ts`.
 - [x] Fix how many sets a past workout had by voice (Nov 23): "4 sets not 3" previews adding a copy of the last set; "2 sets not 3" previews removing one.
 - [x] Mic stress batch 2 (Nov 23): due time after the day ("tomorrow… due at 11:59"), "the SAT", "Mike said X needs Y", goals aren't logged as sets, "ran a mile".
+- [x] Mic stress batch 3 (Nov 23): "yo"/"ugh I forgot to" dropped from titles, "practice then work from 6 to 9" splits, venmo/food/Chick-fil-A, PRs/laps/ab circuits map to real exercises.
