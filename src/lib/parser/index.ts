@@ -52,8 +52,6 @@ export type CaptureDraft = {
   /** Food: calories and grams of protein, if said ("700 calories", "30g protein"). */
   calories: number | null;
   proteinG: number | null;
-  /** Journal: how the day felt, 1 (rough) to 5 (great), from words like "great" or "rough". */
-  mood: number | null;
   /** "every Monday", "daily", "every other week", "monthly". */
   repeat: "daily" | "weekly" | "biweekly" | "monthly" | null;
   /** Money coming in ("got paid $400", "paycheck") rather than spent. */
@@ -97,7 +95,6 @@ export function findNotesStart(low: string, after = 0): number {
 
 
 // ── Keyword lists ───────────────────────────────────────────────────────────
-const NOTE_PREFIX = /^\s*(note|journal|remember that)\b\s*[:\-–]?\s*/i;
 const EXPENSE_VERBS = /\b(spent|spend|paid|pay|bought|buy|cost|costs|venmo'?d|venmoed|zelled|zelle'?d|cash ?app'?d|cash ?apped|sent)\b/;
 /** Money already gone ("spent", "paid", "venmo'd"): spending even without a $ sign. Future "pay the bill" stays a task. */
 const SPENT_VERBS = /\b(spent|paid|bought|cost|costs|venmo'?d|venmoed|zelled|zelle'?d|cash ?app'?d|cash ?apped)\b/;
@@ -109,16 +106,6 @@ const WORKOUT_WORDS =
 /** Starts that make it a to-do even when food or gym words come later. */
 const TASK_VERB_START =
   /^(?:pick up|drop off|call|text|email|e-mail|message|buy|grab|order|cook|meal prep|prep|schedule|book|go to|meet|send|pay|finish|study|clean|wash|take out|bring|plan|make|get|return|cancel|sign up|register|reply|respond|print|submit|turn in|fill out|look up|set up|ask|tell|remind)\b/;
-/** "I feel great today", "today was rough": a journal line. */
-const JOURNAL_START = /^(?:i feel|i'?m feeling|i felt|feeling|today was|today i|tonight i|dear diary|mood\b|my day was|had a (?:good|great|rough|bad|long|productive) day)/;
-/** Mood words scored 1 (rough) to 5 (great). */
-const MOOD_WORDS: [RegExp, number][] = [
-  [/\b(terrible|awful|horrible|miserable|depressed|the worst|really bad|sad|rough|bad)\b/, 1],
-  [/\b(meh|tired|exhausted|stressed|anxious|bored|blah|not great|kinda bad)\b/, 2],
-  [/\b(okay|ok|fine|alright|all right|average|normal|so-so)\b/, 3],
-  [/\b(good|productive|happy|nice|solid|chill|relaxed|calm)\b/, 4],
-  [/\b(great|amazing|awesome|fantastic|incredible|excellent|best|perfect|on fire)\b/, 5],
-];
 /** School subjects people say instead of the class name ("math" → College Algebra). */
 const SUBJECTS: Record<string, string[]> = {
   math: ["algebra", "calculus", "geometry", "trig", "statistics", "math", "precalc"],
@@ -282,8 +269,7 @@ export function findHabit(low: string, habits: string[]): string | null {
   return fits.sort((a, b) => b.length - a.length)[0] ?? null;
 }
 
-function detectType(low: string, ctx: ParseContext, isNote: boolean): CaptureType | null {
-  if (isNote || JOURNAL_START.test(low)) return "note";
+function detectType(low: string, ctx: ParseContext): CaptureType | null {
   // Money in or out ("got paid $400" is income; "spent $12" is spending).
   if ((INCOME_WORDS.test(low) || EXPENSE_VERBS.test(low)) && /\$\s?\d|\d\s*(?:dollars|bucks)\b/.test(low)) return "expense";
   if (INCOME_WORDS.test(low) && /\d/.test(low)) return "expense";
@@ -460,8 +446,6 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
   // "add milk to my list" → "milk" (the list is the app itself).
   original = original.replace(/^(?:add\s+)?(.+?)\s+(?:to|on|onto) (?:my|the) (?:list|to-?do list|todo list|to-?dos|tasks|reminders)\b/i, "$1");
   const caseText = ctx.caseSource ? `${rawText}\n${ctx.caseSource}` : rawText;
-  const noteMatch = NOTE_PREFIX.exec(original);
-  if (noteMatch) original = original.slice(noteMatch[0].length);
   const low = original.toLowerCase();
 
   const spans = new SpanTracker();
@@ -472,19 +456,8 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
   // ("pick up mom at 5, grab lunch on the way" is a task, not food).
   const notesStart = findNotesStart(low);
   const head = notesStart > 0 ? low.slice(0, notesStart) : low;
-  const type0 = detectType(head, ctx, Boolean(noteMatch)) ?? (JOURNAL_START.test(low) ? "note" : null);
+  const type0 = detectType(head, ctx);
 
-  // Notes keep their words exactly; we don't pull dates or amounts out of them.
-  if (type0 === "note") {
-    return { notesRaw: null, draft: {
-      ...emptyDraft("note", rawText),
-      title: original
-        ? restoreCase(original.charAt(0).toUpperCase() + original.slice(1), caseText).replace(/\bi\b/g, "I").replace(/\bi'(m|ll|ve|d)\b/g, "I'$1")
-        : DEFAULT_TITLES.note,
-      mood: moodOf(low),
-      confidence: 1,
-    } };
-  }
 
   // ── Repeat: "every monday", "daily", "every other week" ─────────────────
   let repeat: CaptureDraft["repeat"] = null;
@@ -712,7 +685,6 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
     habitName,
     calories,
     proteinG,
-    mood: null,
     repeat,
     incoming,
     whenFromNotes,
@@ -721,22 +693,6 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
     confidence: clamp01(confidence),
     problems,
   } };
-}
-
-function emptyDraft(type: CaptureType, rawText: string): CaptureDraft {
-  return {
-    type, title: "", rawText, when: null, classId: null, className: null, amount: null, quantity: null,
-    minutes: null, sets: null, distanceMiles: null, category: null, habitName: null, calories: null, proteinG: null,
-    mood: null, repeat: null, incoming: false,
-    notes: null, area: "personal", confidence: 1, problems: [],
-  };
-}
-
-/** Mood from words in a journal line ("today was great" → 5). The lowest mood word wins; null if none. */
-export function moodOf(low: string): number | null {
-  if (/\b(not|wasn'?t|isn'?t|didn'?t feel)\s+(?:very\s+|that\s+|so\s+)?(good|great|happy|productive)\b/.test(low)) return 2;
-  const scores = MOOD_WORDS.filter(([re]) => re.test(low)).map(([, score]) => score);
-  return scores.length ? Math.min(...scores) : null;
 }
 
 /**

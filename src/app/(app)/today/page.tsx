@@ -16,7 +16,6 @@ import { LevelBar } from "@/components/level-bar";
 import { SnoozeBar } from "@/components/snooze-bar";
 import { totalXp } from "@/lib/xp";
 import { dollars, monthKey, monthTotals } from "@/lib/money/summary";
-import { MOODS } from "@/lib/moods";
 import { groupByDue, loadTaskData } from "../tasks/data";
 import { loadSchedule } from "../schedule-data";
 import { ritualFor } from "@/lib/day-plan";
@@ -43,10 +42,9 @@ export default async function TodayPage() {
     supabase.from("habit_checkins").select("id", { count: "exact", head: true }),
     supabase.from("tasks").select("minutes_done").gt("minutes_done", 0).is("deleted_at", null),
   ]);
-  const [{ data: money }, { data: workouts }, { data: journal }, { data: food }, { data: profile }] = await Promise.all([
+  const [{ data: money }, { data: workouts }, { data: food }, { data: profile }] = await Promise.all([
     supabase.from("money_transactions").select("occurred_on, amount_cents, category").gte("occurred_on", `${today.slice(0, 7)}-01`).is("deleted_at", null),
     supabase.from("workouts").select("started_at").not("ended_at", "is", null).is("deleted_at", null).order("started_at", { ascending: false }).limit(10),
-    supabase.from("journal_entries").select("mood, body").eq("on_date", today).maybeSingle(),
     supabase.from("food_entries").select("calories").eq("on_date", today),
     supabase.from("profiles").select("calorie_goal").maybeSingle(),
   ]);
@@ -59,7 +57,6 @@ export default async function TodayPage() {
   );
   const gymThisWeek = (workouts ?? []).filter((w) => toLocalDate(new Date(w.started_at), timeZone) >= addDays(today, -6)).length;
   const lastWorkout = workouts?.[0] ? toLocalDate(new Date(workouts[0].started_at), timeZone) : null;
-  const mood = MOODS.find((m) => m.value === journal?.mood);
   const workOpen = data.open.filter((t) => t.area === "work");
   const xp = totalXp({
     tasksDone: tasksDone ?? 0,
@@ -226,13 +223,6 @@ export default async function TodayPage() {
           label="🏋️ Gym"
           big={`${gymThisWeek} this week`}
           small={lastWorkout ? (lastWorkout === today ? "Trained today 💪" : `Last: ${formatLocalDate(lastWorkout).split(",")[0]}`) : "Start your first workout"}
-        />
-        <GlanceTile
-          href="/life"
-          color="#5b8cff"
-          label="📓 Journal"
-          big={mood ? `${mood.emoji} ${mood.label}` : "Not yet"}
-          small={journal?.body ? journal.body.slice(0, 60) : "How was today?"}
         />
         <GlanceTile
           href="/life"

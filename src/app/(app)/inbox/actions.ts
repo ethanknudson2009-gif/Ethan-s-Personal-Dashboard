@@ -7,7 +7,7 @@ import { moneyRowFromDraft, readDraft, SAVEABLE_TYPES, taskRowFromDraft } from "
 import { toLocalDate } from "@/lib/time";
 import type { ActionResult } from "@/app/(app)/tasks/actions";
 import { parse } from "@/lib/parser";
-import { addToJournalAction, checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
+import { checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
 import { logCardioAction, logQuickSetsAction } from "@/app/(app)/gym/actions";
 
 /*
@@ -27,7 +27,7 @@ async function approveOne(supabase: Awaited<ReturnType<typeof createClient>>, id
   const draft = readDraft(item.draft);
   if (!draft) return { ok: false, error: "This item can't be read. Dismiss it and add it again." };
   if (!SAVEABLE_TYPES.includes(draft.type)) {
-    // Food, workouts, habits and journal lines: read the words again and log them where they belong.
+    // Food, workouts and habits: read the words again and log them where they belong.
     const logged = await logOther(supabase, item.raw_text || draft.title, timeZone);
     if (!logged.ok) return logged;
     const { error: e3 } = await supabase.from("inbox_items").update({ status: "approved", result_table: logged.table, result_id: null }).eq("id", id);
@@ -57,7 +57,7 @@ async function approveOne(supabase: Awaited<ReturnType<typeof createClient>>, id
   return { ok: true };
 }
 
-/** Logs a food / workout / habit / journal line from the Inbox, the same way the + sheet does. */
+/** Logs a food / workout / habit line from the Inbox, the same way the + sheet does. */
 async function logOther(
   supabase: Awaited<ReturnType<typeof createClient>>,
   text: string,
@@ -75,8 +75,6 @@ async function logOther(
     case "habit":
       if (!d.habitName) return { ok: false, error: "Which habit? Add it in Life first, or dismiss this." };
       return done(await checkInHabitByNameAction(d.habitName), "habit_checkins");
-    case "note":
-      return done(await addToJournalAction(d.title, d.mood), "journal_entries");
     default:
       return { ok: false, error: "Tap Edit to save this as a task." };
   }

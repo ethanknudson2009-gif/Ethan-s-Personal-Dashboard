@@ -120,7 +120,7 @@ export function decide(
     problems.push("No due date found");
     confidence -= 0.2;
   }
-  // Food, workouts, habits and journal lines always wait in the Inbox for one tap (never auto-saved).
+  // Food, workouts and habits always wait in the Inbox for one tap (never auto-saved).
 
   const draft: InboxDraft = {
     type,

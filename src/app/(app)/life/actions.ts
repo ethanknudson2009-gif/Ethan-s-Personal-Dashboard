@@ -60,22 +60,6 @@ export async function deleteHabitAction(id: string): Promise<Result> {
   return { ok: true };
 }
 
-/** Saves today's journal entry (mood 1–5 and/or text). One entry per day. */
-export async function saveJournalAction(date: string, mood: number | null, body: string): Promise<Result> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { ok: false, error: "Bad date" };
-  if (mood !== null && !(Number.isInteger(mood) && mood >= 1 && mood <= 5)) return { ok: false, error: "Bad mood" };
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Not signed in" };
-  const { error } = await supabase
-    .from("journal_entries")
-    .upsert({ user_id: user.id, on_date: date, mood, body: body.slice(0, 10000) }, { onConflict: "user_id,on_date" });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
 /** Voice/quick add: "did my reading" → check in the habit named "Reading" for today. */
 export async function checkInHabitByNameAction(name: string): Promise<Result & { habit?: string; already?: boolean }> {
   const supabase = await createClient();
@@ -91,32 +75,6 @@ export async function checkInHabitByNameAction(name: string): Promise<Result & {
   }
   refresh();
   return { ok: true, habit: `${habit.emoji ? `${habit.emoji} ` : ""}${habit.name}`, already: Boolean(existing) };
-}
-
-/**
- * Voice/quick add: a journal line ("I feel great today", "note: …") is added
- * to today's entry on a new line. A mood heard in it fills today's mood if
- * you haven't picked one yet.
- */
-export async function addToJournalAction(text: string, mood: number | null): Promise<Result> {
-  const line = text.trim().slice(0, 4000);
-  if (!line) return { ok: false, error: "Nothing to save" };
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Not signed in" };
-  const { timeZone } = await loadSettings(supabase);
-  const today = toLocalDate(new Date(), timeZone);
-  const { data: entry } = await supabase.from("journal_entries").select("mood, body").eq("on_date", today).maybeSingle();
-  const body = entry?.body ? `${entry.body.trimEnd()}\n${line}` : line;
-  const keepMood = entry?.mood ?? (mood !== null && mood >= 1 && mood <= 5 ? mood : null);
-  const { error } = await supabase
-    .from("journal_entries")
-    .upsert({ user_id: user.id, on_date: today, mood: keepMood, body: body.slice(0, 10000) }, { onConflict: "user_id,on_date" });
-  if (error) return { ok: false, error: error.message };
-  refresh();
-  return { ok: true };
 }
 
 const foodSchema = z.object({

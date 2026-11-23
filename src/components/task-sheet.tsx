@@ -20,7 +20,7 @@ import { snoozedText, type NagLevel } from "@/lib/tasks/view";
 import { addMoneyAction } from "@/app/(app)/money/actions";
 import { logCardioAction, logSpokenWorkoutAction } from "@/app/(app)/gym/actions";
 import { DEFAULT_SPLIT, readWorkout, setsSummary, type GymExercise } from "@/lib/gym-speech";
-import { addToJournalAction, checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
+import { checkInHabitByNameAction, logFoodAction } from "@/app/(app)/life/actions";
 import { dollars } from "@/lib/money/summary";
 import { parse, type CaptureDraft } from "@/lib/parser";
 import { parseMany, type ManyItem } from "@/lib/parser/multi";
@@ -392,19 +392,7 @@ function Sheet({
                 return r.ok ? { ok: true, msg: `${r.habit} ${r.already ? "already done today" : "checked in"} ✓` } : { ok: false, error: r.error, msg: "" };
               },
             }
-          : routed.type === "note"
-            ? {
-                emoji: routed.mood ? ["", "😞", "😕", "😐", "🙂", "😄"][routed.mood] : "📓",
-                label: routed.title,
-                detail: "",
-                to: "Journal",
-                color: "#5b8cff",
-                save: async () => {
-                  const r = await addToJournalAction(routed.title, routed.mood);
-                  return r.ok ? { ok: true, msg: "Added to today's journal ✓" } : { ok: false, error: r.error, msg: "" };
-                },
-              }
-            : routed.type === "food"
+          : routed.type === "food"
               ? {
                   emoji: "🍽️",
                   label: routed.title,
@@ -936,7 +924,7 @@ const asSaved = (r: { ok: boolean; error?: string }): Saved => (r.ok ? { ok: tru
 
 /**
  * Saves a list item that isn't a to-do where it belongs (Money, Food, Gym,
- * Habits, Journal). Returns null for to-dos, which are saved together.
+ * Habits). Returns null for to-dos, which are saved together.
  */
 async function saveOutsideTasks(text: string, d: CaptureDraft): Promise<Saved | null> {
   if (d.type === "expense" && d.amount) {
@@ -948,7 +936,6 @@ async function saveOutsideTasks(text: string, d: CaptureDraft): Promise<Saved | 
     return asSaved(await logSpokenWorkoutAction(text));
   }
   if (d.type === "habit" && d.habitName) return asSaved(await checkInHabitByNameAction(d.habitName));
-  if (d.type === "note") return asSaved(await addToJournalAction(d.title, d.mood));
   if (d.type === "food") return asSaved(await logFoodAction({ name: d.title, calories: d.calories, proteinG: d.proteinG }));
   return null;
 }
@@ -958,7 +945,6 @@ function itemKind(d: CaptureDraft): { emoji: string; to: string | null } {
   if (d.type === "expense" && d.amount) return { emoji: d.incoming ? "💰" : "💸", to: `Money · ${dollars(Math.round(d.amount * 100))}` };
   if (d.type === "workout") return { emoji: "🏋️", to: "Gym" };
   if (d.type === "habit" && d.habitName) return { emoji: "✅", to: "Habits" };
-  if (d.type === "note") return { emoji: "📓", to: "Journal" };
   if (d.type === "food") return { emoji: "🍽️", to: d.calories !== null ? `Food · ${d.calories} cal` : "Food" };
   if (d.classId || d.type === "homework") return { emoji: "📚", to: null };
   if (d.area === "work") return { emoji: "💼", to: null };

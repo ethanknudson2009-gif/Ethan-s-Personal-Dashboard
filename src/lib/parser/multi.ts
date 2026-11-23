@@ -174,7 +174,7 @@ export function splitItems(rawText: string, ctx: ParseContext): { items: string[
   const lowWhole = text.toLowerCase();
   // A whole workout ("bench 3x10 at 135 then incline…") or a journal entry stays one thing.
   const gymTalk = /\d+\s*x\s*\d+|\bsets?\s+of\b|\b(?:chest|back|leg|legs|arm|shoulder|push|pull)\s+day\b/.test(lowWhole);
-  if (whole.type === "note" || (whole.type === "workout" && gymTalk) || /^\s*(?:note|journal)\b/i.test(text)) return { items: [text], intro: null };
+  if (whole.type === "workout" && gymTalk) return { items: [text], intro: null };
 
   const ps = pieces(text);
   const items: Built[] = [];

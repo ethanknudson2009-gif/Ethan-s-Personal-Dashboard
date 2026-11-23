@@ -223,7 +223,6 @@ describe("big lists → many items", () => {
       "next friday turn in the speech outline",
       "finish the first draft of my essay by sunday",
       "bench 3x10 at 135 then incline dumbbell 3x8 at 50 then cable flys",
-      "today was great, I got a lot done and then I went to the gym",
       "note: the wifi password is on the fridge",
       "email the teacher about the quiz and ask if I can retake it",
       "it's mom's birthday on saturday so get her a card",

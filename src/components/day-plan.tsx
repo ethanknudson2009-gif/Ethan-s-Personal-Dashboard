@@ -14,7 +14,6 @@ import Link from "next/link";
 import { completeTaskAction, reopenTaskAction } from "@/app/(app)/tasks/actions";
 import { finishShutdownAction, moveToTomorrowAction, savePlanAction } from "@/app/(app)/plan/actions";
 import { Button, ColorDot, cx, inputClass } from "@/components/ui";
-import { MOODS } from "@/lib/moods";
 
 export type PlanItem = { id: string; title: string; dueText: string | null; overdue: boolean; color: string | null };
 export type PlanClass = { name: string; color: string; time: string };
@@ -228,8 +227,6 @@ function Evening({ left, doneToday, dueTomorrow, shutDown }: Parameters<typeof D
   const [done, setDone] = useState<Set<string>>(() => new Set());
   const [move, setMove] = useState<Set<string> | null>(null);
   const [moved, setMoved] = useState(0);
-  const [mood, setMood] = useState<number | null>(null);
-  const [line, setLine] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -309,38 +306,16 @@ function Evening({ left, doneToday, dueTomorrow, shutDown }: Parameters<typeof D
 
   if (step === 2)
     return (
-      <StepCard step={2} count={3} title="How was today?" hint="Goes in your journal.">
-        <div className="flex justify-between gap-1">
-          {MOODS.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => setMood(mood === m.value ? null : m.value)}
-              aria-pressed={mood === m.value}
-              className={cx(
-                "flex flex-1 flex-col items-center gap-0.5 rounded-2xl border py-2 transition active:scale-95",
-                mood === m.value ? "border-accent bg-accent/15 shadow-glow" : "border-line bg-raised/70",
-              )}
-            >
-              <span className="text-2xl">{m.emoji}</span>
-              <span className="text-[11px] text-muted">{m.label}</span>
-            </button>
-          ))}
-        </div>
-        <input
-          value={line}
-          onChange={(e) => setLine(e.target.value)}
-          maxLength={2000}
-          placeholder="Best part of today (optional)"
-          className={inputClass}
-          enterKeyHint="done"
-        />
+      <StepCard step={2} count={3} title="Ready to shut down?" hint="Done thinking about school and work for today.">
+        <p className="text-sm text-muted">
+          {doneToday + done.size} done today{moved ? ` · ${moved} moved to tomorrow` : ""} · {dueTomorrow + moved} on tomorrow&apos;s list
+        </p>
         {error && <p className="text-sm text-danger">{error}</p>}
         <Button
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              const r = await finishShutdownAction(mood, line);
+              const r = await finishShutdownAction();
               if (!r.ok) return setError(r.error);
               setStep(3);
             })

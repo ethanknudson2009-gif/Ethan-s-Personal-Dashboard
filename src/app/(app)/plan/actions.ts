@@ -64,10 +64,8 @@ export async function moveToTomorrowAction(ids: string[]): Promise<Result & { mo
   return { ok: true, moved: tasks?.length ?? 0 };
 }
 
-/** Evening: how the day went (mood + an optional line for the journal), and marks the day shut down. */
-export async function finishShutdownAction(mood: number | null, line: string): Promise<Result> {
-  if (mood !== null && !(Number.isInteger(mood) && mood >= 1 && mood <= 5)) return { ok: false, error: "Bad mood" };
-  const text = line.trim().slice(0, 2000);
+/** Evening: marks the day shut down. */
+export async function finishShutdownAction(): Promise<Result> {
   const supabase = await createClient();
   const { timeZone } = await loadSettings(supabase);
   const {
@@ -76,14 +74,6 @@ export async function finishShutdownAction(mood: number | null, line: string): P
   if (!user) return { ok: false, error: "Not signed in" };
   const today = toLocalDate(new Date(), timeZone);
 
-  if (mood !== null || text) {
-    const { data: entry } = await supabase.from("journal_entries").select("mood, body").eq("on_date", today).maybeSingle();
-    const body = text ? (entry?.body ? `${entry.body.trimEnd()}\n${text}` : text) : (entry?.body ?? "");
-    const { error } = await supabase
-      .from("journal_entries")
-      .upsert({ user_id: user.id, on_date: today, mood: mood ?? entry?.mood ?? null, body: body.slice(0, 10000) }, { onConflict: "user_id,on_date" });
-    if (error) return { ok: false, error: error.message };
-  }
   const { error } = await supabase
     .from("day_plans")
     .upsert({ user_id: user.id, on_date: today, shutdown_at: new Date().toISOString() }, { onConflict: "user_id,on_date" });

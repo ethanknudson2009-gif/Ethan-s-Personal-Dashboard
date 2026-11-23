@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { loadSettings } from "@/lib/profile";
 import { addDays, toLocalDate, weekdayOf } from "@/lib/time";
@@ -7,7 +6,6 @@ import { PageHeader } from "@/components/ui";
 import { ProgressRing } from "@/components/progress-ring";
 import { HabitCard, type HabitCardData } from "@/components/habit-card";
 import { NewHabit } from "@/components/new-habit";
-import { JournalCard } from "@/components/journal-card";
 import { FoodCard } from "@/components/food-card";
 
 const DAY_LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
@@ -19,10 +17,9 @@ export default async function LifePage() {
   const today = toLocalDate(new Date(), settings.timeZone);
   const since = addDays(today, -70);
 
-  const [{ data: habits }, { data: checkins }, { data: journal }, { data: food }, { data: profile }] = await Promise.all([
+  const [{ data: habits }, { data: checkins }, { data: food }, { data: profile }] = await Promise.all([
     supabase.from("habits").select("id, name, emoji, color, target_times, target_per, started_on").is("deleted_at", null).eq("archived", false).order("sort").order("created_at"),
     supabase.from("habit_checkins").select("habit_id, on_date").gte("on_date", since),
-    supabase.from("journal_entries").select("on_date, mood, body").gte("on_date", addDays(today, -6)),
     supabase.from("food_entries").select("id, on_date, name, calories, protein_g, created_at").gte("on_date", addDays(today, -6)).order("created_at"),
     supabase.from("profiles").select("calorie_goal").maybeSingle(),
   ]);
@@ -31,8 +28,6 @@ export default async function LifePage() {
   const pastDays = new Map<string, number>();
   for (const f of food ?? []) if (f.on_date !== today) pastDays.set(f.on_date, (pastDays.get(f.on_date) ?? 0) + (f.calories ?? 0));
   const weekAvg = pastDays.size ? Math.round([...pastDays.values()].reduce((a, b) => a + b, 0) / pastDays.size) : null;
-  const entryByDay = new Map((journal ?? []).map((j) => [j.on_date, j]));
-  const todayEntry = entryByDay.get(today);
 
   const byHabit = new Map<string, Set<string>>();
   for (const c of checkins ?? []) {
@@ -68,15 +63,7 @@ export default async function LifePage() {
 
   return (
     <div className="stagger flex flex-col gap-5">
-      <PageHeader title="Life" subtitle="Habits, food & journal">
-        <Link
-          href="/gym"
-          className="glow-gym rounded-xl border px-3 py-1.5 text-sm font-semibold transition active:scale-95"
-          style={{ borderColor: "#ff6b4a88", color: "#ff6b4a" }}
-        >
-          🏋️ Gym
-        </Link>
-      </PageHeader>
+      <PageHeader title="Life" subtitle="Habits & food" />
 
       {cards.length > 0 ? (
         <section className="hero flex items-center gap-4 rounded-3xl border border-accent/30 bg-surface/70 p-5 shadow-glow">
@@ -111,17 +98,6 @@ export default async function LifePage() {
         rows={foodToday.map((f) => ({ id: f.id, name: f.name, calories: f.calories, proteinG: f.protein_g }))}
         goal={profile?.calorie_goal ?? null}
         weekAvg={weekAvg}
-      />
-
-      <JournalCard
-        today={today}
-        initialMood={todayEntry?.mood ?? null}
-        initialBody={todayEntry?.body ?? ""}
-        week={Array.from({ length: 7 }, (_, i) => {
-          const d = addDays(today, i - 6);
-          const e = entryByDay.get(d);
-          return { date: d, label: DAY_LETTERS[weekdayOf(d)], mood: e?.mood ?? null, hasText: Boolean(e?.body) };
-        })}
       />
     </div>
   );

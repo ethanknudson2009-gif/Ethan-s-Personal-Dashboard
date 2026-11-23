@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findHabit, moodOf, parse } from "./index";
+import { findHabit, parse } from "./index";
 
 /** Real things Ethan might say into the mic, one for each kind of item. */
 const classes = ["World History", "Choir", "Human Anatomy", "AI Mastermind", "College Algebra", "Speech", "AutoCAD", "Church History"].map(
@@ -64,11 +64,9 @@ describe("every category from the mic", () => {
     expect(p("church history reading due wed").type).toBe("homework");
   });
 
-  it("journal lines and moods", () => {
-    expect(p("I feel great today")).toMatchObject({ type: "note", mood: 5 });
-    expect(p("today was rough, so tired").mood).toBe(1);
-    expect(moodOf("it was not great")).toBe(2);
-    expect(p("note: mike prefers emails over texts").type).toBe("note");
+  it("there's no journal: feelings and notes are never filed away as journal entries", () => {
+    expect(p("I feel great today").type).not.toBe("note");
+    expect(p("note: mike prefers emails over texts").type).not.toBe("note");
   });
 
   it("repeating to-dos", () => {

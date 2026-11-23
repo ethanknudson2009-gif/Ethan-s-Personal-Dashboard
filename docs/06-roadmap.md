@@ -52,7 +52,7 @@
 - [x] Calendar week, tidied: class times on one line each, free days take one line, "2 due" / "All done ✓" per day, past days fold under "Earlier this week" on the phone (unless something is overdue), workouts show as 🏋️ day badges (also in month view)
 - [x] Bottom bar: icon-only tabs, the active one lifts and shows its name (no more squished labels)
 - [x] Swipe left/right with your thumb to move between sections
-- [x] Today: Work / Money / Gym / Journal tiles, the whole week in Coming up, plus Later
+- [x] Today: Work / Money / Gym / Food / Habits tiles, the whole week in Coming up, plus Later
 - [x] Quick add / voice logs lifts: "bench 3x10 at 135" → 3 sets of Bench press in today's workout (nicknames like RDL, OHP, pull ups understood)
 - [x] Mic understands every kind of thing (tested phrase by phrase in `src/lib/parser/categories.test.ts`):
   - school: subjects like "math" find the class; "it covers…" and "I need to…" become notes
@@ -61,9 +61,8 @@
   - gym: lifts ("bench 3x10 at 135") and cardio ("ran 2 miles in 18 minutes")
   - food: calories and protein ("chicken burrito 700 calories")
   - habits by any form of the word ("meditated" → Meditate, "drank water" → Water)
-  - journal lines with mood ("I feel great today" → 😄)
   - repeats ("every Monday", "every other week", "monthly"); names keep their capitals
-  - The + sheet shows where each item will go (→ Money, Gym, Food, Habits, Journal) with "Save as a task instead" if it guessed wrong
+  - The + sheet shows where each item will go (→ Money, Gym, Food, Habits) with "Save as a task instead" if it guessed wrong
   - Shortcut and Claude captures of these kinds wait in the Inbox, and one tap logs them in the right place
 - [x] **Long talks and whole lists (Nov 19):** the mic keeps listening until you tap Done (minutes, not seconds), restarting itself and stitching the pieces without repeats (`src/lib/use-speech.ts`, `src/lib/speech-join.ts`).
   - One long thought → a short title + organized bullet notes: warm-up words ("okay so I need to…") dropped, details ("it needs…", "make sure…", "he wants…", "the teacher said…") become points (`src/lib/parser/notes.ts`).
@@ -86,7 +85,7 @@
 ## Phase 4: Life
 - [x] Habits with a strength score and streaks (Life tab), XP and levels
 - [ ] Coins → reward wishlist
-- [x] Morning Plan / Evening Shutdown (Nov 19, migration 0018, `/plan`): the morning plan shows the day, pre-picks your top 3 (most urgent first) and asks for one line on what would make today a win; Today then shows "Top 3 · 1/3 done". The evening shutdown: tap what got done, move the rest to tomorrow (same time of day), mood + best part of the day into the journal. Today shows a ☀️/🌙 prompt at the right time (`src/lib/day-plan.ts` + tests).
+- [x] Morning Plan / Evening Shutdown (Nov 19, migration 0018, `/plan`): the morning plan shows the day, pre-picks your top 3 (most urgent first) and asks for one line on what would make today a win; Today then shows "Top 3 · 1/3 done". The evening shutdown: tap what got done, move the rest to tomorrow (same time of day), then shut down for the day. Today shows a ☀️/🌙 prompt at the right time (`src/lib/day-plan.ts` + tests).
 - [ ] Guided weekly review
 - [x] Money (Nov 18): Cash App statement (CSV) import with duplicate protection, auto categories, month totals, 6-month chart, tap-to-hide category chart, "spent $12 gas" from quick add
 - [ ] Recurring bills and budgets per category
@@ -97,3 +96,4 @@
 - [ ] Friends, groups, school-wide spaces
 - [ ] Challenges and leaderboards (realtime), "overtake" alerts, medals
 - [ ] Privacy controls for what's shared
+- [x] Journal removed (Nov 22, Ethan's call): no journal card, Today tile, shutdown mood step or `add_note` tool. Old entries stay in the `journal_entries` table, untouched.

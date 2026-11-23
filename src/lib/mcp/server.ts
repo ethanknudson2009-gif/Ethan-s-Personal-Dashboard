@@ -476,7 +476,7 @@ export function buildMcpServer(userId: string) {
           draft: { type: "note", title: `${class_name} syllabus notes`, classId: null, className: class_name, dueDate: null, dueTime: null, amount: null, category: null, notes },
           type: "note",
           confidence: 1,
-          problems: ["Syllabus notes to read (approving adds them to today's journal)"],
+          problems: ["Syllabus notes to read (dismiss when you're done)"],
           source: "syllabus",
           batch_id: batchId,
         });
@@ -557,11 +557,10 @@ export function buildMcpServer(userId: string) {
     },
   );
 
-  // ── Food, workouts and journal notes: kept in the Inbox, one tap logs them ──
+  // ── Food and workouts: kept in the Inbox, one tap logs them ──
   for (const [name, type, label] of [
     ["log_food", "food", "Log food Ethan ate (include calories and protein if known)"],
     ["log_workout", "workout", "Log a workout, e.g. 'bench 3x10 at 135' or 'ran 2 miles in 18 minutes'"],
-    ["add_note", "note", "Add a line to today's journal (mood words like 'great' or 'rough' set the mood)"],
   ] as const) {
     server.registerTool(
       name,
