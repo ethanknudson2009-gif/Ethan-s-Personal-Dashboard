@@ -53,6 +53,9 @@ export function gymNumbers(text: string): string {
     .replace(/\b(?:lat|lats) pull downs?\b/g, "lat pulldown")
     .replace(/\bpull downs?\b/g, "pulldown")
     .replace(/\bdead lifts?\b/g, "deadlift")
+    // "swam 20 laps" is swimming (laps aren't pounds).
+    .replace(/\b(?:swam|went swimming)(?: \d+ laps?)?\b/g, "swimming")
+    .replace(/\b\d+ laps?\b/g, "laps")
     // "3 by 12" / "4 by 20" = 3 sets of 12.
     .replace(/\b(\d{1,2}) by (\d{1,3})\b/g, "$1 x $2")
     // "plank for 60 seconds 3 times", "135 for 10, 3 times" = 3 sets.
@@ -280,7 +283,7 @@ type Tok =
   | { k: "word"; w: string };
 
 const SEP_WORDS = new Set(["then", "next", "also", "plus", "and", "after", "followed", "finished", "finally", "lastly", "did", "do", "hit", "went", "played", "ran"]);
-const FILLER = new Set(["i", "a", "an", "the", "my", "on", "some", "of", "that", "to", "it", "was", "today", "day", "this", "morning", "tonight", "workout", "gym", "session", "lift", "lifted", "lifting", "then", "just", "like", "um", "uh", "so", "set", "rep", "pound", "lb", "about", "around", "got", "in", "work", "worked", "out", "okay", "ok", "started", "start", "starting", "began", "first", "warm", "warmed", "warmup", "up", "finished", "ended", "felt", "good", "great", "heavy", "light", "easy", "hard", "pretty", "really", "very", "went", "did", "then", "after", "before", "last", "next", "more", "also", "today's", "sesh", "played", "playing", "ran", "for", "hour", "hours", "an"]);
+const FILLER = new Set(["i", "a", "an", "the", "my", "on", "some", "of", "that", "to", "it", "was", "today", "day", "this", "morning", "tonight", "workout", "gym", "session", "lift", "lifted", "lifting", "then", "just", "like", "um", "uh", "so", "set", "rep", "pound", "lb", "about", "around", "got", "in", "work", "worked", "out", "okay", "ok", "started", "start", "starting", "began", "first", "warm", "warmed", "warmup", "up", "finished", "ended", "felt", "good", "great", "heavy", "light", "easy", "hard", "pretty", "really", "very", "went", "did", "then", "after", "before", "last", "next", "more", "also", "today's", "sesh", "played", "playing", "ran", "for", "hour", "hours", "an", "pr", "prs", "new", "personal", "record", "best", "journal", "nice", "circuit", "laps", "lap", "ab", "abs"]);
 
 function tokenize(text: string, book: Map<string, GymExercise>): Tok[] {
   const words = gymNumbers(text).split(" ").filter(Boolean);
