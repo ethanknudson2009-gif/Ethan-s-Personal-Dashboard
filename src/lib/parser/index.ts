@@ -116,7 +116,7 @@ export type Area = "school" | "work" | "personal";
 const WORK_TAGS = /(?<!\b(?:go|going|get|drive|driving|head|leave|come|walk|ride|back)\s)\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work(?!\s+(?:on|shift)\b)|primary|the office)\b:?/g;
 /** Words that suggest work but stay in the title ("send Mike the files"). */
 const WORK_HINTS =
-  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loans?|loan files?|borrowers?|closing|closings|underwriting|underwriter|appraisals?|disclosures?|escrow|title company|pre-?approvals?|preapproval letter|rate locks?|lock the rate|refi|refinance|conditions|voe|1003|loan estimate|closing disclosure|processor|realtors?|pipeline|encompass|credit pull|pull credit|pay ?stubs?|w-?2s?|bank statements?|le|cd|coc|ctc|clear to close|du|lp|aus|vod|voe|loe|lox|letters? of explanation|gift letters?|condo questionnaires?|hoa certs?|title commitments?|commitment letters?|tri-?merge|dti|ltv|pmi|piti|trid|rate lock|lock extension|new leads?|the leads?|hr|the [a-z]+ (?:file|loan|refi|purchase))\b|^(?:work(?!\s+on\b)|primary)\b/;
+  /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loans?|loan files?|borrowers?|closing|closings|underwriting|underwriter|appraisals?|disclosures?|escrow|title company|pre[- ]?approvals?|preapproval letter|rate locks?|lock the rate|refi|refinance|conditions|voe|1003|loan estimate|closing disclosure|processor|realtors?|pipeline|encompass|credit pull|pull credit|pay ?stubs?|w-?2s?|bank statements?|le|cd|coc|ctc|clear to close|du|lp|aus|vod|voe|loe|lox|letters? of explanation|gift letters?|condo questionnaires?|hoa certs?|title commitments?|commitment letters?|tri-?merge|dti|ltv|pmi|piti|trid|rate lock|lock extension|new leads?|the leads?|hr|the [a-z]+ (?:file|loan|refi|purchase))\b|^(?:work(?!\s+on\b)|primary)\b/;
 
 // ── Notes: where the main thing ends and extra context begins ─────────────
 const NOTE_MARKERS =
@@ -126,7 +126,13 @@ const NOTE_MARKERS =
 export function findNotesStart(low: string, after = 0): number {
   const enoughBefore = (i: number) => i > after && low.slice(0, i).trim().split(/\s+/).filter(Boolean).length >= 1;
   const candidates: number[] = [];
-  for (const m of low.matchAll(NOTE_MARKERS)) if (enoughBefore(m.index)) candidates.push(m.index);
+  // "tell Mike the appraisal for the Lee purchase came in low": "the … came in low"
+  // is the message itself, not a note.
+  const message = /^(?:tell|text|email|let) \S+ /.test(low);
+  for (const m of low.matchAll(NOTE_MARKERS)) {
+    if (message && /^[\s,.;:!?]*(?:the|my|his|her|their|our) /.test(low.slice(m.index))) continue;
+    if (enoughBefore(m.index)) candidates.push(m.index);
+  }
   // A new sentence also starts notes: "Speech outline due Thursday. Three pages."
   for (const m of low.matchAll(/[.!?]\s+(?=\S)/g)) if (enoughBefore(m.index)) candidates.push(m.index);
   return candidates.length ? Math.min(...candidates) : -1;
@@ -136,10 +142,11 @@ export function findNotesStart(low: string, after = 0): number {
 // ── Keyword lists ───────────────────────────────────────────────────────────
 const EXPENSE_VERBS = /\b(spent|spend|paid|pay|bought|buy|cost|costs|venmo'?d|venmoed|zelled|zelle'?d|cash ?app'?d|cash ?apped|sent)\b/;
 /** Money already gone ("spent", "paid", "venmo'd"): spending even without a $ sign. Future "pay the bill" stays a task. */
-const SPENT_VERBS = /\b(spent|paid|bought|cost|costs|venmo'?d|venmoed|zelled|zelle'?d|cash ?app'?d|cash ?apped)\b/;
+// ("venmo jake 20 for pizza": paying someone back counts too.)
+const SPENT_VERBS = /\b(spent|paid|bought|cost|costs|venmo'?d|venmoed|zelled|zelle'?d|cash ?app'?d|cash ?apped)\b|^(?:venmo|zelle|cash ?app) [a-z]+ \$?\d/;
 /** Money coming in (saved to Money as income). */
 const INCOME_WORDS = /\b(got paid|get paid|paid me|paycheck|payday|got \$?\d|received \$?\d|earned|refund(?:ed)?|direct deposit|venmo'?d me|sent me)\b/;
-const FOOD_WORDS = /\b(ate|eat|eating|drank|drink|breakfast|lunch|dinner|snack|calories|cals?|kcal|protein)\b/;
+const FOOD_WORDS = /\b(ate|eat|eating|drank|drink|breakfast|lunch|dinner|snack|calories|cals?|kcal|protein|scrambled|fried eggs?|hard boiled|bowl of|plate of|slices? of|cup of|serving of|handful of)\b/;
 const WORKOUT_WORDS =
   /\b(gym|workout|worked out|lift|lifted|bench|benched|squat|squats|squatted|deadlift|deadlifts|deadlifted|repped|pr'?d|hit (?:legs|chest|back|arms|shoulders|push|pull|the gym)|pulled \d{2,3}|\d+ plates?|ran|run|jog|jogged|miles?|sets?|reps?|push-?ups?|pull-?ups?|curls?|cardio|swim|swam|bike|biked|hiked?|hiking|rowed|elliptical|treadmill|stairmaster|leg day|arm day|chest day|back day|push day|pull day)\b|\b\d+\s*x\s*\d+\b/;
 /** Starts that make it a to-do even when food or gym words come later. */
@@ -361,7 +368,9 @@ function cleanTitle(leftover: string, type: CaptureType): string {
     words = words.slice(m[0].split(" ").length);
   }
   // Drop filler words at the start and end, and "due"/"by" anywhere.
-  words = words.filter((w) => !["due", "by"].includes(w.toLowerCase()));
+  // ("by summer", "by christmas" stay: the app can't put those on a calendar, so they're part of the goal.)
+  const keepBy = /^(?:summer|spring|winter|fall|christmas|thanksgiving|prom|graduation|break|semester|senior|junior|the)$/i;
+  words = words.filter((w, i) => !(w.toLowerCase() === "due" || (w.toLowerCase() === "by" && !keepBy.test(words[i + 1] ?? ""))));
   const edgeJunk = (w: string) => FILLER.has(w.toLowerCase()) || w === ",";
   while (words.length && edgeJunk(words[0])) words.shift();
   const particle = (i: number) =>
@@ -386,7 +395,7 @@ const PROPER: Record<string, string> = {
   mike: "Mike", prmi: "PRMI", lo: "LO", hr: "HR",
   le: "LE", cd: "CD", coc: "COC", ctc: "CTC", du: "DU", lp: "LP", aus: "AUS", voe: "VOE", vod: "VOD", loe: "LOE", lox: "LOX",
   hoa: "HOA", dti: "DTI", ltv: "LTV", pmi: "PMI", piti: "PITI", trid: "TRID", pr: "PR",
-  facetime: "FaceTime", venmo: "Venmo", zelle: "Zelle", costco: "Costco", walgreens: "Walgreens", chipotle: "Chipotle", encompass: "Encompass",
+  facetime: "FaceTime", chickfila: "Chick-fil-A", venmo: "Venmo", zelle: "Zelle", costco: "Costco", walgreens: "Walgreens", chipotle: "Chipotle", encompass: "Encompass",
 };
 const PROPER_NAMES = new RegExp(`\\b(${Object.keys(PROPER).join("|")})\\b`, "gi");
 
@@ -518,9 +527,9 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
     .replace(/\bthe plan (?:for )?(today|tomorrow|tonight|this weekend)(?: is)?\b/i, "$1")
     // "Mike wants the Garcia LE sent out today" → "send out the Garcia LE today".
     .replace(
-      /^(?:mike|my lo|he|she|they) (?:wants|needs) (the [a-z0-9' ]+?) (sent out|sent|done|finished|submitted|ordered|uploaded|signed|pulled|ran|run)\b/i,
+      /^(?:mike|my lo|he|she|they) (?:wants|needs) (the [a-z0-9' ]+?) (sent out|sent|done|finished|submitted|ordered|uploaded|signed|pulled|ran|run|updated|fixed|reviewed|redone|printed|emailed|scanned|filed|corrected)\b/i,
       (_m, what: string, verb: string) =>
-        `${({ "sent out": "send out", sent: "send", done: "finish", finished: "finish", submitted: "submit", ordered: "order", uploaded: "upload", signed: "get signed", pulled: "pull", ran: "run", run: "run" } as Record<string, string>)[verb.toLowerCase()]} ${what}`,
+        `${({ "sent out": "send out", sent: "send", done: "finish", finished: "finish", submitted: "submit", ordered: "order", uploaded: "upload", signed: "get signed", pulled: "pull", ran: "run", run: "run", updated: "update", fixed: "fix", reviewed: "review", redone: "redo", printed: "print", emailed: "email", scanned: "scan", filed: "file", corrected: "correct" } as Record<string, string>)[verb.toLowerCase()]} ${what}`,
     )
     // "Mike said the Johnson file needs a VOE by end of day" → "get a VOE for the Johnson file…".
     .replace(/^(?:mike|my lo|he|she|they) said (the [a-z0-9' ]+?) (?:needs|is missing|still needs) (an?|the|its|their) ([a-z0-9' ]+?)(?=\s+(?:by|before|today|tonight|tomorrow|on|asap|eod)\b|\s*$)/i, "get $2 $3 for $1")
@@ -530,6 +539,8 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
     .replace(/\b(?:i (?:have|need|gotta|got) to|i'?ve got to|i gotta) work\b(?!\s+on\b)/i, "work shift")
     // (speech cleanup may already have dropped "I have to": "work saturday from 9 to 1")
     .replace(/^work(?=\s+(?:(?:on\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day|today|tonight|tomorrow)(?:\s+(?:from|at|until|till)\s+\d.*)?\s*$)/i, "work shift")
+    // No day said: "work from 6 to 9", "work 6 to 9", "work at 6".
+    .replace(/^work(?=\s+(?:from\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*(?:to|-|until|till)\s*\d|\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*$)/i, "work shift")
     .replace(/\s+(?:i think|i guess|i believe|or something|or whatever|or so)\s*[.!?]?\s*$/i, "")
     .replace(/\blater\s+(?=(?:around|at|by)\s+\d)/i, "");
   const saidWork = WORK_HINTS.test(original.toLowerCase().slice(0, 40));

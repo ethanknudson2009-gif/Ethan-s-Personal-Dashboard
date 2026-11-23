@@ -104,7 +104,7 @@ const NUM_WORD = `(?:${[...Object.keys(TENS), ...Object.keys(ONES)].join("|")})`
  * or simply the last number when no unit is said.
  */
 const CORRECTION =
-  /[\s,.]*\b(?:no wait|wait no|excuse me|sorry|oops|i mean|i meant|make that|scratch that|no no|correction|my bad)\b[\s,.]*(?:(?:i mean|i meant|make that|it was|it's|its|no)\b[\s,.]*)?(\d+(?:\.\d+)?)(?:\s*(pounds?|lbs?|reps?|sets?|seconds?|secs?|minutes?|mins?|miles?))?\b/i;
+  /[\s,.]*\b(?:no,? (?:wait,? )?i mean|no,? i meant|no wait|wait no|excuse me|sorry|oops|i mean|i meant|make that|scratch that|no no|correction|my bad)\b[\s,.]*(?:(?:i mean|i meant|make that|it was|it's|its|no)\b[\s,.]*)?(\d+(?:\.\d+)?)(?:\s*(pounds?|lbs?|reps?|sets?|seconds?|secs?|minutes?|mins?|miles?))?\b/i;
 const unitKind = (u: string | undefined) =>
   !u ? null : /^(?:pound|lb)/i.test(u) ? "lb" : /^rep/i.test(u) ? "rep" : /^set/i.test(u) ? "set" : /^sec/i.test(u) ? "sec" : /^min/i.test(u) ? "min" : "mi";
 
@@ -146,6 +146,9 @@ export function normalizeSpoken(input: string): string {
   s = s.replace(/(\s(?:so|um|uh|and|but|to|gonna|gotta|wanna|it's|its|in|for|about|is|was|were|just|get|got|maybe|or|be|at|around|with))\s+like,?(?=\s(?!to\b|it\b|that\b|this\b|them\b|him\b|her\b|me\b|you\b))/g, "$1");
   s = s.replace(/\s+like,?(?=\s(?:\d|a few|a couple|two|three|four|five|ten|twenty|half)\b)/g, "");
   s = s.replace(/\s+/g, " ");
+
+  // "Chick fil a" is one name.
+  s = s.replace(/\bchick[- ]?fil[- ]?a\b/g, "chickfila");
 
   // "mr. smith": the dot isn't the end of a sentence.
   s = s.replace(/\b(mr|mrs|ms|dr)\.(?=\s)/g, "$1");

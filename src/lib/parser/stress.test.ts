@@ -172,3 +172,39 @@ describe("school and work phrasing", () => {
     expect(one("do pushups before 3 sets of squats").when?.time ?? null).toBeNull();
   });
 });
+
+describe("stress batch 3: how people actually talk", () => {
+  it.each([
+    ["yo remind me to submit the anatomy lab report tonight", { type: "homework", title: "Submit the anatomy lab report" }],
+    ["ugh I forgot to do my algebra homework it's due first period tomorrow", { type: "homework", title: "Do my homework", when: { date: "2026-11-24" } }],
+    ["test in history on the 4th chapters 10 through 12", { type: "homework", className: "World History", when: { date: "2026-12-04" } }],
+    ["mike needs the Thompson pre approval updated asap", { title: "Update the Thompson pre approval asap", area: "work" }],
+    ["the appraisal for the Lee purchase came in low tell mike", { title: "Tell Mike the appraisal for the Lee purchase came in low", area: "work" }],
+    ["venmo jake 20 for pizza", { type: "expense", amount: 20 }],
+    ["chick fil a sandwich and fries about 800 calories", { type: "food", title: "Chick-fil-A sandwich and fries", calories: 800 }],
+    ["2 scrambled eggs and a banana", { type: "food" }],
+    ["I want to hit 200 on bench by summer", { title: "Hit 200 on bench by summer" }],
+  ])("%s", (said, want) => expect(one(said)).toMatchObject(want));
+
+  it("practice, then a work shift: two things", () => {
+    const all = parseMany("I have practice after school until 5 then work from 6 to 9", ctx).map((x) => x.draft);
+    expect(all.map((d) => d.title)).toEqual(["Practice after school until 5", "Work shift from 6 to 9"]);
+    expect(all[1].area).toBe("work");
+  });
+
+  it.each([
+    ["ab circuit crunches 3 by 25 leg raises 3 by 15 russian twists 3 by 30", ["Crunches", "Hanging leg raise", "Russian twists"]],
+    ["shoulder press 135 for 6 no I mean 8", ["Dumbbell shoulder press"]],
+    ["swam 20 laps", ["Swimming"]],
+    ["hit a PR on bench today", ["Bench press"]],
+    ["new PR on squat 275", ["Squat"]],
+  ])("%s → only real exercises", (said, names) => {
+    const all = sets(said);
+    expect(all.map((e) => e.name)).toEqual(names);
+    expect(all.every((e) => e.known)).toBe(true);
+  });
+
+  it("'no I mean 8' fixes the reps", () => {
+    expect(sets("shoulder press 135 for 6 no I mean 8")[0].sets).toEqual([[8, 135]]);
+  });
+});

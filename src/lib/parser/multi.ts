@@ -253,7 +253,9 @@ export function splitItems(rawText: string, ctx: ParseContext): { items: string[
       schoolOwn = Boolean(sw && (d.when || d.classId) && (!new RegExp(`\\b${sw}\\b`).test(prevLow) || (d.classId && d.classId !== parse(prev.text, ctx).classId)));
       dated = Boolean(d.when) && !DATE_PREP.test(s) && words >= 2;
     }
-    const looksNew = verb || log || schoolOwn || dated;
+    // "…then work from 6 to 9": a shift is its own thing.
+    const shift = /^(?:(?:i have|i've got|i got|got)\s+)?(?:work|my shift|a shift|shift)\s+(?:from|at|until|till|\d)/.test(s);
+    const looksNew = verb || log || schoolOwn || dated || shift;
     const shoppingMore = SHOPPING.test(prevStart) && !verb && !log && !dated && words <= 3 && !detail;
 
     let isNew: boolean;
