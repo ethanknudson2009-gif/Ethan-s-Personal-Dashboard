@@ -21,7 +21,7 @@
 ## Phase 2: Capture & Claude
 - [x] `/api/capture` endpoint with a private token (Settings → Connections)
 - [x] "Log It" Apple Shortcut guide: docs/setup/03-log-it-shortcut.md (Version A: Dictate → POST; Version B adds Ask Claude). *To do: Ethan builds it on his iPhone.*
-- [x] MCP server (/api/mcp: get_today, list_due, add_assignment, add_task, complete_task, process_inbox, log_food/workout/expense, add_note → Inbox) + guide docs/setup/04-claude-connector.md. *To do: Ethan adds it on claude.ai.*
+- [x] MCP server (/api/mcp: get_today, list_due, add_assignment, add_task, complete_task, process_inbox, log_food/workout/expense → Inbox; Nov 23: get_gym_history, fix_workout_set, find_tasks, update_task) + guide docs/setup/04-claude-connector.md. *To do: Ethan adds it on claude.ai.*
 - [x] Syllabus/PDF upload (Classes page) → text read on the device (pdf.js) → Claude imports via the connector → Inbox batch to approve
 - [x] Web push: morning summary, tomorrow preview, 1-hour-before reminders (Settings → Reminders; Supabase pg_cron every 15 min)
 - [x] Snooze and nag levels (Nov 19, migration 0017): tap a task reminder → a bar on Today with **Done ✓** and **Snooze 1 hr / 3 hr / Tonight / Tomorrow** (iPhone hides buttons on notifications, so they live in the app; laptops/Android also get a "Snooze 1 hr" button on the notification). Each task's edit sheet has **Reminders: Off / Gentle / Persistent** (persistent = an hour before, at the time, then every 3 hours 9 AM–9 PM until done, up to 3 days) and the same snooze chips. Snoozed tasks show ⏰ and the time (`src/lib/notify/nag.test.ts`).
@@ -97,3 +97,9 @@
 - [ ] Challenges and leaderboards (realtime), "overtake" alerts, medals
 - [ ] Privacy controls for what's shared
 - [x] Journal removed (Nov 22, Ethan's call): no journal card, Today tile, shutdown mood step or `add_note` tool. Old entries stay in the `journal_entries` table, untouched.
+- [x] Bottom bar (Nov 23): just Home · Work · + · School · Gym. Everything else (Money, Life, Calendar, Stats, Inbox, Classes, Grades, Settings, Trash) is behind the menu button in the top-right of every page header (`src/components/menu.tsx`). Swiping follows the bar.
+- [x] Mic understands natural talk (Nov 23): filler words ("basically", "like") are dropped, lead-ins ("I just remembered", "put down that") skipped, and a minute of random story before the point is dropped when something real was asked for (`isChatter` in `src/lib/parser/multi.ts`, tests in `real-talk.test.ts`).
+- [x] Muscle tree (Nov 23, Ethan's layout): Arms → Biceps · Triceps · Forearms, Shoulders → Front · Lateral · Rear delts, Legs → Quads · Hamstrings · Calves, Chest, Core → Upper abs · Lower abs · Obliques (+ Back, Full body, Cardio). The picker shows groups first; tapping one opens its parts. 520 exercises (migrations 0020–0021) with dumbbell versions of every lift; bodyweight moves show "Bodyweight" instead of a weight box.
+- [x] Edit past workouts (Nov 23): by hand (History → Edit) or by voice ("on my last back day I actually hit dumbbell row for 12 reps not 10" → a preview of exactly which sets change → tap Fix it). `src/lib/gym-fix.ts` + tests.
+- [x] Gym coach (Nov 23): a Coach card reads every logged set: go heavier when reps are high, lighter when grinding, add weight at the top of the range, stalls, rest time, skipped muscles, push/pull balance, real progress (`src/lib/gym-coach.ts` + tests). No AI service: plain rules.
+- [x] Connector edit tools (Nov 23): `get_gym_history` (sets + coach tips, so Claude can do deeper analysis), `fix_workout_set`, `find_tasks`, `update_task`. Changes need Ethan's yes in the chat first (`confirmed_by_user`), same review-before-save rule as the app.

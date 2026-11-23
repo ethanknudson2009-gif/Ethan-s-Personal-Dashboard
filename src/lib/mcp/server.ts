@@ -9,6 +9,7 @@ import { categorize } from "@/lib/money/categories";
 import { nextOccurrence, repeatFromForm } from "@/lib/tasks";
 import { describeDraft } from "@/lib/capture/handle";
 import { classesOn, type ScheduleContext } from "@/lib/schedule";
+import { coachTips } from "@/lib/gym-coach";
 
 /**
  * The Claude connector (MCP server). Claude on the web, desktop or iPhone can
@@ -586,6 +587,217 @@ export function buildMcpServer(userId: string) {
       },
     );
   }
+
+  // ── Look things up and fix them ("my last back day was actually 12 reps, not 10") ──
+  // Reading is free; every change needs Ethan to have said yes to the exact change
+  // in the chat (confirmed_by_user), the same review-before-save rule as the app.
+  const needsYes = (what: string) =>
+    text(`Not changed yet. Show Ethan exactly this change and ask him to confirm: ${what}. Then call again with confirmed_by_user: true.`);
+
+  server.registerTool(
+    "get_gym_history",
+    {
+      title: "Workout history and coach tips",
+      description:
+        "Ethan's recent workouts with every set (set ids, weight in lb, reps), plus the dashboard's coach tips. Use it to answer questions about his training, to spot patterns (too many reps → go heavier, stalls, skipped muscles), or to find the set to fix before fix_workout_set. Filter by exercise words or split day (e.g. 'back').",
+      inputSchema: {
+        exercise: z.string().max(80).optional().describe("Only workouts with an exercise whose name contains these words, e.g. 'dumbbell row'"),
+        split_day: z.string().max(40).optional().describe("Only this split day, e.g. 'back' or 'legs'"),
+        limit: z.number().int().min(1).max(60).optional().describe("How many workouts (default 10)"),
+      },
+    },
+    async ({ exercise, split_day, limit }) => {
+      const ctx = await context();
+      const [{ data: rows }, { data: exercises }] = await Promise.all([
+        db
+          .from("workouts")
+          .select("id, started_at, split_day, skipped, workout_sets(id, exercise_id, position, weight_lb, reps, done)")
+          .eq("user_id", userId)
+          .not("ended_at", "is", null)
+          .is("deleted_at", null)
+          .order("started_at", { ascending: false })
+          .limit(150),
+        db.from("exercises").select("id, name, muscle, bodyweight").or(`user_id.is.null,user_id.eq.${userId}`),
+      ]);
+      const name = new Map((exercises ?? []).map((e) => [e.id, e.name]));
+      const all = (rows ?? []).map((w) => ({
+        id: w.id,
+        date: toLocalDate(new Date(w.started_at), ctx.timeZone),
+        day: w.split_day,
+        skipped: w.skipped,
+        sets: [...(w.workout_sets ?? [])]
+          .sort((a, b) => a.position - b.position)
+          .map((x) => ({ id: x.id, exerciseId: x.exercise_id, weightLb: x.weight_lb === null ? null : Number(x.weight_lb), reps: x.reps, done: x.done })),
+      }));
+      const words = exercise?.toLowerCase().trim();
+      const picked = all
+        .filter((w) => !split_day || (w.day ?? "").toLowerCase().includes(split_day.toLowerCase().replace(/s$/, "")))
+        .filter((w) => !words || w.sets.some((x) => (name.get(x.exerciseId) ?? "").toLowerCase().includes(words)))
+        .slice(0, limit ?? 10);
+      if (!picked.length) return text("No workouts match.");
+      const lines = picked.map((w) => {
+        if (w.skipped) return `${w.date} · skipped ${w.day ?? "day"}`;
+        const byEx = new Map<string, string[]>();
+        for (const x of w.sets) {
+          const n = name.get(x.exerciseId) ?? "Exercise";
+          if (words && !n.toLowerCase().includes(words)) continue;
+          byEx.set(n, [...(byEx.get(n) ?? []), `${x.weightLb ?? "BW"}×${x.reps ?? "?"}${x.done ? "" : " (not done)"} [set ${x.id}]`]);
+        }
+        return `${w.date}${w.day ? ` · ${w.day} day` : ""} [workout ${w.id}]\n${[...byEx].map(([n, v]) => `  ${n}: ${v.join(", ")}`).join("\n")}`;
+      });
+      const tips = coachTips(
+        all,
+        (exercises ?? []).map((e) => ({ id: e.id, name: e.name, muscle: e.muscle, bodyweight: e.bodyweight })),
+        toLocalDate(new Date(), ctx.timeZone),
+      ).slice(0, 6);
+      return text(
+        `${lines.join("\n")}${tips.length ? `\n\nCoach tips from all his history:\n${tips.map((t) => `- ${t.title}: ${t.why}`).join("\n")}` : ""}`,
+      );
+    },
+  );
+
+  server.registerTool(
+    "fix_workout_set",
+    {
+      title: "Fix a logged set",
+      description:
+        "Change the weight or reps of sets Ethan already logged (find the set ids with get_gym_history). Only when Ethan said the numbers were wrong, e.g. 'on my last back day I actually did 12 reps on dumbbell row, not 10'. First call WITHOUT confirmed_by_user to get the exact change to show him; after he says yes, call again with confirmed_by_user: true.",
+      inputSchema: {
+        changes: z
+          .array(
+            z.object({
+              set_id: z.string().uuid(),
+              weight_lb: z.number().min(0).max(2000).nullable().optional().describe("New weight in lb (null = bodyweight)"),
+              reps: z.number().int().min(0).max(1000).optional(),
+            }),
+          )
+          .min(1)
+          .max(20),
+        confirmed_by_user: z.boolean().optional().describe("true ONLY after Ethan said yes to this exact change in the chat"),
+      },
+    },
+    async ({ changes, confirmed_by_user }) => {
+      const ids = changes.map((c) => c.set_id);
+      const [{ data: sets }, { data: exercises }] = await Promise.all([
+        db.from("workout_sets").select("id, exercise_id, weight_lb, reps, workout_id").eq("user_id", userId).in("id", ids),
+        db.from("exercises").select("id, name").or(`user_id.is.null,user_id.eq.${userId}`),
+      ]);
+      if (!sets || sets.length !== ids.length) return text("Some of those set ids aren't Ethan's sets. Look them up again with get_gym_history.");
+      const name = new Map((exercises ?? []).map((e) => [e.id, e.name]));
+      const plan = changes.map((c) => {
+        const s = sets.find((x) => x.id === c.set_id)!;
+        const before = `${s.weight_lb ?? "BW"}×${s.reps ?? "?"}`;
+        const after = `${c.weight_lb !== undefined ? (c.weight_lb ?? "BW") : (s.weight_lb ?? "BW")}×${c.reps ?? s.reps ?? "?"}`;
+        return { c, line: `${name.get(s.exercise_id) ?? "Exercise"}: ${before} → ${after}` };
+      });
+      const summary = plan.map((p) => p.line).join("; ");
+      if (!confirmed_by_user) return needsYes(summary);
+      for (const { c } of plan) {
+        const row: { weight_lb?: number | null; reps?: number } = {};
+        if (c.weight_lb !== undefined) row.weight_lb = c.weight_lb;
+        if (c.reps !== undefined) row.reps = c.reps;
+        const { error } = await db.from("workout_sets").update(row).eq("id", c.set_id).eq("user_id", userId);
+        if (error) return text(`Couldn't save: ${error.message}`);
+      }
+      return text(`Fixed: ${summary}.`);
+    },
+  );
+
+  server.registerTool(
+    "find_tasks",
+    {
+      title: "Find tasks",
+      description: "Search Ethan's tasks (open, and done in the last 30 days) by words in the title or notes. Returns ids for update_task or complete_task.",
+      inputSchema: { words: z.string().min(1).max(100), include_done: z.boolean().optional() },
+    },
+    async ({ words, include_done }) => {
+      const ctx = await context();
+      const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+      let q = db
+        .from("tasks")
+        .select("id, title, notes, status, class_id, due_at, due_has_time, area, completed_at")
+        .eq("user_id", userId)
+        .is("deleted_at", null)
+        .order("due_at", { ascending: true, nullsFirst: false })
+        .limit(200);
+      q = include_done ? q.or(`status.eq.open,completed_at.gte.${since}`) : q.eq("status", "open");
+      const { data } = await q;
+      const want = words.toLowerCase().split(/\s+/).filter(Boolean);
+      const hits = (data ?? []).filter((t) => want.every((w) => `${t.title} ${t.notes ?? ""} ${ctx.className.get(t.class_id ?? "") ?? ""}`.toLowerCase().includes(w))).slice(0, 15);
+      if (!hits.length) return text("No tasks match.");
+      return text(
+        hits
+          .map(
+            (t) =>
+              `${t.status === "done" ? "✓ " : ""}${taskDisplayTitle(t.title, ctx.className.get(t.class_id ?? "") ?? null)} · ${t.area}${t.due_at ? ` · due ${formatDue(new Date(t.due_at), t.due_has_time, new Date(), ctx.timeZone)}` : ""}${t.notes ? ` · notes: ${t.notes.slice(0, 120)}` : ""} [id: ${t.id}]`,
+          )
+          .join("\n"),
+      );
+    },
+  );
+
+  server.registerTool(
+    "update_task",
+    {
+      title: "Change a task",
+      description:
+        "Fix a task's title, notes, due date or area (find it with find_tasks). First call WITHOUT confirmed_by_user to get the change to show Ethan; after he says yes, call again with confirmed_by_user: true. Pass due words as said ('friday 3pm'), not a converted date.",
+      inputSchema: {
+        task_id: z.string().uuid(),
+        title: z.string().min(1).max(200).optional(),
+        notes: z.string().max(2000).nullable().optional().describe("Replaces the notes (null clears them)"),
+        add_to_notes: z.string().max(1000).optional().describe("Adds a line to the notes instead of replacing them"),
+        due_text: z.string().max(100).nullable().optional().describe("New due date/time words, or null to remove the date"),
+        area: z.enum(["school", "work", "personal"]).optional(),
+        confirmed_by_user: z.boolean().optional(),
+      },
+    },
+    async ({ task_id, title, notes, add_to_notes, due_text, area, confirmed_by_user }) => {
+      const ctx = await context();
+      const { data: task } = await db.from("tasks").select("id, title, notes, due_at, due_has_time, area, class_id").eq("user_id", userId).eq("id", task_id).maybeSingle();
+      if (!task) return text("No task with that id.");
+      const row: { title?: string; notes?: string | null; due_at?: string | null; due_has_time?: boolean; area?: string } = {};
+      const said: string[] = [];
+      if (title !== undefined && title !== task.title) {
+        row.title = title;
+        said.push(`title "${task.title}" → "${title}"`);
+      }
+      if (notes !== undefined) {
+        row.notes = notes;
+        said.push(notes ? `notes → "${notes.slice(0, 200)}"` : "clear the notes");
+      } else if (add_to_notes) {
+        row.notes = [task.notes, add_to_notes].filter(Boolean).join("\n");
+        said.push(`add to notes: "${add_to_notes}"`);
+      }
+      if (due_text === null) {
+        row.due_at = null;
+        row.due_has_time = false;
+        said.push("remove the due date");
+      } else if (due_text) {
+        const d = decide(captureSchema.parse({ raw_text: `${task.title} due ${due_text}`, type: "task", title: task.title, due_text, confidence: 1 }), {
+          now: new Date(),
+          timeZone: ctx.timeZone,
+          classes: ctx.classes,
+          autoSaveTypes: ["task"],
+        });
+        const r2 = taskRowFromDraft(d.draft, ctx.timeZone, "mcp");
+        if (!r2.due_at) return text(`I couldn't read "${due_text}" as a date. Ask Ethan for the day.`);
+        row.due_at = r2.due_at;
+        row.due_has_time = r2.due_has_time;
+        said.push(`due ${task.due_at ? formatDue(new Date(task.due_at), task.due_has_time, new Date(), ctx.timeZone) : "(none)"} → ${formatDue(new Date(r2.due_at), r2.due_has_time, new Date(), ctx.timeZone)}`);
+      }
+      if (area && area !== task.area) {
+        row.area = area;
+        said.push(`area ${task.area} → ${area}`);
+      }
+      if (!said.length) return text("Nothing would change.");
+      const summary = `${task.title}: ${said.join("; ")}`;
+      if (!confirmed_by_user) return needsYes(summary);
+      const { error } = await db.from("tasks").update(row).eq("id", task_id).eq("user_id", userId);
+      if (error) return text(`Couldn't save: ${error.message}`);
+      return text(`Updated ${summary}.`);
+    },
+  );
 
   return server;
 }

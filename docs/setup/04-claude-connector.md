@@ -26,6 +26,12 @@ It now works everywhere you're signed in to Claude, including the Claude iPhone 
 - "What's in my Inbox?" / "Approve the AutoCAD one."
 - Snap a food photo and say "log this": it's kept in the Inbox until the calorie section is built (Phase 3).
 
+## Fix things and get smart gym advice (Claude does the thinking, free with Pro)
+- "On my last back day I actually hit dumbbell row for 12 reps, not 10." Claude looks up the workout, tells you exactly what will change ("Dumbbell row: 60×10 → 60×12"), and fixes it after you say yes.
+- "Move my history reading to Friday" / "Add 'bring the calculator' to my algebra test notes." Same thing: Claude shows the change, you say yes.
+- "Look at my last month of lifting. What should I change?" Claude reads every set plus the dashboard's coach tips and gives you a full breakdown.
+- Works in the Claude iPhone app's voice mode too, so you can just talk.
+
 ## Import a syllabus (the big time-saver)
 1. Dashboard → **Classes** → on the class, tap **📄 Upload syllabus** and pick the PDF (from Files, email or a download). It shows **Ready for Claude** when done.
 2. In Claude, say: **"Import my Speech syllabus."**
