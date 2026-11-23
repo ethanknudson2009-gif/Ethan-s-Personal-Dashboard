@@ -50,7 +50,7 @@ export function CashAppImport({ compact = false }: { compact?: boolean }) {
           {pending ? "Importing…" : "Import CSV"}
         </button>
       </div>
-      <button type="button" onClick={() => setShowHow(!showHow)} className="mt-3 text-xs font-medium text-ok">
+      <button type="button" onClick={() => setShowHow(!showHow)} className="mt-1 py-2 text-xs font-medium text-ok">
         {showHow ? "Hide" : "How do I get the file?"}
       </button>
       {showHow && (

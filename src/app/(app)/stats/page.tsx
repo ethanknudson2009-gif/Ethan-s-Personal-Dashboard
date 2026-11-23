@@ -186,7 +186,7 @@ export default async function StatsPage() {
         <BarChart labels={weekLabels} series={tasksByArea} emptyText="Finish a task to start the chart" />
       </Card>
 
-      <Card title="Gym" action={<Link href="/gym" className="text-sm text-muted hover:text-ink">Open →</Link>}>
+      <Card title="Gym" action={<Link href="/gym" className="-my-2 py-2 pl-3 text-sm text-muted hover:text-ink">Open →</Link>}>
         <div className="flex flex-col gap-6">
           <div>
             <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Pounds lifted per week</p>
@@ -217,7 +217,7 @@ export default async function StatsPage() {
         </div>
       </Card>
 
-      <Card title="Habits · last 30 days" action={<Link href="/life" className="text-sm text-muted hover:text-ink">Open →</Link>}>
+      <Card title="Habits · last 30 days" action={<Link href="/life" className="-my-2 py-2 pl-3 text-sm text-muted hover:text-ink">Open →</Link>}>
         {habits.length ? (
           <ul className="flex flex-col gap-3">
             {habits.map((h) => {
@@ -252,7 +252,7 @@ export default async function StatsPage() {
         )}
       </Card>
 
-      <Card title="Money" action={<Link href="/money" className="text-sm text-muted hover:text-ink">Open →</Link>}>
+      <Card title="Money" action={<Link href="/money" className="-my-2 py-2 pl-3 text-sm text-muted hover:text-ink">Open →</Link>}>
         <div className="flex flex-col gap-6">
           <div>
             <p className="mb-2 text-xs font-semibold tracking-wide text-muted uppercase">Spent per week</p>
@@ -293,7 +293,7 @@ export default async function StatsPage() {
         </div>
       </Card>
 
-      <Card title="Food · last 14 days" action={<Link href="/life" className="text-sm text-muted hover:text-ink">Open →</Link>}>
+      <Card title="Food · last 14 days" action={<Link href="/life" className="-my-2 py-2 pl-3 text-sm text-muted hover:text-ink">Open →</Link>}>
         <BarChart
           labels={days.map((d) => `${DAY[weekdayOf(d)]} ${Number(d.slice(8))}`)}
           series={[{ name: "Calories", color: AREA.personal, values: calories }]}

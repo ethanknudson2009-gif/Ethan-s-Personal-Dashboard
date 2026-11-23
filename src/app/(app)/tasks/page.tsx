@@ -75,7 +75,7 @@ export default async function SchoolPage() {
         </details>
       )}
 
-      <Link href="/trash" className="self-center text-xs text-faint hover:text-muted md:hidden">
+      <Link href="/trash" className="self-center px-2 py-2 text-xs text-faint hover:text-muted md:hidden">
         Trash (deleted items, kept 7 days)
       </Link>
     </div>

@@ -37,7 +37,8 @@ export default async function TodayPage() {
   const nowMinutes = nowParts.hour * 60 + nowParts.minute;
 
   const supabase = await createClient();
-  const [classesOn, { count: inboxCount }, { data: habits }, { data: habitDone }, { count: tasksDone }, { count: habitCheckins }, { data: focused }] = await Promise.all([
+  // Every query starts at once (one round trip instead of four).
+  const first = Promise.all([
     loadSchedule(),
     supabase.from("inbox_items").select("id", { count: "exact", head: true }).eq("status", "pending").is("deleted_at", null),
     supabase.from("habits").select("id, name, emoji, color").is("deleted_at", null).eq("archived", false).order("sort").order("created_at"),
@@ -46,7 +47,7 @@ export default async function TodayPage() {
     supabase.from("habit_checkins").select("id", { count: "exact", head: true }),
     supabase.from("tasks").select("minutes_done").gt("minutes_done", 0).is("deleted_at", null),
   ]);
-  const [{ data: money }, { data: workouts }, { data: food }, { data: profile }] = await Promise.all([
+  const second = Promise.all([
     supabase.from("money_transactions").select("occurred_on, amount_cents, category").gte("occurred_on", `${today.slice(0, 7)}-01`).is("deleted_at", null),
     supabase
       .from("workouts")
@@ -56,8 +57,11 @@ export default async function TodayPage() {
       .limit(60),
     supabase.from("food_entries").select("calories").eq("on_date", today),
     supabase.from("profiles").select("calorie_goal, gym_split, gym_next").maybeSingle(),
+    supabase.from("day_plans").select("focus_task_ids, intention, planned_at, shutdown_at").eq("on_date", today).maybeSingle(),
+    supabase.from("exercises").select("id, name, muscle, bodyweight"),
   ]);
-  const { data: dayPlan } = await supabase.from("day_plans").select("focus_task_ids, intention, planned_at, shutdown_at").eq("on_date", today).maybeSingle();
+  const [[classesOn, { count: inboxCount }, { data: habits }, { data: habitDone }, { count: tasksDone }, { count: habitCheckins }, { data: focused }], [{ data: money }, { data: workouts }, { data: food }, { data: profile }, { data: dayPlan }, { data: exercises }]] =
+    await Promise.all([first, second]);
   const caloriesToday = (food ?? []).reduce((n, f) => n + (f.calories ?? 0), 0);
   const calorieGoal = profile?.calorie_goal ?? null;
   const monthMoney = monthTotals(
@@ -68,7 +72,7 @@ export default async function TodayPage() {
   const trained = (workouts ?? []).filter((w) => w.ended_at && !w.skipped);
   const gymThisWeek = trained.filter((w) => toLocalDate(new Date(w.started_at), timeZone) >= addDays(today, -6)).length;
   const lastWorkout = trained[0] ? toLocalDate(new Date(trained[0].started_at), timeZone) : null;
-  const upNext = await gymUpNext(supabase, workouts ?? [], profile, today, timeZone);
+  const upNext = gymUpNext(workouts ?? [], exercises ?? [], profile, today, timeZone);
   const workOpen = data.open.filter((t) => t.area === "work");
   const xp = totalXp({
     tasksDone: tasksDone ?? 0,
@@ -355,7 +359,7 @@ export default async function TodayPage() {
 
       <p className="text-center text-xs text-muted">
         {data.open.length} open task{data.open.length === 1 ? "" : "s"} in all ·{" "}
-        <Link href="/stats" className="text-accent">
+        <Link href="/stats" className="inline-block py-2 text-accent">
           See your stats →
         </Link>
       </p>
@@ -392,13 +396,13 @@ type TodayWorkout = {
 };
 
 /** What Home's gym card shows: the split day up next, a workout in progress, or "trained today". */
-async function gymUpNext(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+function gymUpNext(
   workouts: TodayWorkout[],
+  exercises: { id: string; name: string; muscle: string; bodyweight: boolean }[],
   profile: { gym_split: string[] | null; gym_next: number | null } | null,
   today: string,
   timeZone: string,
-): Promise<UpNext> {
+): UpNext {
   const split = profile?.gym_split?.length ? profile.gym_split : DEFAULT_SPLIT;
   const day = split[(profile?.gym_next ?? 0) % split.length];
   const open = workouts.find((w) => !w.ended_at);
@@ -409,8 +413,7 @@ async function gymUpNext(
 
   const last = workouts.find((w) => w.ended_at && !w.skipped && w.split_day === day);
   const ids = [...new Set((last?.workout_sets ?? []).map((s) => s.exercise_id))];
-  const { data: exercises } = await supabase.from("exercises").select("id, name, muscle, bodyweight");
-  const name = new Map((exercises ?? []).map((e) => [e.id, e.name]));
+  const name = new Map(exercises.map((e) => [e.id, e.name]));
   // The coach's top tip for an exercise on this day, if there is one.
   const tips = coachTips(
     workouts.map((w) => ({
@@ -419,7 +422,7 @@ async function gymUpNext(
       skipped: w.skipped || !w.ended_at,
       sets: w.workout_sets.map((s) => ({ exerciseId: s.exercise_id, weightLb: s.weight_lb === null ? null : Number(s.weight_lb), reps: s.reps, done: s.done })),
     })),
-    (exercises ?? []).map((e) => ({ id: e.id, name: e.name, muscle: e.muscle, bodyweight: e.bodyweight })),
+    exercises,
     today,
   );
   const dayNames = ids.map((id) => name.get(id)).filter((n): n is string => !!n);

@@ -26,7 +26,7 @@ export function FoodCard({ rows, goal, weekAvg }: { rows: FoodRow[]; goal: numbe
         <h2 className="text-xs font-semibold tracking-[0.16em] uppercase" style={{ color: FOOD }}>
           🍽️ Food today
         </h2>
-        <button type="button" onClick={() => setEditingGoal((v) => !v)} className="text-xs text-muted hover:text-ink">
+        <button type="button" onClick={() => setEditingGoal((v) => !v)} className="-my-2 px-1 py-2 text-xs text-muted hover:text-ink">
           {goal ? `Goal ${goal.toLocaleString()}` : "Set a goal"}
         </button>
       </div>

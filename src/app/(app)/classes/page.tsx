@@ -132,8 +132,8 @@ export default async function ClassesPage({ searchParams }: PageProps<"/classes"
               <legend className="mb-2 text-xs font-medium tracking-wide text-muted">School days</legend>
               <div className="flex flex-wrap gap-3">
                 {WEEKDAY_SHORT.map((d, i) => (
-                  <label key={d} className="flex items-center gap-1.5 text-sm">
-                    <input type="checkbox" name="school_weekdays" value={i} defaultChecked={schoolWeekdays.includes(i)} className="accent-[var(--color-accent)]" />
+                  <label key={d} className="flex items-center gap-2 py-1 text-sm">
+                    <input type="checkbox" name="school_weekdays" value={i} defaultChecked={schoolWeekdays.includes(i)} className="size-5 accent-[var(--color-accent)]" />
                     {d}
                   </label>
                 ))}
