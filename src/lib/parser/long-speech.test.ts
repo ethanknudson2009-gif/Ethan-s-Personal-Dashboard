@@ -194,12 +194,12 @@ describe("big lists → many items", () => {
 
   it("a homework ramble with no punctuation", () => {
     const s = summary(
-      "um so I've got like a ton of homework this week there's an anatomy quiz on thursday it's on the muscles of the arm and then my english essay is due friday and it needs to be four pages MLA and also I have a math test next monday so I should probably start studying for that on the weekend",
+      "um so I've got like a ton of homework this week there's an anatomy quiz on thursday it's on the muscles of the arm and then my english essay is due friday and it needs to be four pages MLA and also I have a math test next monday so I should start studying for that on the weekend",
     );
     expect(s).toMatchObject([
       { title: "Quiz", cls: "Human Anatomy", day: "2026-11-12", notes: "On the muscles of the arm" },
       { title: "Essay", cls: "English 1010", day: "2026-11-13", notes: "Needs to be 4 pages MLA" },
-      { title: "Test", cls: "College Algebra", day: "2026-11-16", notes: "I should probably start studying for that on the weekend" },
+      { title: "Test", cls: "College Algebra", day: "2026-11-16", notes: "I should start studying for that on the weekend" },
     ]);
   });
 

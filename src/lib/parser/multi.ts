@@ -44,7 +44,7 @@ const NOT_BEFORE_VERB = new Set(
     "the a an my your his her our their this that these those to in of for on at with from by about i we you he she they me him them us it " +
     "will can could should would must might gonna wanna gotta need needs have has had let's lets please not don't dont didn't never just " +
     "also then and or but so phone tax i'll we'll you'll can't won't who which to-do todo also and maybe probably really still even first " +
-      "large big small huge new old full whole quick another every each some any direct wire cash mobile"
+      "large big small huge new old full whole quick another every each some any direct wire cash mobile meal they'll she'll he'll it'll like basically literally honestly probably totally actually um uh"
   ).split(" "),
 );
 /** Nouns that make a verb word a noun instead ("book report", "study guide"). */
@@ -94,7 +94,7 @@ function findCuts(low: string): Cut[] {
 
   // "also", "then", "plus", "oh and", "and I also need to"…
   const WEAK =
-    /(?<=^|[\s,.;:!?])()((?:and\s+)?(?:(?:okay|ok|alright|all\s+right)\s+and(?:\s+then|\s+also)?|then|also|plus|oh\s+and|oh\s+also|oh\s+yeah(?:\s+and)?|on\s+top\s+of\s+that|besides\s+that|i\s+also|in\s+addition))(?=[\s,:]|$)[\s,:]*/g;
+    /(?<=^|[\s,.;:!?])()((?:and\s+)?(?:(?:okay|ok|alright|all\s+right)\s+and(?:\s+then|\s+also)?|then|also|plus|oh\s+and|oh\s+also|oh\s+yeah(?:\s+and)?|on\s+top\s+of\s+that|besides\s+that|i\s+also|in\s+addition|(?:but\s+|so\s+)?anyways?|oh\s+wait|(?:but\s+|and\s+|oh\s+)?i\s+(?:just\s+|totally\s+|completely\s+)?(?:forgot|remembered|realized)(?:\s+that)?(?=\s+i\b)|speaking\s+of\s+which|(?:okay|ok|alright)\s+so|but\s+yeah|so\s+yeah))(?=[\s,:]|$)[\s,:]*/g;
   for (const m of low.matchAll(WEAK)) add(m.index + m[1].length, m.index + m[0].length, "weak");
 
   // Sentence ends (not "3.5" or "p.m."; the spoken cleanup already made those "pm").
@@ -292,6 +292,24 @@ export function splitItems(rawText: string, ctx: ParseContext): { items: string[
   return { items: items.map((b) => b.text), intro };
 }
 
+/**
+ * Talking like a person: "so yesterday me and Jake went to the mall and it was
+ * crazy, anyway I need to email my teacher about the essay". Pieces that only
+ * tell a story (someone did/was something) and ask for nothing are chatter.
+ */
+const ASKS_FOR_SOMETHING =
+  /\b(?:need to|have to|has to|gotta|got to|should|must|remind|don'?t forget|remember to|make sure|due|appointment|appt|meeting|practice|rehearsal|concert|game|shift|test|quiz|exam|final|deadline|homework|essay|project|tonight|tomorrow|next week|this weekend|\d{1,2}(?::\d{2})?\s*(?:am|pm))\b/;
+const STORY =
+  /\b(?:i|we|he|she|they|it|me and [a-z]+|[a-z]+ and i|my [a-z]+|the [a-z]+|[a-z]+)\s+(?:was|were|went|did|had|saw|said|told|thought|felt|watched|played|got back|came over|hung out|talked|is so|was so|were so)\b|\b(?:lol|haha|lmao|so fun|crazy|insane|so cool|kinda weird|yesterday|last night|the other day|earlier)\b/;
+export function isChatter(text: string, d: CaptureDraft): boolean {
+  if (d.type !== "task" && d.type !== "homework") return false;
+  if (d.classId || d.amount) return false;
+  // "watching the game last night" is a story, not a game to go to.
+  const low = stripLeadIn(text).toLowerCase().replace(/\b(?:watch(?:ing|ed)?|saw) (?:the|a) (?:game|concert|show|movie)\b/g, "watched it");
+  if (ASKS_FOR_SOMETHING.test(low) || VERB_START.test(low)) return false;
+  return STORY.test(low);
+}
+
 /** Parse a long message into one draft per item, sharing context said up front. */
 export function parseMany(rawText: string, ctx: ParseContext): ManyItem[] {
   const { items, intro } = splitItems(rawText, ctx);
@@ -327,6 +345,11 @@ export function parseMany(rawText: string, ctx: ParseContext): ManyItem[] {
     }
     out.push({ text, draft });
   }
+  // A minute of random talk, then the point: keep the point, drop the story
+  // (only when something real was asked for; if it's all story, keep it all).
+  const real = out.filter((o) => !isChatter(o.text, o.draft));
+  if (real.length > 0 && real.length < out.length) out.splice(0, out.length, ...real);
+
   // "Clean my room and do laundry tonight": a day said once at the very end of a
   // short, unpunctuated pair goes with both.
   const low = rawText.toLowerCase().trim();

@@ -100,6 +100,12 @@ export function normalizeSpoken(input: string): string {
 
   // Fillers anywhere ("um", "uh", "like," between words).
   s = s.replace(/\s(?:um+|uh+|er+|hmm+)[,.]?(?=\s)/g, " ");
+  // Talking-to-a-person words that never change the meaning.
+  s = s.replace(/\s(?:basically|literally|honestly|totally|probably|definitely|actually|like totally)[,]?(?=\s)/g, " ");
+  // "like" as filler: "I need to like grab", "it's in like two weeks", "so like the plan"
+  // (but not "I like it", "looks like rain", "would like to").
+  s = s.replace(/(\s(?:so|um|uh|and|but|to|gonna|gotta|wanna|it's|its|in|for|about|is|was|were|just|get|got|maybe|or|be|at|around|with))\s+like,?(?=\s(?!to\b|it\b|that\b|this\b|them\b|him\b|her\b|me\b|you\b))/g, "$1");
+  s = s.replace(/\s+like,?(?=\s(?:\d|a few|a couple|two|three|four|five|ten|twenty|half)\b)/g, "");
   s = s.replace(/\s+/g, " ");
 
   // "P R M I" / "p.r.m.i." (Ethan's job) → prmi

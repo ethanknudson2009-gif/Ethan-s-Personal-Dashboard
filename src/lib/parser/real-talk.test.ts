@@ -161,3 +161,42 @@ describe("words that only sound like something else", () => {
     expect(one("turn in the worksheet on thursday").day).toBe("2026-11-26");
   });
 });
+
+describe("talking like a person: small talk first, the point at the end", () => {
+  it.each<[string, Want[]]>([
+    [
+      "so yesterday me and Jake went to the mall and it was so fun we got food and then we saw a movie it was kinda weird anyway I need to email my history teacher about the essay",
+      [{ title: "Email my teacher about the essay", cls: "World History" }],
+    ],
+    [
+      "okay so I was talking to my mom earlier and she was saying the dog was sick so they took him to the vet but he's fine now oh wait I need to remember to feed him tonight",
+      [{ title: "Feed him", day: "2026-11-22" }],
+    ],
+    [
+      "so today at work Mike was super busy and the phones were crazy we had like four closings but anyways I need to send the Hendersons their closing disclosure tomorrow morning",
+      [{ title: "Send the Hendersons their closing disclosure", day: "2026-11-23", area: "work" }],
+    ],
+    [
+      "I was watching the game last night and it was insane but I totally forgot I have an algebra quiz on wednesday",
+      [{ title: "Quiz", cls: "College Algebra", day: "2026-11-25" }],
+    ],
+  ])("%s", (said, want) => expect(many(said)).toMatchObject(want));
+
+  it("all story and nothing asked for still saves (nothing is thrown away)", () => {
+    expect(many("me and Jake went to the mall yesterday it was so fun").length).toBeGreaterThan(0);
+  });
+});
+
+describe("how people actually start sentences", () => {
+  it.each<[string, Want]>([
+    ["okay so basically tomorrow I need to like grab my calculator before school because we have the algebra test", { title: "Grab my calculator before school", day: "2026-11-23" }],
+    ["yeah um put down that I need to pick up my little brother from practice at 5", { title: "Pick up my little brother from practice" }],
+    ["can you remind me to call Mike back about the Garcia file sometime this afternoon", { title: "Call Mike back about the Garcia file", day: "2026-11-22", area: "work" }],
+    ["so yeah I have to work saturday from 9 to 1", { title: "Work shift from 9 to 1", day: "2026-11-28" }],
+    ["can you put that the Smiths closing got moved to next tuesday", { title: "Smiths closing got moved", day: "2026-11-24" }],
+  ])("%s", (said, want) => expect(one(said)).toMatchObject(want));
+
+  it("'gym after school' is a plan, not a logged workout", () => {
+    expect(parse("gym after school", ctx).type).toBe("task");
+  });
+});

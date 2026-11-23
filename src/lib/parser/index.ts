@@ -74,14 +74,14 @@ export type Area = "school" | "work" | "personal";
 /** Phrases that say a task is for work. These words are removed from the title. */
 // Ethan calls PRMI "work", "primary" (also how speech often hears "PRMI")
 // or "the office". Mike is his LO (loan officer), so mentioning Mike means work.
-const WORK_TAGS = /(?<!\b(?:go|going|get|drive|driving|head|leave|come|walk|ride|back)\s)\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work(?!\s+on\b)|primary|the office)\b:?/g;
+const WORK_TAGS = /(?<!\b(?:go|going|get|drive|driving|head|leave|come|walk|ride|back)\s)\b(?:at|for|from|to) (?:work|prmi|primary|the office)\b|\bprmi\b|^(?:work(?!\s+(?:on|shift)\b)|primary|the office)\b:?/g;
 /** Words that suggest work but stay in the title ("send Mike the files"). */
 const WORK_HINTS =
   /\b(shift|my boss|manager|coworkers?|clock (?:in|out)|timesheet|prmi|at work|for work|from work|to work|the office|mike|my lo|loan officer|loans?|loan files?|borrowers?|closing|closings|underwriting|underwriter|appraisals?|disclosures?|escrow|title company|pre-?approvals?|preapproval letter|rate locks?|lock the rate|refi|refinance|conditions|voe|1003|loan estimate|closing disclosure|processor|realtors?|pipeline|encompass|credit pull|pull credit|pay ?stubs?|w-?2s?|bank statements?|le|cd|coc|ctc|clear to close|du|lp|aus|vod|voe|loe|lox|letters? of explanation|gift letters?|condo questionnaires?|hoa certs?|title commitments?|commitment letters?|tri-?merge|dti|ltv|pmi|piti|trid|rate lock|lock extension|new leads?|the leads?|hr|the [a-z]+ (?:file|loan|refi|purchase))\b|^(?:work(?!\s+on\b)|primary)\b/;
 
 // ── Notes: where the main thing ends and extra context begins ─────────────
 const NOTE_MARKERS =
-  /(?<!\b(?:if|whether|that|because|cause|since|when|said|says|think|know|asked?|until|unless|get|got|getting|have|had|has))(?<!\b(?:tell|told|let|ask|remind|text|email|show|warn)\s+[a-z]+)(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|i still (?:need|have) to|i think|i guess|i feel like|(?:the|my|his|her|their|our) (?:[a-z]+ )?(?!(?:it|they|he|she|we|i|you)\b)[a-z]+ (?:is|are|was|were|keeps|has been|have been|has(?! to)|have(?! to)|changed|came|went|broke|got|moved|died|fell|ran out|expires|expired|ends|closes|starts)|i (?:forgot|left|lost) (?:it|them|my|the)|note that|it needs|it has to|it should|it must|it'?s about|it is about|make sure|be sure|remember|don'?t forget|dont forget|because|cause|so that|so i can|so we can|so i|so we|(?:the |my )?teacher said|(?:she|he|they|mike) said|(?:she|he|they|mike) wants?|(?:she|he|they|mike) needs?|also|and also|plus|another thing|one more thing|oh and|bring|include|including|it covers|it'?s on|it is on|it'?s worth|it is worth|it'?s for|it is for|it'?ll be|it will be|it'?s going to be|it'?s gonna be|it'?s like|it'?s only|it'?s just|it'?s a|it is a|it'?s an|it'?s the|it'?s due|it is due|it'?s at|it is at|it'?s|it is|it was|that'?s|which is|which|i need to|i have to|i should|i gotta|i'?ve got to|i want to|we need to|we have to|i'?ll|i will|i have (?:some|a|an|the|my|these|those)|(?:it|she|he|they) (?:came|went|got|is|isn'?t|was|wasn'?t|has|hasn'?t|had|did|didn'?t|does|doesn'?t|can'?t|won'?t|already)|and ask|ask (?:him|her|them|mike|about)|and tell|tell (?:him|her|them|mike)|details?\s*:)\b)/g;
+  /(?<!\b(?:if|whether|that|because|cause|since|when|said|says|think|know|asked?|until|unless|get|got|getting|have|had|has))(?<!\b(?:tell|told|let|ask|remind|text|email|show|warn)\s+[a-z]+)(?:[,.;:!?]\s*|\s)(?=(?:notes?\s*:|i still (?:need|have) to|i think|i guess|i feel like|(?:the|my|his|her|their|our) (?:[a-z]+ )?(?!(?:it|they|he|she|we|i|you)\b)[a-z]+ (?:is|are|was|were|keeps|has been|have been|has(?! to)|have(?! to)|changed|came|went|broke|got|moved|died|fell|ran out|expires|expired|ends|closes|starts)|i (?:forgot|left|lost) (?:it|them|my|the)|or (?:else )?(?:they'?ll|it'?ll|i'?ll|you'?ll|i get|i'?m gonna|they|it)|we'?re|we are|they'?re|i haven'?t|i didn'?t|i still haven'?t|i'?m (?:so|really|kinda|super) |note that|it needs|it has to|it should|it must|it'?s about|it is about|make sure|be sure|remember|don'?t forget|dont forget|because|cause|so that|so i can|so we can|so i|so we|(?:the |my )?teacher said|(?:she|he|they|mike) said|(?:she|he|they|mike) wants?|(?:she|he|they|mike) needs?|also|and also|plus|another thing|one more thing|oh and|bring|include|including|it covers|it'?s on|it is on|it'?s worth|it is worth|it'?s for|it is for|it'?ll be|it will be|it'?s going to be|it'?s gonna be|it'?s like|it'?s only|it'?s just|it'?s a|it is a|it'?s an|it'?s the|it'?s due|it is due|it'?s at|it is at|it'?s|it is|it was|that'?s|which is|which|i need to|i have to|i should|i gotta|i'?ve got to|i want to|we need to|we have to|i'?ll|i will|i have (?:some|a|an|the|my|these|those)|(?:it|she|he|they) (?:came|went|got|is|isn'?t|was|wasn'?t|has|hasn'?t|had|did|didn'?t|does|doesn'?t|can'?t|won'?t|already)|and ask|ask (?:him|her|them|mike|about)|and tell|tell (?:him|her|them|mike)|details?\s*:)\b)/g;
 
 /** Where notes start in the text, or -1. The main part keeps at least 2 words. */
 export function findNotesStart(low: string, after = 0): number {
@@ -288,13 +288,15 @@ function detectType(low: string, ctx: ParseContext): CaptureType | null {
   // "pick up mom and grab lunch", "go to the gym at 6": a plan, so a task.
   const plan = TASK_VERB_START.test(low) && !/\d+\s*x\s*\d+|\bsets?\s+of\b/.test(low);
   // "lunch with mom on sunday", "coffee with Jake": plans, not food you ate.
-  const mealPlan = /\b(?:breakfast|brunch|lunch|dinner|coffee)\s+(?:with|at)\b/.test(low) && !/\b(?:ate|had|calories|cals?|kcal|protein)\b/.test(low);
+  const mealPlan = /\b(?:breakfast|brunch|lunch|dinner|coffee)\s+(?:with|at)\b|\b(?:during|at|before|after|over|by) (?:breakfast|brunch|lunch|dinner)\b|\b(?:meet|meeting|go over|talk to)\b/.test(low) && !/\b(?:ate|had|calories|cals?|kcal|protein)\b/.test(low);
   // "costco run", "run DU", "run credit": errands and work, not exercise.
   const notExercise =
     /\b(?:costco|grocery|groceries|target|walmart|food|store|coffee|starbucks|supply|errand|bank|dump|taco|mcdonald'?s|gas) run\b|\b(?:run|ran)\s+(?:du|lp|aus|credit|numbers|the numbers|errands?|a report|the report|the file|the loan|scenarios?|a scenario|it by)\b/.test(low) ||
     (WORK_HINTS.test(low) && !/\d+\s*x\s*\d+|\bsets?\b|\breps?\b|\bplates?\b|\bgym\b/.test(low));
   if (!plan && !mealPlan && FOOD_WORDS.test(low)) return "food";
-  if (!plan && !notExercise && WORKOUT_WORDS.test(low)) return "workout";
+  // "gym after school", "chest day tomorrow": a plan to go, not a workout to log.
+  const gymPlan = /\b(?:gym|workout|leg day|arm day|chest day|back day|push day|pull day)\b/.test(low) && !/\d|\b(?:did|went|worked out|lifted|hit|benched|squatted|ran|finished|done)\b/.test(low) && /\b(?:after|before|later|tonight|tomorrow|today|this|next|at|around|go|going|gonna|need|have to|want)\b/.test(low);
+  if (!plan && !notExercise && !gymPlan && WORKOUT_WORDS.test(low)) return "workout";
   if (/\$\s?\d/.test(low)) return "expense";
   if (SCHOOL_WORDS.test(low) && !/^(?:call|text|email|e-mail|message|ask|tell|meet|remind)\b/.test(low)) return "homework";
   return null; // decided later (a class match makes it homework, otherwise task)
@@ -395,7 +397,10 @@ const GET_DONE =
 /** Days said about the past ("the lab I missed on Tuesday") aren't due dates. */
 const PAST_DAY =
   /\b(?:missed|was|were|had|did|didn'?t|wasn'?t|went|happened|got|took|from|since|last|ago)\s+(?:[a-z']+\s+){0,4}?(?:on\s+)?(?:last\s+)?((?:mon|tues|tue|wednes|wed|thurs|thu|fri|satur|sat|sun)(?:day)?|yesterday)\b/g;
-const maskPastDays = (low: string) => low.replace(PAST_DAY, (m, day: string) => m.slice(0, m.length - day.length) + " ".repeat(day.length));
+const maskPastDays = (low: string) =>
+  low.replace(PAST_DAY, (m, day: string) =>
+    /\b(?:next|this|coming|to|by|before|until|till)\s+$/.test(m.slice(0, m.length - day.length)) ? m : m.slice(0, m.length - day.length) + " ".repeat(day.length),
+  );
 
 export function parse(rawText: string, ctx: ParseContext, opts: { depth?: number } = {}): CaptureDraft {
   const { draft, notesRaw } = parseOnce(rawText, ctx);
@@ -454,6 +459,16 @@ function parseInner(rawText: string, ctx: ParseContext): { draft: CaptureDraft; 
   // "we got clear to close on the Wilson loan tell Mike" → "Tell Mike we got clear to close…"
   original = original.replace(/^(?!(?:tell|text|email|let|call|ask)\b)(.{8,}?)[,.]?\s+(tell|text|email|call) (mike|him|her|them|mom|dad|[a-z]+)$/i, "$2 $3 $1");
   original = original.replace(/^(?!(?:tell|text|email|let|call|ask)\b)(.{8,}?)[,.]?\s+let (mike|him|her|them|mom|dad|[a-z]+) know$/i, "let $2 know $1");
+  // Talking like a person: "the plan for today is gym" → "today gym",
+  // "I'm going to the gym later" → "go to the gym later", "…I think" at the end is just a hedge.
+  original = original
+    .replace(/\bthe plan (?:for )?(today|tomorrow|tonight|this weekend)(?: is)?\b/i, "$1")
+    .replace(/\bi(?:'m| am) (?:going|gonna go|heading) to (?=the |my |work\b|school\b|class\b|practice\b|[a-z]+'s\b|costco|target|walmart)/i, "go to ")
+    .replace(/\b(?:i (?:have|need|gotta|got) to|i'?ve got to|i gotta) work\b(?!\s+on\b)/i, "work shift")
+    // (speech cleanup may already have dropped "I have to": "work saturday from 9 to 1")
+    .replace(/^work(?=\s+(?:(?:on\s+)?(?:mon|tues|wednes|thurs|fri|satur|sun)day|today|tonight|tomorrow)(?:\s+(?:from|at|until|till)\s+\d.*)?\s*$)/i, "work shift")
+    .replace(/\s+(?:i think|i guess|i believe|or something|or whatever|or so)\s*[.!?]?\s*$/i, "")
+    .replace(/\blater\s+(?=(?:around|at|by)\s+\d)/i, "");
   const saidWork = WORK_HINTS.test(original.toLowerCase().slice(0, 40));
   const saidWorkFirst = /^(?:\W*(?:okay|ok|so|then|and|alright|um|uh)\b[\s,]*)*(?:at|for) (?:work|the office|prmi|primary)\b/i.test(original);
   original = stripLeadIn(original);

@@ -49,7 +49,7 @@ const mo = Object.keys(MONTHS).sort((a, b) => b.length - a.length).join("|");
 
 // Order matters: more specific patterns first.
 const RE = {
-  relative: /\b(today|tonight|tonite|tomorrow|tomorow|tmrw|tmr|yesterday)(?:\s+(?:morning|afternoon|evening|night))?\b/g,
+  relative: /\b(?:sometime\s+)?(today|tonight|tonite|tomorrow|tomorow|tmrw|tmr|yesterday|this (?:morning|afternoon|evening))(?:\s+(?:morning|afternoon|evening|night))?\b/g,
   inN: /\bin\s+(\d+|a|an|one|two|three|four|five|six|seven)\s+(days?|weeks?)\b/g,
   numeric: /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?\b/g,
   monthDay: new RegExp(`\\b(${mo})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b`, "g"),
@@ -66,7 +66,7 @@ const TIME_RE = {
   ampm: /\b(\d{1,2})(?::(\d{2}))?(?:\s*(a\.m\.|p\.m\.|am|pm)|(a|p))(?![a-z])/g,
   named: /\b(noon|midday|midnight)\b/g,
   clock: /\b(\d{1,2}):(\d{2})\b/g,
-  bare: new RegExp(`(?:\\b(?:at|by)\\s+|@\\s*)(\\d{1,2})\\b(?!${NOT_A_TIME})`, "g"),
+  bare: new RegExp(`(?:\\b(?:at|by|around)\\s+|@\\s*)(\\d{1,2})\\b(?!${NOT_A_TIME})`, "g"),
   // A number right after a day word: "sat 9", "tomorrow 3".
   afterDay: new RegExp(`\\b(?:${wd}|today|tonight|tomorrow|tmrw)\\s+(\\d{1,2})\\b(?!${NOT_A_TIME}|:)`, "g"),
 };
@@ -166,7 +166,7 @@ export function parseWhen(low: string, spans: SpanTracker, now: Date, timeZone: 
   const relative = spans.free(RE.relative, low)[0];
   if (relative) {
     const w = relative[1];
-    date = w === "yesterday" ? addDays(today, -1) : w.startsWith("to") && !w.startsWith("tom") ? today : addDays(today, 1);
+    date = w === "yesterday" ? addDays(today, -1) : w.startsWith("this") || (w.startsWith("to") && !w.startsWith("tom")) ? today : addDays(today, 1);
     take(relative);
   }
 
@@ -249,7 +249,9 @@ export function parseWhen(low: string, spans: SpanTracker, now: Date, timeZone: 
       // Today counts only if the time (if any) hasn't passed yet.
       const timeStillAhead =
         time === null || time.hour * 60 + time.minute > nowParts.hour * 60 + nowParts.minute;
-      date = nextWeekday(target, isToday && timeStillAhead && day[1] !== "next");
+      // "before Monday" / "by Monday" said on a Monday means next Monday.
+      const deadline = /\b(?:before|by|until|till)\s+$/.test(low.slice(0, day.index));
+      date = nextWeekday(target, isToday && timeStillAhead && day[1] !== "next" && !deadline);
       if (day[1] === "next" && !isToday) {
         problems.push(`"next ${day[2]}" could mean this week or next week; picked ${date}`);
         penalty += 0.1;
