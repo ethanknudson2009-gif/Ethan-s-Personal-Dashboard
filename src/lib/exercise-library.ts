@@ -501,6 +501,78 @@ add("cardio", "other",
   "Soccer",
 );
 
+// ── More (Nov 23): the gaps, so almost anything you do is in the list ────────
+add("chest", "other", "Svend press|plate squeeze press|plate press", "Landmine chest press|landmine squeeze press");
+add("chest", "machine", "Hammer Strength decline press|decline hammer press");
+add("back", "barbell", "Gorilla row|gorilla rows", "Helms row|helms rows", "Jefferson curl|jefferson curls");
+add("back", "machine",
+  "Chest-supported T-bar row|chest supported t bar row|t bar machine",
+  "Single-arm machine row|one arm machine row",
+  "Pullover machine|nautilus pullover|machine pullover",
+  "Neck curl machine|neck machine|4 way neck",
+);
+add("back", "cable", "Cable lat pullover|lat prayer|lat prayers", "Single-arm cable pulldown|one arm cable pulldown");
+add("back", "bodyweight", "Rack chin-ups|rack chins", "Australian pull-ups|australian pullups", "Neck bridge|neck bridges");
+add("back", "other", "Neck curl|neck curls|neck flexion", "Neck extension|neck extensions|neck harness");
+add("legs", "smith machine", "Smith machine lunge|smith lunges", "Smith machine Romanian deadlift|smith rdl");
+add("legs", "machine", "Leg press (narrow stance)|narrow leg press", "Hip sled calf raise", "Glute-ham raise|ghr|glute ham raise");
+add("legs", "dumbbell", "Dumbbell lateral lunge", "Heel-elevated goblet squat|heel elevated squat|cyclist squat");
+add("legs", "bodyweight", "Spanish squat|spanish squats", "Skater squat|skater squats", "Shrimp squat|shrimp squats", "Copenhagen plank|copenhagen|copenhagen adductor");
+add("glutes", "barbell", "B-stance hip thrust|b stance hip thrust|kickstand hip thrust");
+add("glutes", "cable", "Cable glute pull-through|glute pull through", "Cable hip adduction");
+add("shoulders", "dumbbell", "Rear delt row|rear delt rows|dumbbell rear delt row", "Bradford press", "Six-way raise|6 way raise|6 way raises");
+add("shoulders", "cable", "Cable rear delt row");
+add("shoulders", "other", "Landmine lateral raise|landmine raise");
+add("biceps", "dumbbell", "Waiter curl|waiter curls|goblet curl", "Incline hammer curl|incline hammer curls", "Preacher hammer curl|hammer preacher curl", "21s|twenty ones|21 curls");
+add("biceps", "cable", "Lying cable curl|lying cable curls");
+add("triceps", "barbell", "Smith machine close-grip press|smith close grip bench");
+add("triceps", "dumbbell", "Rolling dumbbell extension|rolling extension", "Dumbbell floor skull crushers|floor skull crushers");
+add("forearms", "cable", "Cable wrist curl|cable wrist curls", "Cable reverse wrist curl");
+add("forearms", "other",
+  "Finger curls|finger curl",
+  "Plate wrist curl",
+  "Fat grip hold|fat gripz|fat grips",
+  "Radial deviation|wrist side raise",
+  "Ulnar deviation",
+  "Bottoms-up kettlebell carry|bottoms up carry|bottoms up kettlebell",
+  "Hand gripper|hand grippers|gripper",
+  "Rice bucket|rice bucket training",
+);
+add("core", "bodyweight", "Hollow rocks|hollow rock", "Hanging windshield wipers", "Side plank hip dips|hip dips", "Ab rollout (knees)|kneeling rollout");
+add("core", "cable", "Cable oblique crunch|oblique crunch", "Cable side bend");
+add("full body", "other", "Medicine ball throws|med ball throws|ball throws", "Heavy bag|punching bag|bag work", "Farmer's walk (trap bar)|trap bar carry", "Trap bar deadlift|hex bar deadlift|trap bar|hex bar");
+add("cardio", "other",
+  "Spin class|spin|cycling class",
+  "Stair climb|stairs climb|stadium stairs",
+  "Tennis",
+  "Volleyball",
+  "Football",
+  "Baseball",
+  "Softball",
+  "Hockey",
+  "Ice skating|skating",
+  "Skiing",
+  "Snowboarding",
+  "Rock climbing|climbing|bouldering",
+  "Yoga",
+  "Pilates",
+  "Stretching|stretch session|mobility",
+  "Boxing|boxing class",
+  "Kickboxing",
+  "Martial arts|jiu jitsu|bjj|karate|taekwondo|mma",
+  "Wrestling",
+  "Dance|dancing|zumba",
+  "Golf",
+  "Frisbee|ultimate frisbee",
+  "Kayaking|paddle boarding|paddleboarding",
+  "Rucking|ruck",
+  "Surfing",
+  "Racquetball",
+  "Badminton",
+  "Track practice",
+  "Cross country",
+);
+
 /** The whole library, in a stable order (chest, back, legs… cardio). */
 export const EXERCISE_LIBRARY: readonly LibraryExercise[] = list;
 
@@ -538,4 +610,115 @@ export function searchScore(query: string, name: string, aliases: readonly strin
     best = Math.max(best, score - text.length / 100);
   }
   return best;
+}
+
+/**
+ * Muscles as a tree, so the picker stays clean: tap a group (Legs), then
+ * its parts (Quads, Hamstrings, Glutes, Calves, Inner & outer thigh).
+ * Biceps, triceps and forearms sit under Arms, and Shoulders is its own group.
+ */
+export type Detail =
+  | "upper chest" | "mid chest" | "lower chest"
+  | "lats" | "upper back" | "traps" | "lower back" | "neck"
+  | "front delts" | "side delts" | "rear delts" | "rotator cuff"
+  | "biceps" | "triceps" | "forearms"
+  | "quads" | "hamstrings" | "glutes" | "calves" | "inner & outer thigh"
+  | "abs" | "obliques"
+  | "full body" | "cardio";
+
+export type MuscleGroup = { key: string; label: string; emoji: string; parts: Detail[] };
+
+export const MUSCLE_TREE: readonly MuscleGroup[] = [
+  { key: "chest", label: "Chest", emoji: "🫁", parts: ["upper chest", "mid chest", "lower chest"] },
+  { key: "back", label: "Back", emoji: "🦅", parts: ["lats", "upper back", "traps", "lower back", "neck"] },
+  { key: "shoulders", label: "Shoulders", emoji: "🎯", parts: ["front delts", "side delts", "rear delts", "rotator cuff"] },
+  { key: "arms", label: "Arms", emoji: "💪", parts: ["biceps", "triceps", "forearms"] },
+  { key: "legs", label: "Legs", emoji: "🦵", parts: ["quads", "hamstrings", "glutes", "calves", "inner & outer thigh"] },
+  { key: "core", label: "Core", emoji: "🧱", parts: ["abs", "obliques"] },
+  { key: "full body", label: "Full body", emoji: "🔥", parts: ["full body"] },
+  { key: "cardio", label: "Cardio & sports", emoji: "🏃", parts: ["cardio"] },
+];
+
+export const DETAIL_LABELS: Record<Detail, string> = {
+  "upper chest": "Upper chest",
+  "mid chest": "Mid chest",
+  "lower chest": "Lower chest",
+  lats: "Lats",
+  "upper back": "Upper back",
+  traps: "Traps",
+  "lower back": "Lower back",
+  neck: "Neck",
+  "front delts": "Front delts",
+  "side delts": "Side delts",
+  "rear delts": "Rear delts",
+  "rotator cuff": "Rotator cuff",
+  biceps: "Biceps",
+  triceps: "Triceps",
+  forearms: "Forearms",
+  quads: "Quads",
+  hamstrings: "Hamstrings",
+  glutes: "Glutes",
+  calves: "Calves",
+  "inner & outer thigh": "Inner & outer thigh",
+  abs: "Abs",
+  obliques: "Obliques",
+  "full body": "Full body",
+  cardio: "Cardio & sports",
+};
+
+/**
+ * The exact muscle an exercise trains most, from its group and name:
+ * "Seated leg curl" → hamstrings, "Incline dumbbell press" → upper chest.
+ * Exercises you made yourself only know their group, so they get its main part.
+ */
+export function detailOf(name: string, muscle: string): Detail {
+  const n = plain(name);
+  const has = (re: RegExp) => re.test(n);
+  switch (muscle) {
+    case "chest":
+      if (has(/\b(incline|low to high)\b/)) return "upper chest";
+      if (has(/\b(decline|dips?|high to low)\b/)) return "lower chest";
+      return "mid chest";
+    case "back":
+      if (has(/\bneck\b/)) return "neck";
+      if (has(/\bshrugs?\b/)) return "traps";
+      if (has(/\b(deadlift|good morning|back extension|hyperextension|hyper|superman|jefferson|rack pull)\b/)) return "lower back";
+      if (has(/\b(pulldown|pull ?ups?|chin ?ups?|chins|pullover|lat|muscle ups|dead hang|straight arm)\b/)) return "lats";
+      return "upper back";
+    case "shoulders":
+      if (has(/\b(external|internal) rotation\b|\bcuban\b/)) return "rotator cuff";
+      if (has(/\b(rear|reverse pec deck|reverse cable|face pull)\b/)) return "rear delts";
+      if (has(/\b(lateral|upright|y raise|lu raise|six way|halo)\b/)) return "side delts";
+      return "front delts";
+    case "biceps":
+      return "biceps";
+    case "triceps":
+      return "triceps";
+    case "forearms":
+      return "forearms";
+    case "glutes":
+      if (has(/\b(abduction|adduction|clamshells?|lateral walk|fire hydrants?)\b/)) return "inner & outer thigh";
+      return "glutes";
+    case "legs":
+      if (has(/\b(calf|tibialis)\b/)) return "calves";
+      if (has(/\b(leg curl|nordic|romanian|rdl|stiff leg|glute ham|pull through)\b/)) return "hamstrings";
+      if (has(/\b(curl)\b/) && !has(/\bextension\b/)) return "hamstrings";
+      if (has(/\bsumo deadlift\b/)) return "glutes";
+      if (has(/\b(copenhagen|cossack|lateral lunge|sumo)\b/)) return "inner & outer thigh";
+      return "quads";
+    case "core":
+      if (has(/\b(oblique|side|twists?|woodchop(per)?|wood chop|windshield|rotation|pallof|hip dips)\b/)) return "obliques";
+      return "abs";
+    case "cardio":
+      return "cardio";
+    case "full body":
+      return "full body";
+    default:
+      return "full body";
+  }
+}
+
+/** Which group (Chest, Arms, Legs…) a part belongs to. */
+export function groupOf(detail: Detail): MuscleGroup {
+  return MUSCLE_TREE.find((g) => g.parts.includes(detail)) ?? MUSCLE_TREE[MUSCLE_TREE.length - 2];
 }

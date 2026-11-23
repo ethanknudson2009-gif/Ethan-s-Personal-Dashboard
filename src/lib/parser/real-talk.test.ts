@@ -200,3 +200,17 @@ describe("how people actually start sentences", () => {
     expect(parse("gym after school", ctx).type).toBe("task");
   });
 });
+
+describe("sports you did get logged; sports you're going to are to-dos", () => {
+  it.each([
+    ["did yoga for 30 minutes", "workout"],
+    ["played basketball for an hour", "workout"],
+    ["went bouldering after school", "workout"],
+    ["I need to go to tennis practice tomorrow", "task"],
+    ["I stretched today", "habit"],
+  ])("%s → %s", (said, type) => expect(parse(said, { ...ctx, habits: ["Read", "Stretch"] }).type).toBe(type));
+
+  it("'tennis practice' stays one thing", () => {
+    expect(many("I need to go to tennis practice tomorrow")).toMatchObject([{ title: "Go to tennis practice", day: "2026-11-23" }]);
+  });
+});

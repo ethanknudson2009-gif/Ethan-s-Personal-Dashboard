@@ -231,6 +231,9 @@ const MUSCLE_WORDS: Record<string, string> = {
 };
 /** Which muscle an exercise works most (biceps vs triceps matters for the split). */
 export function muscleOf(e: GymExercise): string {
+  // Library exercises know their muscle ("Neck curl" is back, not biceps).
+  const lib = libraryEntry(e.name);
+  if (lib) return lib.muscle === "glutes" ? "legs" : lib.muscle === "forearms" ? "arms" : lib.muscle;
   const n = e.name.toLowerCase();
   if (/leg curl|leg ext|squat|lunge|leg press|calf|romanian|rdl|hip thrust/.test(n)) return "legs";
   if (/curl/.test(n)) return "biceps";
@@ -264,8 +267,8 @@ type Tok =
   | { k: "ex"; e: GymExercise; said: string }
   | { k: "word"; w: string };
 
-const SEP_WORDS = new Set(["then", "next", "also", "plus", "and", "after", "followed", "finished", "finally", "lastly", "did", "do", "hit", "went"]);
-const FILLER = new Set(["i", "a", "an", "the", "my", "on", "some", "of", "that", "to", "it", "was", "today", "day", "this", "morning", "tonight", "workout", "gym", "session", "lift", "lifted", "lifting", "then", "just", "like", "um", "uh", "so", "set", "rep", "pound", "lb", "about", "around", "got", "in", "work", "worked", "out", "okay", "ok", "started", "start", "starting", "began", "first", "warm", "warmed", "warmup", "up", "finished", "ended", "felt", "good", "great", "heavy", "light", "easy", "hard", "pretty", "really", "very", "went", "did", "then", "after", "before", "last", "next", "more", "also", "today's", "sesh"]);
+const SEP_WORDS = new Set(["then", "next", "also", "plus", "and", "after", "followed", "finished", "finally", "lastly", "did", "do", "hit", "went", "played", "ran"]);
+const FILLER = new Set(["i", "a", "an", "the", "my", "on", "some", "of", "that", "to", "it", "was", "today", "day", "this", "morning", "tonight", "workout", "gym", "session", "lift", "lifted", "lifting", "then", "just", "like", "um", "uh", "so", "set", "rep", "pound", "lb", "about", "around", "got", "in", "work", "worked", "out", "okay", "ok", "started", "start", "starting", "began", "first", "warm", "warmed", "warmup", "up", "finished", "ended", "felt", "good", "great", "heavy", "light", "easy", "hard", "pretty", "really", "very", "went", "did", "then", "after", "before", "last", "next", "more", "also", "today's", "sesh", "played", "playing", "ran", "for", "hour", "hours", "an"]);
 
 function tokenize(text: string, book: Map<string, GymExercise>): Tok[] {
   const words = gymNumbers(text).split(" ").filter(Boolean);

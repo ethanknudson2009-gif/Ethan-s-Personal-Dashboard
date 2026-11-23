@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { dayForMuscles, gymNumbers, readWorkout, setsSummary, workoutNote, type GymExercise } from "./gym-speech";
+import { EXERCISE_LIBRARY } from "./exercise-library";
 
 // The built-in list from migration 0013 (ids = names, to keep tests readable).
 const LIST: [string, string][] = [
@@ -268,5 +269,20 @@ describe("gym slang", () => {
       { weightLb: 225, reps: 5 },
       { weightLb: 185, reps: 8 },
     ]);
+  });
+});
+
+describe("sports and cardio from the library", () => {
+  const LIB = EXERCISE_LIBRARY.map((e) => ({ id: e.name, name: e.name, muscle: e.muscle, bodyweight: e.bodyweight }));
+  it.each([
+    ["played basketball for an hour", "Basketball"],
+    ["did yoga for 30 minutes", "Yoga"],
+    ["went bouldering after school", "Rock climbing"],
+    ["ran on the treadmill for 30 minutes", "Treadmill run"],
+    ["did neck curls 3 sets of 15", "Neck curl"],
+  ])("%s → %s", (said, name) => expect(readWorkout(said, LIB).entries.map((e) => e.name)).toEqual([name]));
+
+  it("a neck curl is a back/neck move, not biceps", () => {
+    expect(readWorkout("did neck curls 3 sets of 15", LIB).muscles).toEqual(["back"]);
   });
 });

@@ -13,6 +13,26 @@ import { parseWhen, type ParsedWhen } from "./dates";
 import { SpanTracker } from "./spans";
 import { notePoints, organizeNotes, stripLeadIn } from "./notes";
 import { editDistance, normalizeSpoken, tolerance } from "./spoken";
+import { EXERCISE_LIBRARY, plain } from "../exercise-library";
+
+/**
+ * Sports and cardio from the exercise library ("yoga", "pickleball",
+ * "bouldering"). Words that are also everyday talk (walk, run, stairs,
+ * stretching, dance…) are left out; those need gym words around them.
+ */
+const EVERYDAY = new Set(["walk", "walking", "run", "running", "bike", "stairs", "laps", "spin", "dance", "dancing", "stretching", "stretch session", "mobility", "skating", "ruck", "swim", "hike", "erg", "rowing", "cycling", "biking", "jog", "jogging", "sprint", "climbing", "football", "baseball", "golf"]);
+const SPORT_NAMES = [...new Set(EXERCISE_LIBRARY.filter((e) => e.muscle === "cardio").flatMap((e) => [e.name, ...e.aliases]).map(plain))]
+  .filter((w) => w.length > 2 && !EVERYDAY.has(w))
+  .sort((a, b) => b.length - a.length);
+const SPORT = new RegExp(`\\b(?:${SPORT_NAMES.join("|")})\\b`);
+/** "did yoga", "played basketball for an hour", "went bouldering": something you did, to log. */
+function sportDone(low: string): boolean {
+  if (!SPORT.test(low)) return false;
+  const did = /^(?:i\s+)?(?:just\s+)?(?:did|played|went|had|finished|got in|got done with)\b/.test(low);
+  const forTime = /\bfor\s+(?:an?|\d+(?:\.\d+)?|half an?)\s*(?:min(?:ute)?s?|hours?|hrs?)\b/.test(low);
+  const future = /\b(?:need to|have to|gotta|going to|gonna|tomorrow|tonight|next|later|sign up|practice at|at \d)\b/.test(low);
+  return (did || forTime) && !future;
+}
 
 export type CaptureType = "homework" | "task" | "food" | "workout" | "expense" | "note" | "habit";
 
@@ -296,7 +316,7 @@ function detectType(low: string, ctx: ParseContext): CaptureType | null {
   if (!plan && !mealPlan && FOOD_WORDS.test(low)) return "food";
   // "gym after school", "chest day tomorrow": a plan to go, not a workout to log.
   const gymPlan = /\b(?:gym|workout|leg day|arm day|chest day|back day|push day|pull day)\b/.test(low) && !/\d|\b(?:did|went|worked out|lifted|hit|benched|squatted|ran|finished|done)\b/.test(low) && /\b(?:after|before|later|tonight|tomorrow|today|this|next|at|around|go|going|gonna|need|have to|want)\b/.test(low);
-  if (!plan && !notExercise && !gymPlan && WORKOUT_WORDS.test(low)) return "workout";
+  if (!plan && !notExercise && !gymPlan && (WORKOUT_WORDS.test(low) || sportDone(low))) return "workout";
   if (/\$\s?\d/.test(low)) return "expense";
   if (SCHOOL_WORDS.test(low) && !/^(?:call|text|email|e-mail|message|ask|tell|meet|remind)\b/.test(low)) return "homework";
   return null; // decided later (a class match makes it homework, otherwise task)

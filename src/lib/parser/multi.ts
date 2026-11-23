@@ -116,6 +116,8 @@ function findCuts(low: string): Cut[] {
     const verb = new RegExp(`^(?:${VERBS})\\b\\s*`).exec(rest);
     if (!prev || NOT_BEFORE_VERB.has(prev) || /[,.;:!?]$/.test(m[1])) continue;
     if (verb && NOT_AFTER_VERB.test(rest.slice(verb[0].length))) continue;
+    // "tennis practice tomorrow", "go to soccer practice at 5": the word is a noun here.
+    if (/^practice\b/.test(rest) && /^(?:$|(?:today|tonight|tomorrow|after|before|at|on|from|until|till|this|next|every|is|was|got|ends|starts)\b)/.test(rest.slice(8).trim())) continue;
     add(at, at + m[2].length, "verb");
   }
 

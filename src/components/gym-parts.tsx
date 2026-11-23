@@ -27,7 +27,7 @@ import {
 } from "@/app/(app)/gym/actions";
 import { cx } from "@/components/ui";
 import { useTaskSheet } from "@/components/task-sheet";
-import { MUSCLE_LABELS, searchScore, type Muscle } from "@/lib/exercise-library";
+import { DETAIL_LABELS, MUSCLE_LABELS, MUSCLE_TREE, detailOf, groupOf, searchScore, type Detail, type Muscle } from "@/lib/exercise-library";
 
 const FIRE = "#ff6b4a";
 
@@ -40,6 +40,26 @@ export type Block = { exerciseId: string; name: string; muscle: string; last: st
 const ROW = "grid grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_3rem_1.75rem] items-center gap-2";
 
 const muscleLabel = (m: string) => MUSCLE_LABELS[m as Muscle] ?? m.charAt(0).toUpperCase() + m.slice(1);
+
+/** The exact muscle (Hamstrings, Side delts…), or null for your own "other" exercises. */
+const partOf = (e: { name: string; muscle: string }): Detail | null =>
+  e.muscle in MUSCLE_LABELS ? detailOf(e.name, e.muscle) : e.muscle === "arms" ? "biceps" : null;
+const partLabel = (e: { name: string; muscle: string }) => {
+  const p = partOf(e);
+  return p ? DETAIL_LABELS[p] : muscleLabel(e.muscle);
+};
+/** Which top group (Chest, Arms, Legs…) an exercise is filed under in the picker. */
+const groupKeyOf = (e: { name: string; muscle: string }) => {
+  const p = partOf(e);
+  return p ? groupOf(p).key : "other";
+};
+/** The muscle saved for a new exercise made while a group (and maybe a part) is picked. */
+function muscleFor(group: string, part: Detail | null): string {
+  if (part === "biceps" || part === "triceps" || part === "forearms") return part;
+  if (part === "glutes" || part === "inner & outer thigh") return "glutes";
+  if (part) return groupOf(part).key;
+  return group === "arms" ? "biceps" : group;
+}
 
 export function StartWorkout({ label = "Start workout", day, big }: { label?: string; day?: string; big?: boolean }) {
   const sheet = useTaskSheet();
@@ -296,8 +316,17 @@ function ExercisePicker({
   const [tab, setTab] = useState<string>(hasDay ? "day" : exercises.some((e) => e.recent) ? "recent" : "chest");
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [pending, startTransition] = useTransition();
-  const muscles = useMemo(() => Object.keys(MUSCLE_LABELS).filter((m) => exercises.some((e) => e.muscle === m)), [exercises]);
-  const others = useMemo(() => [...new Set(exercises.map((e) => e.muscle))].filter((m) => !muscles.includes(m)), [exercises, muscles]);
+  // Muscles as a tree: tap a group (Legs), then a part (Hamstrings) if you want.
+  const [part, setPart] = useState<Detail | null>(null);
+  const groups = useMemo(() => {
+    const tree = MUSCLE_TREE.filter((g) => exercises.some((e) => groupKeyOf(e) === g.key)).map((g) => ({
+      key: g.key,
+      label: g.label,
+      parts: g.parts.filter((p) => exercises.some((e) => partOf(e) === p)),
+    }));
+    return exercises.some((e) => groupKeyOf(e) === "other") ? [...tree, { key: "other", label: "Other", parts: [] as Detail[] }] : tree;
+  }, [exercises]);
+  const current = groups.find((g) => g.key === tab);
 
   const list = useMemo(() => {
     if (q.trim()) {
@@ -308,10 +337,10 @@ function ExercisePicker({
         .slice(0, 40)
         .map((x) => x.e);
     }
-    const pick = tab === "day" ? exercises.filter((e) => dayMuscles.includes(e.muscle)) : tab === "recent" ? exercises.filter((e) => e.recent) : exercises.filter((e) => e.muscle === tab);
+    const pick = tab === "day" ? exercises.filter((e) => dayMuscles.includes(e.muscle)) : tab === "recent" ? exercises.filter((e) => e.recent) : exercises.filter((e) => groupKeyOf(e) === tab && (!part || partOf(e) === part));
     // Ones you've done before first, then the most common ones.
     return [...pick].sort((a, b) => Number(b.recent) - Number(a.recent) || a.rank - b.rank || a.name.localeCompare(b.name));
-  }, [q, tab, exercises, dayMuscles]);
+  }, [q, tab, part, exercises, dayMuscles]);
 
   const add = (id: string) => {
     setAdded((s) => new Set(s).add(id));
@@ -340,8 +369,7 @@ function ExercisePicker({
   const tabs = [
     ...(hasDay ? [{ key: "day", label: `🔥 ${dayName ?? "Today"}` }] : []),
     ...(exercises.some((e) => e.recent) ? [{ key: "recent", label: "⭐ Done before" }] : []),
-    ...muscles.map((m) => ({ key: m, label: muscleLabel(m) })),
-    ...others.map((m) => ({ key: m, label: muscleLabel(m) })),
+    ...groups.map((g) => ({ key: g.key, label: g.label })),
   ];
 
   // Drawn on top of the whole app (not inside the page, whose slide animation
@@ -380,7 +408,10 @@ function ExercisePicker({
               <button
                 key={t.key}
                 type="button"
-                onClick={() => setTab(t.key)}
+                onClick={() => {
+                  setTab(t.key);
+                  setPart(null);
+                }}
                 className={cx(
                   "shrink-0 rounded-full border px-3 py-1.5 text-sm whitespace-nowrap transition",
                   tab === t.key ? "border-transparent font-semibold text-white" : "border-line bg-raised text-muted",
@@ -388,6 +419,26 @@ function ExercisePicker({
                 style={tab === t.key ? { backgroundColor: FIRE } : undefined}
               >
                 {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* The second level of the tree: only the parts of the group you tapped. */}
+        {!q && current && current.parts.length > 1 && (
+          <div key={tab} className="sheet-down -mx-4 -mt-1 flex shrink-0 gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+            {[null, ...current.parts].map((p) => (
+              <button
+                key={p ?? "all"}
+                type="button"
+                onClick={() => setPart(p)}
+                className={cx(
+                  "shrink-0 rounded-full border px-3 py-1 text-xs whitespace-nowrap transition",
+                  part === p ? "font-semibold" : "border-line bg-surface text-muted",
+                )}
+                style={part === p ? { borderColor: FIRE, color: FIRE, backgroundColor: "rgb(255 107 74 / 0.1)" } : undefined}
+              >
+                {p ? DETAIL_LABELS[p] : `All ${current.label.toLowerCase()}`}
               </button>
             ))}
           </div>
@@ -411,7 +462,7 @@ function ExercisePicker({
                       {e.recent && <span className="ml-1.5 text-xs">⭐</span>}
                     </span>
                     <span className="block truncate text-xs text-faint">
-                      {muscleLabel(e.muscle)}
+                      {partLabel(e)}
                       {e.equipment ? ` · ${e.equipment}` : ""}
                     </span>
                   </span>
@@ -433,7 +484,7 @@ function ExercisePicker({
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                const muscle = tab === "day" || tab === "recent" ? (dayMuscles[0] ?? "other") : tab;
+                const muscle = tab === "day" || tab === "recent" ? (dayMuscles[0] ?? "other") : muscleFor(tab, part);
                 const r = await createExerciseAction(q, muscle);
                 if (!r.ok) return sheet.toast(r.error);
                 const r2 = await addExerciseAction(workoutId, r.id);
@@ -526,7 +577,7 @@ export function ActiveWorkout({
               <div className="min-w-0 flex-1">
                 <h3 className="font-semibold">{b.name}</h3>
                 <p className="truncate text-xs text-faint">
-                  {muscleLabel(b.muscle)}
+                  {partLabel(b)}
                   {b.last ? ` · Last: ${b.last}` : ""}
                 </p>
               </div>

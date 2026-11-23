@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXERCISE_LIBRARY, libraryEntry, plain, searchScore } from "./exercise-library";
+import { detailOf, EXERCISE_LIBRARY, groupOf, libraryEntry, MUSCLE_TREE, plain, searchScore } from "./exercise-library";
 
 describe("exercise library", () => {
   it("has hundreds of exercises, each named once", () => {
@@ -41,5 +41,59 @@ describe("exercise library", () => {
     expect(rank("pec deck")[0]).toBe("Pec deck");
     expect(rank("lat raise")[0]).toBe("Lateral raise");
     expect(rank("zzz")).toEqual([]);
+  });
+});
+
+describe("muscles as a tree (group → part)", () => {
+  it.each([
+    ["Incline dumbbell press", "chest", "upper chest"],
+    ["Decline bench press", "chest", "lower chest"],
+    ["Bench press", "chest", "mid chest"],
+    ["Lat pulldown", "back", "lats"],
+    ["Barbell row", "back", "upper back"],
+    ["Barbell shrug", "back", "traps"],
+    ["Deadlift", "back", "lower back"],
+    ["Neck curl", "back", "neck"],
+    ["Lateral raise", "shoulders", "side delts"],
+    ["Reverse pec deck", "shoulders", "rear delts"],
+    ["Overhead press", "shoulders", "front delts"],
+    ["Hammer curl", "biceps", "biceps"],
+    ["Skull crushers", "triceps", "triceps"],
+    ["Wrist curl", "forearms", "forearms"],
+    ["Leg extension", "legs", "quads"],
+    ["Seated leg curl", "legs", "hamstrings"],
+    ["Romanian deadlift", "legs", "hamstrings"],
+    ["Seated calf raise", "legs", "calves"],
+    ["Hip thrust", "glutes", "glutes"],
+    ["Sumo deadlift", "legs", "glutes"],
+    ["Hip adduction", "glutes", "inner & outer thigh"],
+    ["Russian twists", "core", "obliques"],
+    ["Hanging leg raise", "core", "abs"],
+  ])("%s → %s → %s", (name, muscle, part) => expect(detailOf(name, muscle)).toBe(part));
+
+  it("every library exercise lands in exactly one group of the tree", () => {
+    for (const e of EXERCISE_LIBRARY) {
+      const part = detailOf(e.name, e.muscle);
+      expect(MUSCLE_TREE.filter((g) => g.parts.includes(part)), e.name).toHaveLength(1);
+    }
+  });
+
+  it("biceps, triceps and forearms sit under Arms; shoulders is its own group", () => {
+    expect(groupOf("biceps").label).toBe("Arms");
+    expect(groupOf("triceps").label).toBe("Arms");
+    expect(groupOf("forearms").label).toBe("Arms");
+    expect(groupOf("side delts").label).toBe("Shoulders");
+    expect(groupOf("calves").label).toBe("Legs");
+  });
+
+  it("no name or nickname points at two different exercises", () => {
+    const seen = new Map<string, string>();
+    for (const e of EXERCISE_LIBRARY) {
+      for (const a of [e.name, ...e.aliases]) {
+        const k = plain(a);
+        if (seen.has(k)) expect(seen.get(k), k).toBe(e.name);
+        seen.set(k, e.name);
+      }
+    }
   });
 });
