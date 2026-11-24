@@ -17,6 +17,7 @@ export function AreaActions({ area, tone }: { area: Area; tone: "work" | "money"
       <button
         type="button"
         onClick={() => sheet.openVoice({ area })}
+        data-silent
         className={cx("flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold transition active:scale-[0.97]", main)}
       >
         <IconMic size={18} strokeWidth={2.2} /> Talk

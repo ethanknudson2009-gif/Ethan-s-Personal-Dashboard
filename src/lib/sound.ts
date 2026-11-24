@@ -21,10 +21,20 @@ let lastTap = 0;
 let lastDone = -1e9;
 let micOpen = false;
 
-/** While the mic listens, the sound engine is fully paused so nothing competes with it. */
+/**
+ * While the mic listens, the sound engine is shut off completely. On iPhone a
+ * live sound engine keeps the phone's audio in "playing" mode, and then the
+ * mic turns on but hears nothing (it worked the first time only because the
+ * permission popup reset the audio). Closing it hands the audio back to the
+ * mic; the next sound after you're done makes a fresh one.
+ */
 export function quietForMic(listening: boolean) {
   micOpen = listening;
-  if (listening && ctx && ctx.state === "running") void ctx.suspend();
+  if (listening && ctx) {
+    const old = ctx;
+    ctx = null;
+    void old.close().catch(() => {});
+  }
 }
 
 export function soundsOn(): boolean {

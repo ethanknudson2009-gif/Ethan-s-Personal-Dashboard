@@ -592,6 +592,7 @@ function Sheet({
               <button
                 type="button"
                 onClick={micPressed}
+                data-silent
                 aria-label={speech.listening ? "Stop listening" : text.trim() ? "Keep talking (adds to this)" : "Speak instead of typing"}
                 className={cx(
                   "absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-full transition active:scale-90",

@@ -10,6 +10,11 @@
  * whole to-do list in one go. Browsers stop listening on their own after a
  * pause or a minute; we quietly start again and stitch the pieces together
  * (see speech-join.ts). Long silence (about 8 seconds) ends it.
+ *
+ * iPhone care: only one recognizer may hold the mic at a time, and a stopped
+ * one sometimes never lets go. So the last one is always cut off (abort)
+ * before a new one starts, even if it belonged to a sheet you already
+ * closed, and if a fresh start hears nothing at all we quietly try once more.
  */
 import { playSound, quietForMic } from "@/lib/sound";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -34,9 +39,25 @@ function getRecognizer(): (new () => Recognition) | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+/** The recognizer holding the mic right now, from any screen. */
+let live: Recognition | null = null;
+
+/** Cut off whatever recognizer still holds the mic. */
+function release(r: Recognition | null = live) {
+  if (!r) return;
+  try {
+    r.abort();
+  } catch {
+    /* already gone */
+  }
+  if (live === r) live = null;
+}
+
 /** Stop after this much silence, or this long in total. */
 const SILENCE_MS = 8000;
 const MAX_MS = 5 * 60 * 1000;
+/** Nothing at all heard this long after tapping the mic → start a fresh recognizer once. */
+const STUCK_MS = 4000;
 
 /**
  * `onText` gets every way the recognizer heard you (best guess first) so the
@@ -63,21 +84,30 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
   const startedAt = useRef(0);
   const lastHeard = useRef(0);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stuckCheck = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Points at listenOnce, so a round that ends can start the next one.
   const again = useRef<() => boolean>(() => false);
 
   const finish = useCallback(() => {
     const wasListening = wanted.current;
     wanted.current = false;
-    quietForMic(false);
-    if (wasListening) playSound("micOff");
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
+    if (stuckCheck.current) clearTimeout(stuckCheck.current);
+    stuckCheck.current = null;
+    const r = rec.current;
     try {
-      rec.current?.stop();
+      r?.stop(); // lets it hand over its last words
     } catch {
       /* already stopped */
     }
+    // If it hasn't let go of the mic shortly after, cut it off so the next tap works.
+    setTimeout(() => {
+      if (r && live === r && rec.current === r && !wanted.current) release(r);
+      if (wanted.current) return; // you already tapped the mic again
+      quietForMic(false);
+      if (wasListening) playSound("micOff");
+    }, 700);
     setListening(false);
   }, []);
 
@@ -86,7 +116,9 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       wanted.current = false;
       quietForMic(false);
       if (timer.current) clearInterval(timer.current);
-      rec.current?.abort();
+      if (stuckCheck.current) clearTimeout(stuckCheck.current);
+      release(rec.current);
+      rec.current = null;
     },
     [],
   );
@@ -95,6 +127,8 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
   const listenOnce = useCallback((): boolean => {
     const R = getRecognizer();
     if (!R) return false;
+    // Whatever had the mic before (this screen's last round, or a closed sheet) goes first.
+    release();
     const r = new R();
     r.lang = "en-US";
     r.continuous = true; // keep going through pauses
@@ -130,6 +164,7 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       finish();
     };
     r.onend = () => {
+      if (live === r) live = null;
       if (rec.current !== r) return;
       // Keep what this round heard, then listen again (unless you tapped stop).
       if (round.current) kept.current = round.current;
@@ -143,10 +178,12 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       }, 60);
     };
     rec.current = r;
+    live = r;
     try {
       r.start();
       return true;
     } catch {
+      live = null;
       return false;
     }
   }, [finish]);
@@ -165,7 +202,7 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
     quietForMic(true);
     wanted.current = true;
     startedAt.current = Date.now();
-    lastHeard.current = Date.now();
+    lastHeard.current = startedAt.current;
     setSeconds(0);
     if (!listenOnce()) {
       wanted.current = false;
@@ -174,6 +211,19 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       return false;
     }
     setListening(true);
+    // The "mic is on but no words come through" case: start over once with a new recognizer.
+    if (stuckCheck.current) clearTimeout(stuckCheck.current);
+    const began = startedAt.current;
+    stuckCheck.current = setTimeout(() => {
+      stuckCheck.current = null;
+      if (!wanted.current || startedAt.current !== began || lastHeard.current !== began) return;
+      const old = rec.current;
+      rec.current = null; // its onend is ignored now
+      release(old);
+      setTimeout(() => {
+        if (wanted.current && !listenOnce()) finish();
+      }, 150);
+    }, STUCK_MS);
     if (timer.current) clearInterval(timer.current);
     timer.current = setInterval(() => {
       setSeconds(Math.floor((Date.now() - startedAt.current) / 1000));

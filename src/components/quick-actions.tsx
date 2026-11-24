@@ -11,6 +11,7 @@ export function QuickActions() {
       <button
         type="button"
         onClick={() => sheet.openVoice()}
+        data-silent
         className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent px-4 py-3 text-sm font-semibold text-accent-ink shadow-glow transition active:scale-[0.97]"
       >
         <IconMic size={18} strokeWidth={2.2} /> Talk
