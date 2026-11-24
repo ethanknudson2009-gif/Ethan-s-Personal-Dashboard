@@ -622,6 +622,18 @@ function Sheet({
               </button>
             </div>
           )}
+          {/* Mic on but no words: say so, with what the mic did (a screenshot of this helps fix it) */}
+          {speech.listening && speech.seconds >= 5 && !text && (
+            <p className="text-xs text-muted">
+              Not hearing words yet… <span className="text-faint">Mic: {speech.log || "waiting"}</span>
+            </p>
+          )}
+          {!speech.listening && !speech.error && speech.heardNothing && (
+            <p className="rounded-xl border border-warn/30 bg-warn/10 px-3 py-2 text-xs text-muted">
+              The mic didn&apos;t hear any words. Tap it to try again, or use the 🎤 on your keyboard.
+              <span className="mt-1 block text-[11px] text-faint">Mic: {speech.log || "nothing happened"}</span>
+            </p>
+          )}
           {!speech.listening && (speech.error || voiceTip) && (
             <p className="rounded-xl border border-electric/30 bg-electric/10 px-3 py-2 text-xs text-muted">
               {speech.error ?? "Tap the 🎤 microphone on your keyboard and speak. It types for you."}
