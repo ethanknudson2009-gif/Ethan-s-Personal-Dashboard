@@ -81,6 +81,18 @@ function getCtor(): Ctor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+// ── A dead mic ──────────────────────────────────────────────────────────────
+// When the phone hands us a mic that hears nothing even after a fresh start,
+// stop pretending: for the rest of this visit the mic button opens the
+// keyboard instead, whose own 🎤 dictation always works.
+let dead = false;
+export function markMicDead() {
+  dead = true;
+}
+export function micIsDead(): boolean {
+  return dead;
+}
+
 // ── The mic log ─────────────────────────────────────────────────────────────
 let tapAt = 0;
 let log: string[] = [];

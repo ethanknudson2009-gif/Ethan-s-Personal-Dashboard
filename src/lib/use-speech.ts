@@ -21,7 +21,7 @@ import { audioSessionType, playSound, quietForMic, soundsOn } from "@/lib/sound"
 import { reportMicAction } from "@/lib/mic-report";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { joinHeard } from "@/lib/speech-join";
-import { listen, micLog, micTapped, recognizerAvailable, savedMicMode, saveMicMode, type MicMode, type RecognitionResults, type Round } from "@/lib/speech-engine";
+import { listen, markMicDead, micIsDead, micLog, micTapped, recognizerAvailable, savedMicMode, saveMicMode, type MicMode, type RecognitionResults, type Round } from "@/lib/speech-engine";
 
 /** Stop after this much silence, or this long in total. */
 const SILENCE_MS = 8000;
@@ -85,6 +85,8 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       setHeardNothing(nothing);
       // Next tap starts with the other way of listening.
       if (nothing) saveMicMode(mode.current === "long" ? "short" : "long");
+      // Both ways tried and still nothing: the phone's mic is dead for this visit.
+      if (nothing && triedFresh.current) markMicDead();
     }
     setLog(micLog());
     setListening(false);
@@ -130,6 +132,10 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
             if (e === "not-allowed" || e === "service-not-allowed") {
               setError("Microphone blocked: use the 🎤 on your keyboard instead");
               setSupported(false);
+            } else if (e === "audio-capture") {
+              // The phone gave us a mic with no sound (iPhone, after the first use).
+              markMicDead();
+              setError("Your iPhone stopped letting the app hear you. Tap the 🎤 on your keyboard instead (it always works).");
             } else if (e === "network") {
               setError("Voice needs internet. Try again, or use the 🎤 on your keyboard.");
             } else {
@@ -167,6 +173,8 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       setSupported(false);
       return false;
     }
+    // The mic went dead earlier this visit: the screen opens the keyboard's 🎤 instead.
+    if (micIsDead()) return false;
     setError(null);
     setHeardNothing(false);
     mode.current = savedMicMode();

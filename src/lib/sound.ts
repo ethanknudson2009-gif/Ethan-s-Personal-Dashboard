@@ -20,6 +20,13 @@ let ctx: AudioContext | null = null;
 let lastTap = 0;
 let lastDone = -1e9;
 let micOpen = false;
+// iPhone: once the mic has been used, no more sounds until the app restarts (see quietForMic).
+let micUsedOnIPhone = false;
+
+function isIPhone(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
 
 /**
  * iPhone Safari's audio mode (iOS 16.4+): "ambient" for our little sounds
@@ -45,15 +52,23 @@ export function audioSessionType(): string {
 }
 
 /**
- * While the mic listens, the sound engine is shut off completely. On iPhone a
- * live sound engine keeps the phone's audio in "playing" mode, and then the
- * mic turns on but hears nothing (it worked the first time only because the
- * permission popup reset the audio). Closing it hands the audio back to the
- * mic; the next sound after you're done makes a fresh one.
+ * While the mic listens, the sound engine is shut off completely.
+ *
+ * iPhone: if a web app plays any sound after the mic has been used, the
+ * phone can hand it a dead microphone from then on (the mic log showed
+ * "audio" start but never any "sound", then "error:audio-capture"). So on
+ * iPhone, the first time you use the mic, sounds stop for the rest of that
+ * visit, and the audio mode is left set for recording. Reopening the app
+ * brings the sounds back until the next mic use.
  */
 export function quietForMic(listening: boolean) {
   micOpen = listening;
-  setAudioSession(listening ? "play-and-record" : "auto");
+  if (listening) {
+    setAudioSession("play-and-record");
+    if (isIPhone()) micUsedOnIPhone = true;
+  } else if (!micUsedOnIPhone) {
+    setAudioSession("auto");
+  }
   if (listening && ctx) {
     const old = ctx;
     ctx = null;
@@ -128,7 +143,7 @@ function whoosh(a: AudioContext, start: number) {
 }
 
 export function playSound(name: SoundName) {
-  if (micOpen || !soundsOn()) return;
+  if (micOpen || micUsedOnIPhone || !soundsOn()) return;
   const a = audio();
   if (!a) return;
   const t = a.currentTime + 0.005;

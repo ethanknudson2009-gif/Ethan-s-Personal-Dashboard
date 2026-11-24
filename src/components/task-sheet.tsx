@@ -31,6 +31,7 @@ import { formatLocalDate, taskDisplayTitle, WEEKDAY_SHORT } from "@/lib/format";
 import { Button, Chip, ColorDot, cx, inputClass } from "@/components/ui";
 import { IconCalendar, IconClose, IconMic, IconRepeat } from "@/components/icons";
 import { useSpeech } from "@/lib/use-speech";
+import { micIsDead } from "@/lib/speech-engine";
 import { normalizeSpoken } from "@/lib/parser/spoken";
 import { pickBestHearing } from "@/lib/parser/best";
 import { focusStore } from "@/lib/focus-store";
@@ -288,7 +289,8 @@ function Sheet({
   const startVoice = speech.start;
   // Opened with "hold +": listen right away (or point to keyboard dictation).
   const wantsVoice = state.mode === "new" && Boolean(state.voice);
-  const [voiceTip, setVoiceTip] = useState(wantsVoice && !speech.supported);
+  // No mic here, or it went dead earlier this visit (iPhone): point to the keyboard's 🎤.
+  const [voiceTip, setVoiceTip] = useState(() => wantsVoice && (!speech.supported || micIsDead()));
 
   function micPressed() {
     if (speech.listening) return speech.stop();
@@ -304,7 +306,7 @@ function Sheet({
 
   useEffect(() => {
     if (!wantsVoice) return;
-    if (speech.supported) startVoice();
+    if (speech.supported && !micIsDead()) startVoice();
     else inputRef.current?.focus();
     // Run once when the sheet opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
