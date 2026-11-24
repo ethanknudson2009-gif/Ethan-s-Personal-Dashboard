@@ -317,29 +317,103 @@ export type Database = {
       food_entries: {
         Row: {
           calories: number | null
+          carbs_g: number | null
           created_at: string
+          eaten_at: string
+          fat_g: number | null
+          fiber_g: number | null
+          food_key: string | null
+          grams: number | null
           id: string
+          meal: string | null
           name: string
           on_date: string
+          photo_id: string | null
           protein_g: number | null
+          serving: string | null
+          source: string
+          sugar_g: number | null
           user_id: string
         }
         Insert: {
           calories?: number | null
+          carbs_g?: number | null
           created_at?: string
+          eaten_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_key?: string | null
+          grams?: number | null
           id?: string
+          meal?: string | null
           name: string
           on_date: string
+          photo_id?: string | null
           protein_g?: number | null
+          serving?: string | null
+          source?: string
+          sugar_g?: number | null
           user_id?: string
         }
         Update: {
           calories?: number | null
+          carbs_g?: number | null
           created_at?: string
+          eaten_at?: string
+          fat_g?: number | null
+          fiber_g?: number | null
+          food_key?: string | null
+          grams?: number | null
           id?: string
+          meal?: string | null
           name?: string
           on_date?: string
+          photo_id?: string | null
           protein_g?: number | null
+          serving?: string | null
+          source?: string
+          sugar_g?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "food_entries_photo_fk"
+            columns: ["photo_id"]
+            isOneToOne: false
+            referencedRelation: "food_photos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      food_photos: {
+        Row: {
+          created_at: string
+          id: string
+          meal: string | null
+          note: string | null
+          on_date: string
+          status: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meal?: string | null
+          note?: string | null
+          on_date: string
+          status?: string
+          storage_path: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meal?: string | null
+          note?: string | null
+          on_date?: string
+          status?: string
+          storage_path?: string
           user_id?: string
         }
         Relationships: []
@@ -649,6 +723,60 @@ export type Database = {
         }
         Relationships: []
       }
+      my_foods: {
+        Row: {
+          aliases: string[]
+          barcode: string | null
+          brand: string | null
+          calories: number
+          carbs_g: number
+          created_at: string
+          fat_g: number
+          fiber_g: number | null
+          grams: number | null
+          id: string
+          name: string
+          protein_g: number
+          serving: string
+          sugar_g: number | null
+          user_id: string
+        }
+        Insert: {
+          aliases?: string[]
+          barcode?: string | null
+          brand?: string | null
+          calories: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          fiber_g?: number | null
+          grams?: number | null
+          id?: string
+          name: string
+          protein_g?: number
+          serving?: string
+          sugar_g?: number | null
+          user_id?: string
+        }
+        Update: {
+          aliases?: string[]
+          barcode?: string | null
+          brand?: string | null
+          calories?: number
+          carbs_g?: number
+          created_at?: string
+          fat_g?: number
+          fiber_g?: number | null
+          grams?: number | null
+          id?: string
+          name?: string
+          protein_g?: number
+          serving?: string
+          sugar_g?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       no_school_days: {
         Row: {
           created_at: string
@@ -711,16 +839,21 @@ export type Database = {
       profiles: {
         Row: {
           auto_save_types: string[]
+          body_weight_lb: number | null
           calorie_goal: number | null
+          carbs_goal: number | null
           coins: number
           created_at: string
           display_name: string | null
+          fat_goal: number | null
+          food_plan: string | null
           gym_next: number
           gym_split: string[]
           id: string
           liked_layouts: string[]
           notify_evening: string
           notify_morning: string
+          protein_goal: number | null
           study_end_time: string
           study_minutes: number[]
           theme: string
@@ -730,16 +863,21 @@ export type Database = {
         }
         Insert: {
           auto_save_types?: string[]
+          body_weight_lb?: number | null
           calorie_goal?: number | null
+          carbs_goal?: number | null
           coins?: number
           created_at?: string
           display_name?: string | null
+          fat_goal?: number | null
+          food_plan?: string | null
           gym_next?: number
           gym_split?: string[]
           id: string
           liked_layouts?: string[]
           notify_evening?: string
           notify_morning?: string
+          protein_goal?: number | null
           study_end_time?: string
           study_minutes?: number[]
           theme?: string
@@ -749,16 +887,21 @@ export type Database = {
         }
         Update: {
           auto_save_types?: string[]
+          body_weight_lb?: number | null
           calorie_goal?: number | null
+          carbs_goal?: number | null
           coins?: number
           created_at?: string
           display_name?: string | null
+          fat_goal?: number | null
+          food_plan?: string | null
           gym_next?: number
           gym_split?: string[]
           id?: string
           liked_layouts?: string[]
           notify_evening?: string
           notify_morning?: string
+          protein_goal?: number | null
           study_end_time?: string
           study_minutes?: number[]
           theme?: string
