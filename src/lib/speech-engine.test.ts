@@ -131,6 +131,50 @@ describe("speech engine", () => {
     expect((made[1] as unknown as { continuous: boolean }).continuous).toBe(false);
   });
 
+  it("frame mode: every round gets its own new blank page, thrown away after", async () => {
+    vi.useFakeTimers();
+    const pages: { removed: boolean }[] = [];
+    (globalThis as unknown as { document: unknown }).document = {
+      createElement: () => {
+        const page = {
+          removed: false,
+          style: {} as Record<string, string>,
+          tabIndex: 0,
+          setAttribute: () => {},
+          remove: () => {
+            page.removed = true;
+          },
+          contentWindow: { webkitSpeechRecognition: FakeRecognition },
+        };
+        pages.push(page);
+        return page;
+      },
+      body: { appendChild: () => {} },
+    };
+    const { listen } = await import("./speech-engine");
+    const a = listen(handlers(), { mode: "frame" })!;
+    expect(pages).toHaveLength(1);
+    a.stop();
+    await vi.runAllTimersAsync();
+    listen(handlers(), { mode: "frame" });
+    expect(pages).toHaveLength(2);
+    expect(made).toHaveLength(2);
+    expect(made[1].running).toBe(true);
+    await vi.runAllTimersAsync();
+    expect(pages[0].removed).toBe(true);
+    expect(pages[1].removed).toBe(false);
+    vi.useRealTimers();
+    delete (globalThis as unknown as { document?: unknown }).document;
+  });
+
+  it("frame mode without a page to make falls back to a normal recognizer", async () => {
+    const { listen, micTapped, micLog } = await import("./speech-engine");
+    micTapped("frame");
+    expect(listen(handlers(), { mode: "frame" })).not.toBeNull();
+    expect(made).toHaveLength(1);
+    expect(micLog()).toMatch(/no-frame/);
+  });
+
   it("the mic log records what happened", async () => {
     const { listen, micTapped, micLog } = await import("./speech-engine");
     micTapped("long");

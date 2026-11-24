@@ -15,7 +15,12 @@
  *   "long"  one shared recognizer, continuous (hears you through pauses)
  *   "short" a new recognizer every round, one phrase at a time; use-speech
  *           restarts it after each phrase, so a long talk still works
- * use-speech switches to the other way when a tap hears nothing and
+ *   "frame" like "short", but each recognizer lives in its own brand-new
+ *           blank page (a hidden frame) that is thrown away afterward.
+ *           Ethan's iPhone (iOS 18.7, home-screen app) only ever heard
+ *           words on the first tap after opening the app: the mic is tied
+ *           to the page, so every listen gets a new page.
+ * use-speech switches to another way when a tap hears nothing and
  * remembers (on this device) whichever way last heard words.
  *
  * It also keeps a short log of what the mic did ("start, audio, words, end")
@@ -49,15 +54,16 @@ export type RoundHandlers = {
   end: () => void;
 };
 
-export type MicMode = "long" | "short";
+export type MicMode = "long" | "short" | "frame";
 const MODE_KEY = "mic-mode";
 
 /** The way of listening that last heard words on this device. */
 export function savedMicMode(): MicMode {
   try {
-    return localStorage.getItem(MODE_KEY) === "short" ? "short" : "long";
+    const m = localStorage.getItem(MODE_KEY);
+    return m === "short" || m === "long" ? m : "frame";
   } catch {
-    return "long";
+    return "frame";
   }
 }
 
@@ -104,6 +110,11 @@ function note(what: string) {
   if (log.length > 16) log = log.slice(-16);
 }
 
+/** Add a line to the mic log from outside ("wake-ok"). */
+export function noteMic(what: string) {
+  note(what);
+}
+
 /** Call when you tap the mic: the log starts over ("tap#3 long"). */
 let taps = 0;
 export function micTapped(mode: MicMode) {
@@ -128,8 +139,39 @@ let current: Live | null = null;
 let queued: Live | null = null;
 let seq = 0;
 
+// "frame" recognizers and the hidden blank page each one lives in.
+const frames = new WeakMap<Recognition, HTMLIFrameElement>();
+
+/** A recognizer from a brand-new hidden blank page (same site, mic allowed). */
+function frameCtor(): { C: Ctor; frame: HTMLIFrameElement } | null {
+  if (typeof document === "undefined") return null;
+  const frame = document.createElement("iframe");
+  frame.setAttribute("allow", "microphone");
+  frame.setAttribute("aria-hidden", "true");
+  frame.tabIndex = -1;
+  frame.style.cssText = "position:fixed;width:1px;height:1px;left:-10px;top:-10px;border:0;opacity:0;pointer-events:none";
+  document.body.appendChild(frame);
+  // No src: the frame keeps its first blank page, which is ready right away.
+  const w = frame.contentWindow as unknown as { SpeechRecognition?: Ctor; webkitSpeechRecognition?: Ctor } | null;
+  const C = w?.SpeechRecognition ?? w?.webkitSpeechRecognition;
+  if (!C) {
+    frame.remove();
+    return null;
+  }
+  return { C, frame };
+}
+
 function make(C: Ctor, mode: MicMode = "long"): Recognition {
+  let frame: HTMLIFrameElement | null = null;
+  if (mode === "frame") {
+    const f = frameCtor();
+    if (f) {
+      C = f.C;
+      frame = f.frame;
+    } else note("no-frame");
+  }
   const r = new C();
+  if (frame) frames.set(r, frame);
   r.lang = "en-US";
   r.continuous = mode === "long"; // keep going through pauses, or one phrase per round
   r.interimResults = true; // show words as you speak
@@ -152,6 +194,8 @@ function make(C: Ctor, mode: MicMode = "long"): Recognition {
     current?.h.error(e.error);
   };
   r.onend = () => {
+    const page = frames.get(r);
+    if (page) setTimeout(() => page.remove(), 500);
     if (r !== inst) return; // an old recognizer we already replaced
     note("end");
     running = false;
@@ -173,6 +217,9 @@ function cutOff(r: Recognition | null) {
   } catch {
     /* already gone */
   }
+  // Throw its blank page away once it has let go.
+  const frame = r ? frames.get(r) : undefined;
+  if (frame) setTimeout(() => frame.remove(), 1500);
 }
 
 let instMode: MicMode = "long";
@@ -196,7 +243,8 @@ function begin(live: Live, mode: MicMode): boolean {
     // This one is in a bad state: replace it and try once more.
     note("retry");
     const old = inst;
-    inst = make(C, mode);
+    // A frame that won't start: retry with a normal recognizer.
+    inst = make(C, mode === "frame" ? "short" : mode);
     cutOff(old);
     try {
       inst.start();
@@ -219,8 +267,8 @@ export function listen(h: RoundHandlers, opts: { fresh?: boolean; mode?: MicMode
   const C = getCtor();
   if (!C) return null;
   const mode = opts.mode ?? "long";
-  // "short" never reuses a recognizer: every round gets a new one.
-  const fresh = opts.fresh || mode === "short";
+  // "short" and "frame" never reuse a recognizer: every round gets a new one.
+  const fresh = opts.fresh || mode !== "long";
   const live: Live = { id: ++seq, h, mode };
   const round: Round = {
     isCurrent: () => current === live || queued === live,
@@ -241,7 +289,7 @@ export function listen(h: RoundHandlers, opts: { fresh?: boolean; mode?: MicMode
   };
 
   if (fresh && inst) {
-    if (opts.fresh) note(mode === "short" ? "switch:short" : "fresh");
+    if (opts.fresh) note(`switch:${mode}`);
     const old = inst;
     inst = null;
     running = false;
