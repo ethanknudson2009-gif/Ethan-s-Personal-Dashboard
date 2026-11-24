@@ -111,9 +111,29 @@ describe("speech engine", () => {
     vi.useRealTimers();
   });
 
+  it("short mode: a new recognizer every round, one phrase at a time", async () => {
+    const { listen } = await import("./speech-engine");
+    const a = listen(handlers(), { mode: "short" })!;
+    a.stop();
+    await flush();
+    listen(handlers(), { mode: "short" });
+    expect(made).toHaveLength(2);
+    expect((made[1] as unknown as { continuous: boolean }).continuous).toBe(false);
+    expect(made[1].running).toBe(true);
+  });
+
+  it("switching from long to short mid-tap drops the long one", async () => {
+    const { listen } = await import("./speech-engine");
+    listen(handlers());
+    listen(handlers(), { mode: "short", fresh: true });
+    expect(made).toHaveLength(2);
+    expect(made[0].running).toBe(false);
+    expect((made[1] as unknown as { continuous: boolean }).continuous).toBe(false);
+  });
+
   it("the mic log records what happened", async () => {
     const { listen, micTapped, micLog } = await import("./speech-engine");
-    micTapped();
+    micTapped("long");
     const r = listen(handlers())!;
     made[0].onresult?.({ resultIndex: 0, results: [[{ transcript: "hi" }]] });
     r.stop();

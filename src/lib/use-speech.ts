@@ -11,16 +11,16 @@
  * pause or a minute; we quietly start again and stitch the pieces together
  * (see speech-join.ts). Long silence (about 8 seconds) ends it.
  *
- * The recognizer itself lives in speech-engine.ts: one shared one, reused
- * every time (iPhone only reliably listens with the first one a page makes).
- * If a start hears nothing at all for a few seconds, we try once more with a
- * brand-new recognizer, and if that fails too, the screen says so and shows
- * the mic log.
+ * The recognizer itself lives in speech-engine.ts, which has two ways of
+ * listening ("long" and "short"). If a tap hears nothing at all for a few
+ * seconds, we switch to the other way right then; the way that hears words
+ * is remembered on this device. If neither hears anything, the screen says
+ * so and shows the mic log.
  */
 import { playSound, quietForMic } from "@/lib/sound";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { joinHeard } from "@/lib/speech-join";
-import { listen, micLog, micTapped, recognizerAvailable, type RecognitionResults, type Round } from "@/lib/speech-engine";
+import { listen, micLog, micTapped, recognizerAvailable, savedMicMode, saveMicMode, type MicMode, type RecognitionResults, type Round } from "@/lib/speech-engine";
 
 /** Stop after this much silence, or this long in total. */
 const SILENCE_MS = 8000;
@@ -56,6 +56,7 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
   const startedAt = useRef(0);
   const lastHeard = useRef(0);
   const triedFresh = useRef(false);
+  const mode = useRef<MicMode>("long");
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   // Points at listenOnce, so a round that ends can start the next one.
   const again = useRef<(fresh?: boolean) => boolean>(() => false);
@@ -75,7 +76,12 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       if (wasListening) playSound("micOff");
       setLog(micLog());
     }, 700);
-    if (wasListening) setHeardNothing(lastHeard.current === startedAt.current);
+    if (wasListening) {
+      const nothing = lastHeard.current === startedAt.current;
+      setHeardNothing(nothing);
+      // Next tap starts with the other way of listening.
+      if (nothing) saveMicMode(mode.current === "long" ? "short" : "long");
+    }
     setLog(micLog());
     setListening(false);
   }, []);
@@ -101,6 +107,7 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
         {
           result: (results: RecognitionResults) => {
             if (!isMine()) return;
+            if (lastHeard.current === startedAt.current) saveMicMode(mode.current); // this way works here
             lastHeard.current = Date.now();
             // Finished pieces use their best guess, joined with a pause between them;
             // the piece still being spoken offers all its guesses.
@@ -140,7 +147,7 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
             }, 60);
           },
         },
-        { fresh },
+        { fresh, mode: mode.current },
       );
       rec.current = mine.r;
       return mine.r !== null;
@@ -158,7 +165,8 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
     }
     setError(null);
     setHeardNothing(false);
-    micTapped();
+    mode.current = savedMicMode();
+    micTapped(mode.current);
     // Tapping the mic again after stopping adds to what's already there.
     kept.current = "";
     quietForMic(true);
@@ -181,9 +189,10 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       setSeconds(Math.floor((now - startedAt.current) / 1000));
       setLog(micLog());
       const nothingYet = lastHeard.current === startedAt.current;
-      // The "mic is on but no words come through" case: once, start over with a brand-new recognizer.
+      // The "mic is on but no words come through" case: once, switch to the other way of listening.
       if (nothingYet && !triedFresh.current && now - startedAt.current > STUCK_MS) {
         triedFresh.current = true;
+        mode.current = mode.current === "long" ? "short" : "long";
         if (!listenOnce(true)) finish();
         return;
       }
