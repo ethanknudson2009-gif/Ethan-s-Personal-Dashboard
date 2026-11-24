@@ -17,7 +17,8 @@
  * is remembered on this device. If neither hears anything, the screen says
  * so and shows the mic log.
  */
-import { playSound, quietForMic } from "@/lib/sound";
+import { audioSessionType, playSound, quietForMic, soundsOn } from "@/lib/sound";
+import { reportMicAction } from "@/lib/mic-report";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { joinHeard } from "@/lib/speech-join";
 import { listen, micLog, micTapped, recognizerAvailable, savedMicMode, saveMicMode, type MicMode, type RecognitionResults, type Round } from "@/lib/speech-engine";
@@ -57,12 +58,14 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
   const lastHeard = useRef(0);
   const triedFresh = useRef(false);
   const mode = useRef<MicMode>("long");
+  const sessionType = useRef("none");
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   // Points at listenOnce, so a round that ends can start the next one.
   const again = useRef<(fresh?: boolean) => boolean>(() => false);
 
   const finish = useCallback(() => {
     const wasListening = wanted.current;
+    const heardWords = lastHeard.current !== startedAt.current;
     wanted.current = false;
     if (timer.current) clearInterval(timer.current);
     timer.current = null;
@@ -75,6 +78,7 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
       quietForMic(false);
       if (wasListening) playSound("micOff");
       setLog(micLog());
+      if (wasListening) sendReport(heardWords, sessionType.current);
     }, 700);
     if (wasListening) {
       const nothing = lastHeard.current === startedAt.current;
@@ -170,6 +174,7 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
     // Tapping the mic again after stopping adds to what's already there.
     kept.current = "";
     quietForMic(true);
+    sessionType.current = audioSessionType();
     wanted.current = true;
     startedAt.current = Date.now();
     lastHeard.current = startedAt.current;
@@ -213,4 +218,18 @@ export function useSpeech(onText: (alternatives: string[], final: boolean) => vo
   );
 
   return { supported, listening, error, seconds, log, heardNothing, start, resume, stop: finish };
+}
+
+/** What the mic did goes to the server log (timings only, never your words) so phone problems can be seen. */
+function sendReport(heardWords: boolean, session: string) {
+  const standalone =
+    window.matchMedia?.("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
+  void reportMicAction({
+    log: micLog().slice(0, 600),
+    heardWords,
+    standalone,
+    sounds: soundsOn(),
+    session,
+    agent: navigator.userAgent.slice(0, 300),
+  }).catch(() => {});
 }

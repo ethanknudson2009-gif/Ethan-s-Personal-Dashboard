@@ -22,6 +22,29 @@ let lastDone = -1e9;
 let micOpen = false;
 
 /**
+ * iPhone Safari's audio mode (iOS 16.4+): "ambient" for our little sounds
+ * (they mix in and never take over the phone's audio), "play-and-record"
+ * while the mic listens, so the phone is set up to hear you.
+ */
+type AudioSessionType = "auto" | "ambient" | "play-and-record" | "playback";
+export function setAudioSession(type: AudioSessionType) {
+  if (typeof navigator === "undefined") return;
+  const session = (navigator as unknown as { audioSession?: { type: AudioSessionType } }).audioSession;
+  if (!session) return;
+  try {
+    session.type = type;
+  } catch {
+    /* older iPhone: nothing to set */
+  }
+}
+
+/** The audio mode right now ("ambient"), or "none" on browsers without it. */
+export function audioSessionType(): string {
+  if (typeof navigator === "undefined") return "none";
+  return (navigator as unknown as { audioSession?: { type: string } }).audioSession?.type ?? "none";
+}
+
+/**
  * While the mic listens, the sound engine is shut off completely. On iPhone a
  * live sound engine keeps the phone's audio in "playing" mode, and then the
  * mic turns on but hears nothing (it worked the first time only because the
@@ -30,6 +53,7 @@ let micOpen = false;
  */
 export function quietForMic(listening: boolean) {
   micOpen = listening;
+  setAudioSession(listening ? "play-and-record" : "auto");
   if (listening && ctx) {
     const old = ctx;
     ctx = null;
@@ -55,6 +79,8 @@ export function setSoundsOn(on: boolean) {
 
 function audio(): AudioContext | null {
   if (typeof window === "undefined") return null;
+  // Our sounds never take over the phone's audio (and never block the mic).
+  setAudioSession("ambient");
   if (!ctx) {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
